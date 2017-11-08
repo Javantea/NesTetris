@@ -1,0 +1,5303 @@
+		processor 6502
+
+		include ppu_registers.s
+		include control_port_registers.s
+		include game_variables.s
+
+		org $8000-$10
+
+		; ROM file header
+
+		dc.b "NES", $1a
+		dc.b $02 ; Size of PRG ROM in 16 KB units
+		dc.b $02 ; Size of CHR ROM in 8 KB units
+		dc.b $10 ; Flags 6 (Mapper = Nintendo MMC1)
+		dc.b $00 ; Flags 7
+		dc.b $00 ; Size of PRG RAM in 8 KB units
+		dc.b $00 ; Flags 9
+		dc.b $00 ; Flags 10 (unofficial)
+		dc.b $00, $00, $00, $00, $00 ; Padding
+
+		org $8000
+
+boot
+    	ldx #$0
+		jmp bootContinued
+;--------------------
+nmiHandler
+		pha
+		txa
+		pha
+		tya
+		pha
+
+		lda #$0
+		sta $b3
+		jsr render
+		dec legalScreenCounter1
+		lda legalScreenCounter1
+		cmp #$ff
+		bne lbl_801b
+		inc legalScreenCounter1
+lbl_801b
+		jsr lbl_ab5e
+
+		lda frameCounterLowByte
+		clc
+		adc #$1
+		sta frameCounterLowByte
+		lda #$0
+		adc frameCounterHighByte
+		sta frameCounterHighByte
+
+		ldx #randomNumberHighByte
+		ldy #$2
+		jsr generateRandomNumber
+
+		lda #$0
+		sta scrollX
+		sta PPUSCROLL
+		sta scrollY
+		sta PPUSCROLL
+
+		lda #$1
+		sta verticalBlankingInterval
+
+		jsr lbl_9d51
+
+		pla
+		tay
+		pla
+		tax
+		pla
+irqHandler
+		rti
+;--------------------
+render subroutine
+		lda renderMode
+		jsr switch
+		dc.b <renderLegalTitleScreens, >renderLegalTitleScreens 			; RENDER_MODE_LEGAL_TITLE_SCREENS
+		dc.b <renderMenuScreens, >renderMenuScreens							; RENDER_MODE_MENU_SCREENS
+		dc.b <renderCongratulationsScreens, >renderCongratulationsScreens 	; RENDER_MODE_CONGRATULATIONS_SCREENS
+		dc.b <renderPlayAndDemoScreens, >renderPlayAndDemoScreens 			; RENDER_MODE_PLAY_AND_DEMO_SCREENS
+		dc.b <renderEndingAnimation, >renderEndingAnimation 				; RENDER_MODE_ENDING_ANIMATION
+;--------------------
+bootContinued
+		ldy #>$0600		; Clear memory from $0000-$06ff
+		sty $1
+		ldy #<$0600
+		sty $0
+		lda #$0
+lbl_8064
+		sta ($0),y
+		dey
+		bne lbl_8064
+		dec $1
+		bpl lbl_8064
+
+		; Verify whether the sequence $123456789a is present at memory starting at $750.
+
+		lda $750
+		cmp #$12
+		bne lbl_8095
+		lda $751
+		cmp #$34
+		bne lbl_8095
+		lda $752
+		cmp #$56
+		bne lbl_8095
+		lda $753
+		cmp #$78
+		bne lbl_8095
+		lda $754
+		cmp #$9a
+		bne lbl_8095
+		jmp lbl_80bc
+
+		; Copy data from ROM to RAM at $700-$750.
+
+		ldx #$0
+lbl_8095
+		lda lbl_ad67,x
+		cmp #$ff
+		beq lbl_80a3
+		sta $700,x
+		inx
+		jmp lbl_8095
+
+		; Write sequence $123456789a in memory starting at $750
+
+lbl_80a3
+		lda #$12
+		sta $750
+		lda #$34
+		sta $751
+		lda #$56
+		sta $752
+		lda #$78
+		sta $753
+		lda #$9a
+		sta $754
+
+		; Initialize random number to $8889.
+
+lbl_80bc
+		ldx #$89
+		stx randomNumberHighByte
+		dex
+		stx randomNumberLowByte
+
+		; Initialize PPU registers.
+
+		ldy #$0				; scroll X = 0
+		sty scrollX
+		sty PPUSCROLL
+		ldy #$0				; scroll Y = 0
+		sty scrollY
+		sty PPUSCROLL
+		lda #$90			; Generate NMI at each vertical blanking interval, background pattern table at $1000
+		sta ppuCtrlFlags
+		sta PPUCTRL			;PPU Control Register #1
+		lda #$6             ; Show background, show leftmost 8 pixels of background.
+		sta PPUMASK			;PPU Control Register #2
+
+		; Initialize sound.
+
+		jsr initAudio
+		jsr updateAudio
+
+		lda #$c0
+		sta $100
+		lda #$80
+		sta $101
+		lda #$35
+		sta $103
+		lda #$ac
+		sta $104
+
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+
+		lda #$20
+		jsr clearVRAM
+		lda #$24
+		jsr clearVRAM
+		lda #$28
+		jsr clearVRAM
+		lda #$2c
+		jsr clearVRAM
+
+		lda #$ef
+		ldx #$4
+		ldy #$5
+		jsr fillMemPage
+
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+lbl_8120
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		lda #$e
+		sta $34
+		lda #$0
+		sta playMode
+		sta gameMode
+		lda #$1
+		sta numPlayers
+		lda #$0
+		sta frameCounterHighByte
+mainGameLoop
+		jsr advanceGameMode
+		cmp playMode
+		bne lbl_8142
+		jsr waitAndClearPage2
+lbl_8142
+		lda gameMode
+		cmp #GAME_MODE_DEMO
+		bne notInDemoMode
+		lda demoButtonsHighByte
+		cmp #$df
+		bne notInDemoMode
+		lda #>demoButtons
+		sta demoButtonsHighByte
+		lda #<demoButtons
+		sta frameCounterHighByte
+		lda #GAME_MODE_TITLE_SCREEN
+		sta gameMode
+notInDemoMode
+		jmp mainGameLoop
+;--------------------
+gameModePlay subroutine
+		jsr advancePlayMode
+		rts
+;--------------------
+advanceGameMode subroutine
+		lda gameMode
+		jsr switch
+		dc.b <gameModeLegalScreen, >gameModeLegalScreen 				; GAME_MODE_LEGAL_SCREEN
+		dc.b <gameModeTitleScreen, >gameModeTitleScreen 				; GAME_MODE_TITLE_SCREEN
+		dc.b <gameModeGameTypeMenu, >gameModeGameTypeMenu 				; GAME_MODE_GAME_TYPE_MENU
+		dc.b <gameModeLevelAndHeightMenu, >gameModeLevelAndHeightMenu 	; GAME_MODE_LEVEL_AND_HEIGHT_MENU
+		dc.b <gameModePlay, >gameModePlay 								; GAME_MODE_PLAY_HIGH_SCORE_ENDING_PAUSE
+		dc.b <gameModePlay, >gameModePlay 								; GAME_MODE_DEMO
+		dc.b <gameModeInitDemo, >gameModeInitDemo 						; GAME_MODE_INIT_DEMO
+;--------------------
+lbl_8174
+		jsr lbl_8776
+		jsr advancePlayState
+		jsr lbl_8a0a
+		jsr lbl_87ae
+		jsr lbl_8bce
+		inc playMode
+		rts
+;--------------------
+lbl_8186
+		lda numPlayers
+		cmp #2
+		bne .no2players
+		jsr lbl_8792
+		jsr advancePlayState2
+		jsr lbl_8a0a
+		jsr lbl_87c8
+.no2players
+		inc playMode
+		rts
+;--------------------
+advancePlayMode subroutine
+		lda playMode
+		jsr switch
+		dc.b <lbl_85f0, >lbl_85f0
+		dc.b <initializePlayMode, >initializePlayMode
+		dc.b <lbl_8884, >lbl_8884
+		dc.b <lbl_9cbf, >lbl_9cbf
+		dc.b <lbl_8174, >lbl_8174
+		dc.b <lbl_8186, >lbl_8186
+		dc.b <lbl_9e16, >lbl_9e16
+		dc.b <lbl_a37f, >lbl_a37f
+		dc.b <lbl_9e27, >lbl_9e27
+;--------------------
+advancePlayState subroutine
+		lda playState
+		jsr switch
+		dc.b <unassignOrientationId, >unassignOrientationId	; PLAY_STATE_UNASSIGN_ORIENTATION_ID
+		dc.b <tetriminoActive, >tetriminoActive 			; PLAY_STATE_TETRIMINO_ACTIVE
+		dc.b <lockTetrimino, >lockTetrimino 				; PLAY_STATE_LOCK_TETRIMINO
+		dc.b <checkCompletedRows, >checkCompletedRows 		; PLAY_STATE_CHECK_COMPLETED_ROWS
+		dc.b <returnPlayState, >returnPlayState 			; PLAY_STATE_LINE_CLEAR_ANIMATION
+		dc.b <updateLinesStats, >updateLinesStats 			; PLAY_STATE_UPDATE_LINES_STATS
+		dc.b <checkBTypeGoal, >checkBTypeGoal				; PLAY_STATE_B_TYPE_GOAL_CHECK
+		dc.b <unused2PlayerLogic, >unused2PlayerLogic 		; PLAY_STATE_UNUSED_7
+		dc.b <spawnTetrimino, >spawnTetrimino 				; PLAY_STATE_SPAWN_TETRIMINO
+		dc.b <returnPlayState, >returnPlayState 			; PLAY_STATE_UNUSED_9
+		dc.b <updateGameOverCurtain, >updateGameOverCurtain ; PLAY_STATE_GAME_OVER_CURTAIN
+		dc.b <incrementPlayState, >incrementPlayState 		; PLAY_STATE_INCREMENT_PLAY_STATE
+;--------------------
+tetriminoActive subroutine
+		jsr shiftTetrimino
+		jsr rotateTetrimino
+		jsr dropTetrimino
+		rts
+;--------------------
+advancePlayState2 subroutine
+		lda playState
+		jsr switch
+		dc.b <unassignOrientationId, >unassignOrientationId ; PLAY_STATE_UNASSIGN_ORIENTATION_ID
+		dc.b <lbl_81f6, >lbl_81f6 ; PLAY_STATE_TETRIMINO_ACTIVE
+		dc.b <lockTetrimino, >lockTetrimino ; PLAY_STATE_LOCK_TETRIMINO
+		dc.b <checkCompletedRows, >checkCompletedRows ; PLAY_STATE_CHECK_COMPLETED_ROWS
+		dc.b <returnPlayState, >returnPlayState ; PLAY_STATE_LINE_CLEAR_ANIMATION
+		dc.b <updateLinesStats, >updateLinesStats ; PLAY_STATE_UPDATE_LINES_STATS
+		dc.b <checkBTypeGoal, >checkBTypeGoal ; PLAY_STATE_B_TYPE_GOAL_CHECK
+		dc.b <unused2PlayerLogic, >unused2PlayerLogic ; PLAY_STATE_UNUSED_7
+		dc.b <spawnTetrimino, >spawnTetrimino ; PLAY_STATE_SPAWN_TETRIMINO
+		dc.b <returnPlayState, >returnPlayState ; PLAY_STATE_UNUSED_9
+		dc.b <updateGameOverCurtain, >updateGameOverCurtain ; PLAY_STATE_GAME_OVER_CURTAIN
+		dc.b <incrementPlayState, >incrementPlayState ; PLAY_STATE_INCREMENT_PLAY_STATE
+;--------------------
+lbl_81f6
+		jsr shiftTetrimino
+		jsr rotateTetrimino
+		jsr dropTetrimino
+		rts
+;--------------------
+gameModeLegalScreen	subroutine
+		jsr updateAudio
+		lda #RENDER_MODE_LEGAL_TITLE_SCREENS
+		sta renderMode
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+		lda #$0
+		jsr switchCharBank0
+		lda #$0
+		jsr switchCharBank1
+		jsr copyToVRAM
+		dc.b <copyright_screen_color_palette, >copyright_screen_color_palette
+		jsr copyToVRAM
+		dc.b <copyright_screen_background, >copyright_screen_background
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		lda #$0
+		ldx #$2
+		ldy #$2
+		jsr fillMemPage
+		lda #$ff
+		jsr initialLegalScreenWait
+		lda #$ff
+		sta $a8
+.waitForStartPressedOrTimeOut
+		lda buttonsPressed1
+		cmp #$10
+		beq .start
+		jsr waitAndClearPage2
+		dec $a8
+		bne .waitForStartPressedOrTimeOut
+.start	inc gameMode
+		rts
+;--------------------
+gameModeTitleScreen subroutine
+		jsr updateAudio
+		lda #$0
+		sta renderMode	; RENDER_MODE_LEGAL_TITLE_SCREENS
+		sta $d0
+		sta $df
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+		lda #$0
+		jsr switchCharBank0
+		lda #$0
+		jsr switchCharBank1
+		jsr copyToVRAM
+		dc.b <menu_screen_color_palette, >menu_screen_color_palette
+		jsr copyToVRAM
+		dc.b <title_screen_background, >title_screen_background
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		lda #$0
+		ldx #$2
+		ldy #$2
+		jsr fillMemPage
+		lda #$0
+		sta frameCounterHighByte
+.waitForStartPressedOrTimeOut
+		jsr waitAndClearPage2
+		lda buttonsPressed1
+		cmp #$10
+		beq .start
+		lda frameCounterHighByte
+		cmp #$5
+		beq .startDemo
+		jmp .waitForStartPressedOrTimeOut
+.start	lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		inc gameMode
+		rts
+.startDemo
+		lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		lda #GAME_MODE_INIT_DEMO
+		sta gameMode
+		rts
+;--------------------
+renderLegalTitleScreens
+		lda ppuCtrlFlags
+		and #$fc
+		sta ppuCtrlFlags
+		lda #$0
+		sta scrollX
+		sta PPUSCROLL
+		sta scrollY
+		sta PPUSCROLL
+		rts
+;--------------------
+		lda #$0
+		sta $64
+		lda #$0
+		sta bType
+		lda #GAME_MODE_PLAY_HIGH_SCORE_ENDING_PAUSE
+		lda gameMode
+		rts
+;--------------------
+gameModeGameTypeMenu subroutine
+		inc $8000
+		lda #$10
+		jsr setMmc1Control
+		lda #RENDER_MODE_MENU_SCREENS
+		sta renderMode
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+		jsr copyToVRAM
+		dc.b <menu_screen_color_palette, >menu_screen_color_palette
+		jsr copyToVRAM
+		dc.b <game_select_screen_background, >game_select_screen_background
+		lda #$0
+		jsr switchCharBank0
+		lda #$0
+		jsr switchCharBank1
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		ldx $c2
+		lda lbl_85d2,x
+		jsr lbl_9e07
+lbl_830b
+		lda #$ff
+		ldx #$2
+		ldy #$2
+		jsr fillMemPage
+		lda buttonsPressed1
+		cmp #$1
+		bne lbl_8326
+		lda #$1
+		sta bType
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		jmp lbl_8335
+lbl_8326
+		lda buttonsPressed1
+		cmp #$2
+		bne lbl_8335
+		lda #$0
+		sta bType
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+lbl_8335
+		lda buttonsPressed1
+		cmp #$4
+		bne lbl_8350
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $c2
+		cmp #$3
+		beq lbl_8369
+		inc $c2
+		ldx $c2
+		lda lbl_85d2,x
+		jsr lbl_9e07
+lbl_8350
+		lda buttonsPressed1
+		cmp #$8
+		bne lbl_8369
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $c2
+		beq lbl_8369
+		dec $c2
+		ldx $c2
+		lda lbl_85d2,x
+		jsr lbl_9e07
+lbl_8369
+		lda buttonsPressed1
+		cmp #$10
+		bne lbl_8377
+		lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		inc gameMode
+		rts
+;--------------------
+lbl_8377
+		lda buttonsPressed1
+		cmp #$40
+		bne lbl_8389
+		lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		lda #$0
+		sta frameCounterHighByte
+		dec gameMode
+		rts
+;--------------------
+lbl_8389
+		ldy #$0
+		lda bType
+		asl
+		sta $a8
+		asl
+		adc $a8
+		asl
+		asl
+		asl
+		asl
+		clc
+		adc #$3f
+		sta $a0
+		lda #$3f
+		sta $a1
+		lda #$1
+		sta $a2
+		lda frameCounterLowByte
+		and #$3
+		bne lbl_83ae
+		lda #$2
+		sta $a2
+lbl_83ae
+		jsr lbl_8c27
+		lda $c2
+		asl
+		asl
+		asl
+		asl
+		clc
+		adc #$8f
+		sta $a1
+		lda #$53
+		sta $a2
+		lda #$67
+		sta $a0
+		lda frameCounterLowByte
+		and #$3
+		bne lbl_83ce
+		lda #$2
+		sta $a2
+lbl_83ce
+		jsr lbl_8c27
+		jsr waitAndClearPage2
+		jmp lbl_830b
+;--------------------
+gameModeLevelAndHeightMenu subroutine
+		inc $8000
+		lda #$10
+		jsr setMmc1Control
+		jsr updateAudio
+		lda #RENDER_MODE_MENU_SCREENS
+		sta renderMode
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+		lda #$0
+		jsr switchCharBank0
+		lda #$0
+		jsr switchCharBank1
+		jsr copyToVRAM
+		dc.b <menu_screen_color_palette, >menu_screen_color_palette
+		jsr copyToVRAM
+		dc.b <level_select_screen_background, >level_select_screen_background
+		lda bType
+		bne lbl_8409
+		jsr copyToVRAM
+		dc.b <lbl_c95d, >lbl_c95d
+lbl_8409		
+		jsr lbl_9ff2
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+		lda #$0
+		sta PPUSCROLL
+		lda #$0
+		sta PPUSCROLL
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		lda #$0
+		sta originalValue
+		sta tempSpeed
+lbl_8428
+		lda $67
+		cmp #$a
+		bcc lbl_8436
+		sec
+		sbc #$a
+		sta $67
+		jmp lbl_8428
+;--------------------
+lbl_8436
+		lda #$0
+		sta $b7
+		lda $67
+		sta $47
+		lda $79
+		sta $59
+		lda originalValue
+		sta $ad
+		lda buttonsPressed1
+		sta $b5
+		jsr lbl_84ae
+		lda $47
+		sta $67
+		lda $59
+		sta $79
+		lda $ad
+		sta originalValue
+		lda buttonsPressed1
+		cmp #$10
+		bne lbl_8478
+		lda $f7
+		cmp #$90
+		bne lbl_846c
+		lda $67
+		clc
+		adc #$a
+		sta $67
+lbl_846c
+		lda #$0
+		sta playMode
+		lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		inc gameMode
+		rts
+;--------------------
+lbl_8478
+		lda buttonsPressed1
+		cmp #$40
+		bne lbl_8486
+		lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		dec gameMode
+		rts
+;--------------------
+lbl_8486
+		ldx #randomNumberHighByte
+		ldy #$2
+		jsr generateRandomNumber
+		lda randomNumberHighByte
+		and #$f
+		cmp #$a
+		bpl lbl_8486
+		sta $7a
+lbl_8497
+		ldx #randomNumberHighByte
+		ldy #$2
+		jsr generateRandomNumber
+		lda randomNumberHighByte
+		and #$f
+		cmp #$a
+		bpl lbl_8497
+		sta $9a
+		jsr waitAndClearPage2
+		jmp lbl_8436
+;--------------------
+lbl_84ae
+		lda $b5
+		cmp #$1
+		bne lbl_84d0
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $ad
+		bne lbl_84c8
+		lda $47
+		cmp #$9
+		beq lbl_84d0
+		inc $47
+		jmp lbl_84d0
+;--------------------
+lbl_84c8
+		lda $59
+		cmp #$5
+		beq lbl_84d0
+		inc $59
+lbl_84d0
+		lda $b5
+		cmp #$2
+		bne lbl_84ee
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $ad
+		bne lbl_84e8
+		lda $47
+		beq lbl_84ee
+		dec $47
+		jmp lbl_84ee
+;--------------------
+lbl_84e8
+		lda $59
+		beq lbl_84ee
+		dec $59
+lbl_84ee
+		lda $b5
+		cmp #$4
+		bne lbl_8517
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $ad
+		bne lbl_850b
+		lda $47
+		cmp #$5
+		bpl lbl_8517
+		clc
+		adc #$5
+		sta $47
+		jmp lbl_8517
+;--------------------
+lbl_850b
+		lda $59
+		cmp #$3
+		bpl lbl_8517
+		inc $59
+		inc $59
+		inc $59
+lbl_8517
+		lda $b5
+		cmp #$8
+		bne lbl_8540
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $ad
+		bne lbl_8534
+		lda $47
+		cmp #$5
+		bmi lbl_8540
+		sec
+		sbc #$5
+		sta $47
+		jmp lbl_8540
+;--------------------
+lbl_8534
+		lda $59
+		cmp #$3
+		bmi lbl_8540
+		dec $59
+		dec $59
+		dec $59
+lbl_8540
+		lda bType
+		beq lbl_8555
+		lda $b5
+		cmp #$80
+		bne lbl_8555
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $ad
+		eor #$1
+		sta $ad
+lbl_8555
+		lda $ad
+		bne lbl_855f
+		lda frameCounterLowByte
+		and #$3
+		beq lbl_8581
+lbl_855f
+		ldx $47
+		lda lbl_85b2,x
+		sta $a1
+		lda #$0
+		sta $a2
+		ldx $47
+		lda lbl_85bc,x
+		sta $a0
+		lda $b7
+		cmp #$1
+		bne lbl_857e
+		clc
+		lda $a1
+		adc #$50
+		sta $a1
+lbl_857e
+		jsr lbl_8c27
+lbl_8581
+		lda bType
+		beq lbl_85b1
+		lda $ad
+		beq lbl_858f
+		lda frameCounterLowByte
+		and #$3
+		beq lbl_85b1
+lbl_858f
+		ldx $59
+		lda lbl_85c6,x
+		sta $a1
+		lda #$0
+		sta $a2
+		ldx $59
+		lda lbl_85cc,x
+		sta $a0
+		lda $b7
+		cmp #$1
+		bne lbl_85ae
+		clc
+		lda $a1
+		adc #$50
+		sta $a1
+lbl_85ae
+		jsr lbl_8c27
+lbl_85b1
+		rts
+;--------------------
+lbl_85b2
+		dc.b $53, $53, $53, $53, $53, $63, $63, $63, $63, $63
+lbl_85bc
+		dc.b $34, $44, $54, $64, $74, $34, $44, $54, $64, $74
+lbl_85c6
+		dc.b $53, $53, $53, $63, $63, $63
+lbl_85cc
+		dc.b $9c, $ac, $bc, $9c, $ac, $bc
+lbl_85d2
+		dc.b $03, $04, $05, $ff, $06, $07, $08, $ff
+;--------------------
+renderMenuScreens subroutine
+		lda ppuCtrlFlags
+		and #$fc
+		sta ppuCtrlFlags
+		sta PPUCTRL		;PPU Control Register #1 
+		lda #$0
+		sta scrollX
+		sta PPUSCROLL
+		sta scrollY
+		sta PPUSCROLL
+		rts
+;--------------------
+lbl_85f0
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+		lda #$3
+		jsr switchCharBank0
+		lda #$3
+		jsr switchCharBank1
+		jsr copyToVRAM
+		dc.b <ingame_screen_color_palette, >ingame_screen_color_palette
+		jsr copyToVRAM
+		dc.b <ingame_screen_background, >ingame_screen_background
+		lda #$20
+		sta PPUADDR
+		lda #$83
+		sta PPUADDR
+		lda bType
+		bne lbl_863c
+		lda #$a		; Draw A in x-TYPE box
+		sta PPUDATA
+		lda #$20
+		sta PPUADDR
+lbl_8622
+		lda #$b8
+		sta PPUADDR
+		lda $730
+		jsr printTwoDigitNumber
+		lda $731
+		jsr printTwoDigitNumber
+		lda $732
+		jsr printTwoDigitNumber
+		jmp lbl_8693
+;--------------------
+lbl_863c
+		lda #$b					; Draw B in A-TYPE box
+		sta PPUDATA
+		lda #$20
+		sta PPUADDR
+		lda #$b8
+		sta PPUADDR
+		lda $73c
+		jsr printTwoDigitNumber
+		lda $73d
+		jsr printTwoDigitNumber
+		lda $73e
+		jsr printTwoDigitNumber
+		ldx #$0
+lbl_865f
+		lda heightBoxGraphics,x	; Draw height box
+		inx
+		sta PPUADDR
+		lda heightBoxGraphics,x
+		inx
+		sta PPUADDR
+lbl_866d
+		lda heightBoxGraphics,x
+		inx
+		cmp #$fe
+		beq lbl_865f
+		cmp #$fd
+		beq lbl_867f
+		sta PPUDATA
+		jmp lbl_866d
+;--------------------
+lbl_867f
+		lda #$23
+		sta PPUADDR
+		lda #$3b
+		sta PPUADDR
+		lda $59
+		and #$f
+		sta PPUDATA
+		jmp lbl_8693
+;--------------------
+lbl_8693
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		lda #$1
+		sta $68
+		sta $88
+		lda $67
+		sta $64
+		lda $87
+		sta $84
+		inc playMode
+		rts
+;--------------------
+heightBoxGraphics
+		dc.b $22, $f7, $38, $39, $39, $39, $39, $39, $39, $3a, $fe
+		dc.b $23, $17, $3b, $11, $0e, $12, $10, $11, $1d, $3c, $fe
+		dc.b $23, $37, $3b, $ff, $ff, $ff, $ff, $ff, $ff, $3c, $fe
+		dc.b $23, $57, $3d, $3e, $3e, $3e, $3e, $3e, $3e, $3f, $fd
+;--------------------
+initializePlayMode
+		lda #$ef
+		ldx #$4
+		ldy #$4
+		jsr fillMemPage
+		ldx #$f
+		lda #$0
+lbl_86e9
+		sta $3ef,x
+		dex
+		bne lbl_86e9
+		lda #$5
+		sta $60
+		sta $80
+		lda #$0
+		sta $61
+		sta $81
+		sta $69
+		sta $89
+		sta $65
+		sta $85
+		sta $bb
+		sta $bc
+		sta $73
+		sta $74
+		sta $75
+		sta $93
+		sta $94
+		sta $95
+		sta linesLowByteCopy
+		sta linesHighByteCopy
+		sta $90
+		sta $91
+		sta $a4
+		sta $d8
+		sta $d9
+		sta $da
+		sta $db
+		sta $ba
+		sta $ce
+		sta $cf
+		sta demoIndex
+		sta demoButtonsLowByte
+		sta nextSpawnId
+		lda #$dd
+		sta demoButtonsHighByte
+		lda #RENDER_MODE_PLAY_AND_DEMO_SCREENS
+		sta renderMode
+		lda #$a0
+		sta $6e
+		sta $8e
+		jsr getNextTetrimino
+		sta $62
+		sta $82
+		jsr updateTetriminoStats
+		ldx #randomNumberHighByte
+		ldy #$2
+		jsr generateRandomNumber
+		jsr getNextTetrimino
+		sta nextTetrimino
+		sta $a6
+		lda bType
+		beq lbl_8761
+		lda #$25
+		sta linesLowByteCopy
+		sta $90
+lbl_8761
+		lda #$47
+		sta $a3
+		jsr waitAndClearPage2
+		jsr lbl_87dc
+		ldx $c2
+		lda lbl_85d2,x
+		jsr lbl_9e07
+		inc playMode
+		rts
+;--------------------
+lbl_8776
+		lda #$1
+		sta $b7
+lbl_877a
+		lda #$4
+		sta $b9
+		lda buttonsPressed1
+		sta $b5
+		lda $f7
+		sta $b6
+		ldx #$1f
+lbl_8788
+		lda $60,x
+		sta pieceX,x
+		dex
+		cpx #$ff
+		bne lbl_8788
+		rts
+;--------------------
+lbl_8792
+		lda #$2
+		sta $b7
+		lda #$5
+		sta $b9
+		lda buttonsPressed2
+		sta $b5
+		lda $f8
+		sta $b6
+		ldx #$1f
+lbl_87a4
+		lda $80,x
+		sta pieceX,x
+		dex
+		cpx #$ff
+		bne lbl_87a4
+		rts
+;--------------------
+lbl_87ae
+		ldx #$1f
+lbl_87b0
+		lda pieceX,x
+		sta $60,x
+		dex
+		cpx #$ff
+		bne lbl_87b0
+		lda numPlayers
+		cmp #$1
+		beq lbl_87c7
+		ldx $bb
+		lda $bc
+		sta $bb
+		stx $bc
+lbl_87c7
+		rts
+;--------------------
+lbl_87c8
+		ldx #$1f
+lbl_87ca
+		lda pieceX,x
+		sta $80,x
+		dex
+		cpx #$ff
+		bne lbl_87ca
+		ldx $bb
+		lda $bc
+		sta $bb
+		stx $bc
+		rts
+;--------------------
+lbl_87dc
+		lda bType
+		bne lbl_87e3
+		jmp lbl_8875
+;--------------------
+lbl_87e3
+		lda #$c
+		sta $a8
+lbl_87e7
+		lda $a8
+		beq lbl_884a
+		lda #$14
+		sec
+		sbc $a8
+		sta lineIndex
+		lda #$0
+		sta $69
+		sta $89
+		lda #$9
+		sta $aa
+lbl_87fc
+		ldx #randomNumberHighByte
+		ldy #$2
+		jsr generateRandomNumber
+		lda randomNumberHighByte
+		and #$7
+		tay
+		lda lbl_887c,y
+		sta $ab
+		ldx lineIndex
+		lda lbl_96d6,x
+		clc
+		adc $aa
+		tay
+		lda $ab
+		sta $400,y
+		lda $aa
+		beq lbl_8824
+		dec $aa
+lbl_8821
+		jmp lbl_87fc
+;--------------------
+lbl_8824
+		ldx #randomNumberHighByte
+		ldy #$2
+		jsr generateRandomNumber
+		lda randomNumberHighByte
+		and #$f
+		cmp #$a
+		bpl lbl_8824
+		sta $ac
+		ldx lineIndex
+		lda lbl_96d6,x
+		clc
+		adc $ac
+		tay
+		lda #$ef
+		sta $400,y
+		jsr waitAndClearPage2
+		dec $a8
+		bne lbl_87e7
+lbl_884a
+		ldx #$c8
+lbl_884c
+		lda $400,x
+		sta $500,x
+		dex
+		bne lbl_884c
+		ldx $79
+		lda lbl_8876,x
+		tay
+		lda #$ef
+lbl_885d
+		sta $400,y
+		dey
+		cpy #$ff
+		bne lbl_885d
+		ldx $99
+		lda lbl_8876,x
+		tay
+		lda #$ef
+lbl_886d
+		sta $500,y
+		dey
+		cpy #$ff
+		bne lbl_886d
+lbl_8875
+		rts
+;--------------------
+lbl_8876
+		dc.b $c8, $aa, $96, $78, $64, $50
+lbl_887c
+		dc.b $ef, $7b, $ef, $7c, $7d, $7d, $ef, $ef
+;--------------------
+lbl_8884		
+		lda #$3
+		jsr switchCharBank0
+		lda #$3
+		jsr switchCharBank1
+		lda #$0
+		sta $b3
+		inc $65
+		inc $85
+		lda $a4
+		beq lbl_889c
+		inc $a4
+lbl_889c
+		lda buttonsPressed1
+		and #$20
+		beq lbl_88a8
+		lda $df
+		eor #$1
+		sta $df
+lbl_88a8
+		inc playMode
+		rts
+;--------------------
+rotateTetrimino subroutine
+		lda pieceOrientation
+		sta originalValue
+		clc
+		lda pieceOrientation
+		asl
+		tax
+		lda $b5
+		and #$80
+		cmp #$80
+		bne lbl_88cf
+		inx
+		lda rotationTable,x
+		sta pieceOrientation
+		jsr isPositionValid
+		bne lbl_88e9
+		lda #ROTATE_TETRIMINO_SOUND
+		sta waveSoundEffect
+		jmp lbl_88ed
+lbl_88cf
+		lda $b5
+		and #$40
+		cmp #$40
+		bne lbl_88ed
+		lda rotationTable,x
+		sta pieceOrientation
+		jsr isPositionValid
+		bne lbl_88e9
+		lda #ROTATE_TETRIMINO_SOUND
+		sta waveSoundEffect
+		jmp lbl_88ed
+lbl_88e9
+		lda originalValue
+		sta pieceOrientation
+lbl_88ed
+		rts
+;--------------------
+rotationTable
+		dc.b $03, $01 ; 00: T up
+		dc.b $00, $02 ; 01: T right
+		dc.b $01, $03 ; 02: T down (spawn)
+		dc.b $02, $00 ; 03: T left
+
+		dc.b $07, $05 ; 04: J left
+		dc.b $04, $06 ; 05: J up
+		dc.b $05, $07 ; 06: J right
+		dc.b $06, $04 ; 07: J down (spawn)
+
+		dc.b $09, $09 ; 08: Z horizontal (spawn)
+		dc.b $08, $08 ; 09: Z vertical
+
+		dc.b $0a, $0a ; 0A: O (spawn)
+		dc.b $0c, $0c
+                      ; 0B: S horizontal (spawn)
+		dc.b $0b, $0b ; 0C: S vertical
+
+		dc.b $10, $0e ; 0D: L right
+		dc.b $0d, $0f ; 0E: L down (spawn)
+		dc.b $0e, $10 ; 0F: L left
+		dc.b $0f, $0d ; 10: L up
+
+		dc.b $12, $12 ; 11: I vertical
+		dc.b $11, $11 ; 12: I horizontal (spawn)
+;--------------------
+dropTetrimino
+		lda autoRepeatY
+		bpl lbl_8922
+lbl_8918
+		lda $b5
+		and #$4
+		beq lbl_8989
+lbl_891e
+		lda #$0
+		sta autoRepeatY
+lbl_8922
+		bne lbl_8939
+		lda $b6
+		and #$3
+		bne lbl_8973
+		lda $b5
+		and #$f
+		cmp #$4
+		bne lbl_8973
+		lda #$1
+		sta autoRepeatY
+		jmp lbl_8973
+;--------------------
+lbl_8939
+		lda $b6
+		and #$f
+		cmp #$4
+		beq lbl_894a
+		lda #$0
+		sta autoRepeatY
+		sta $4f
+		jmp lbl_8973
+;--------------------
+lbl_894a
+		inc autoRepeatY
+		lda autoRepeatY
+		cmp #$3
+		bcc lbl_8973
+		lda #$1
+		sta autoRepeatY
+		inc $4f
+lbl_8958
+		lda #$0
+		sta fallTimer
+		lda pieceY
+		sta originalValue
+		inc pieceY
+		jsr isPositionValid
+		beq lbl_8972
+		lda originalValue
+		sta pieceY
+		lda #PLAY_STATE_LOCK_TETRIMINO
+		sta playState
+		jsr lbl_9caf
+lbl_8972
+		rts
+;--------------------
+lbl_8973
+		lda #1
+		ldx level
+		cpx #29
+		bcs lbl_897e
+		lda framesPerDropTable,x
+lbl_897e
+		sta tempSpeed
+		lda fallTimer
+		cmp tempSpeed
+		bpl lbl_8958
+		jmp lbl_8972
+;--------------------
+lbl_8989
+		inc autoRepeatY
+		jmp lbl_8972
+;--------------------
+framesPerDropTable
+		dc.b $30, $2b, $26, $21, $1c, $17, $12, $0d, $08, $06, $05, $05, $05, $04, $04, $04
+		dc.b $03, $03, $03, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $01, $01, $01
+;--------------------
+shiftTetrimino subroutine
+		lda pieceX
+		sta originalValue
+		lda $b6
+		and #$4
+		bne lbl_8a09
+		lda $b5
+		and #$3
+		bne lbl_89d3
+		lda $b6
+		and #$3
+		beq lbl_8a09
+		inc autoRepeatX
+		lda autoRepeatX
+		cmp #$10
+		bmi lbl_8a09
+		lda #$a
+		sta autoRepeatX
+		jmp lbl_89d7
+lbl_89d3
+		lda #$0
+		sta autoRepeatX
+lbl_89d7
+		lda $b6
+		and #$1
+		beq lbl_89ec
+		inc pieceX
+		jsr isPositionValid
+		bne lbl_8a01
+		lda #SHIFT_TETRIMINO_SOUND
+		sta waveSoundEffect
+		jmp lbl_8a09
+lbl_89ec
+		lda $b6
+		and #$2
+		beq lbl_8a09
+		dec pieceX
+		jsr isPositionValid
+		bne lbl_8a01
+		lda #SHIFT_TETRIMINO_SOUND
+		sta waveSoundEffect
+		jmp lbl_8a09
+lbl_8a01
+		lda originalValue
+		sta pieceX
+		lda #$10
+		sta autoRepeatX
+lbl_8a09
+		rts
+;--------------------
+lbl_8a0a
+		lda pieceX
+		asl
+		asl
+		asl
+		adc #$60
+		sta $aa
+		lda numPlayers
+		cmp #$1
+		beq lbl_8a2c
+		lda $aa
+		sec
+		sbc #$40
+		sta $aa
+		lda $b7
+		cmp #$1
+		beq lbl_8a2c
+		lda $aa
+		adc #$6f
+		sta $aa
+lbl_8a2c
+		clc
+		lda pieceY
+		rol
+		rol
+		rol
+		adc #$2f
+		sta $ab
+		lda pieceOrientation
+		sta $ac
+		clc
+		lda $ac
+		rol
+		rol
+		sta $a8
+		rol
+		adc $a8
+		tax
+		ldy $b3
+		lda #$4
+		sta lineIndex
+lbl_8a4b
+		lda orientationTable,x
+		asl
+		asl
+		asl
+		clc
+		adc $ab
+		sta $200,y
+		sta originalValue
+		inc $b3
+		iny
+		inx
+		lda orientationTable,x
+		sta $200,y
+		inc $b3
+		iny
+		inx
+		lda #$2
+		sta $200,y
+		lda originalValue
+		cmp #$2f
+		bcs lbl_8a84
+		inc $b3
+		dey
+		lda #$ff
+		sta $200,y
+		iny
+		iny
+		lda #$0
+		sta $200,y
+		jmp lbl_8a93
+;--------------------
+lbl_8a84
+		inc $b3
+		iny
+		lda orientationTable,x
+		asl
+		asl
+		asl
+		clc
+		adc $aa
+		sta $200,y
+lbl_8a93
+		inc $b3
+		iny
+		inx
+		dec lineIndex
+		bne lbl_8a4b
+		rts
+;--------------------
+		; Represents the coordinates of the various Tetrimino orientations.
+
+orientationTable
+		dc.b $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01, $ff, $7b, $00	; 00: T up
+        dc.b $ff, $7b, $00, $00, $7b, $00, $00, $7b, $01, $01, $7b, $00 ; 01: T right
+        dc.b $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01, $01, $7b, $00 ; 02: T down (spawn)
+        dc.b $ff, $7b, $00, $00, $7b, $ff, $00, $7b, $00, $01, $7b, $00 ; 03: T left
+
+        dc.b $ff, $7d, $00, $00, $7d, $00, $01, $7d, $ff, $01, $7d, $00 ; 04: J left
+        dc.b $ff, $7d, $ff, $00, $7d, $ff, $00, $7d, $00, $00, $7d, $01 ; 05: J up
+        dc.b $ff, $7d, $00, $ff, $7d, $01, $00, $7d, $00, $01, $7d, $00 ; 06: J right
+        dc.b $00, $7d, $ff, $00, $7d, $00, $00, $7d, $01, $01, $7d, $01 ; 07: J down (spawn)
+
+        dc.b $00, $7c, $ff, $00, $7c, $00, $01, $7c, $00, $01, $7c, $01 ; 08: Z horizontal (spawn)
+        dc.b $ff, $7c, $01, $00, $7c, $00, $00, $7c, $01, $01, $7c, $00 ; 09: Z vertical
+
+        dc.b $00, $7b, $ff, $00, $7b, $00, $01, $7b, $ff, $01, $7b, $00 ; 0A: O (spawn)
+
+        dc.b $00, $7d, $00, $00, $7d, $01, $01, $7d, $ff, $01, $7d, $00 ; 0B: S horizontal (spawn)
+        dc.b $ff, $7d, $00, $00, $7d, $00, $00, $7d, $01, $01, $7d, $01 ; 0C: S vertical
+
+        dc.b $ff, $7c, $00, $00, $7c, $00, $01, $7c, $00, $01, $7c, $01 ; 0D: L right
+        dc.b $00, $7c, $ff, $00, $7c, $00, $00, $7c, $01, $01, $7c, $ff ; 0E: L down (spawn)
+        dc.b $ff, $7c, $ff, $ff, $7c, $00, $00, $7c, $00, $01, $7c, $00 ; 0F: L left
+        dc.b $ff, $7c, $01, $00, $7c, $ff, $00, $7c, $00, $00, $7c, $01 ; 10: L up
+
+        dc.b $fe, $7b, $00, $ff, $7b, $00, $00, $7b, $00, $01, $7b, $00 ; 11: I vertical
+        dc.b $00, $7b, $fe, $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01 ; 12: I horizontal (spawn)
+
+		dc.b $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00 ; 13: Unused
+
+lbl_8b8c		
+		lda $a2
+		asl
+		asl
+		sta $a8
+		asl
+		clc
+		adc $a8
+		tay
+		ldx $b3
+		lda #$4
+		sta lineIndex
+lbl_8b9d
+		lda orientationTable,y
+		clc
+		asl
+		asl
+		asl
+		adc $a1
+		sta $200,x
+		inx
+		iny
+		lda orientationTable,y
+		sta $200,x
+		inx
+		iny
+		lda #$2
+		sta $200,x
+		inx
+		lda orientationTable,y
+		clc
+		asl
+		asl
+		asl
+		adc $a0
+		sta $200,x
+		inx
+		iny
+		dec lineIndex
+		bne lbl_8b9d
+		stx $b3
+		rts
+;--------------------
+lbl_8bce
+		lda $df
+		bne lbl_8be4
+		lda #$c8
+		sta $a0
+		lda #$77
+		sta $a1
+		ldx nextTetrimino
+		lda lbl_8be5,x
+		sta $a2
+		jmp lbl_8c27
+;--------------------
+lbl_8be4
+		rts
+;--------------------
+lbl_8be5
+		dc.b $00, $00, $06, $00, $00, $00, $00, $09, $08, $00, $0b, $07, $00, $00, $0a, $00
+		dc.b $00, $00, $0c, $00, $00, $0f, $00, $00, $00, $00, $12, $11, $00, $14, $10, $00
+lbl_8c05
+		dc.b $00, $13, $00, $00, $00, $15, $00, $ff, $fe, $fd, $fc, $fd, $fe, $ff, $00, $01
+		dc.b $02, $03, $04, $05, $06, $07, $08, $09, $0a, $0b, $0c, $0d, $0e, $0f, $10, $11
+		dc.b $12, $13
+lbl_8c27
+		clc
+		lda $a2
+		rol
+		tax
+		lda lbl_8c6c,x
+		sta $a8
+		inx
+		lda lbl_8c6c,x
+		sta lineIndex
+		ldx $b3
+		ldy #$0
+lbl_8c3b
+		lda ($a8),y
+		cmp #$ff
+		beq lbl_8c6b
+		clc
+		adc $a1
+		sta $200,x
+		inx
+		iny
+		lda ($a8),y
+		sta $200,x
+		inx
+		iny
+		lda ($a8),y
+		sta $200,x
+		inx
+		iny
+		lda ($a8),y
+		clc
+		adc $a0
+		sta $200,x
+		inx
+		iny
+		lda #$4
+		clc
+		adc $b3
+		sta $b3
+		jmp lbl_8c3b
+lbl_8c6b
+		rts
+;--------------------
+lbl_8c6c
+		incbin data.bin
+;--------------------
+isPositionValid subroutine
+		lda pieceY
+		asl
+		sta $a8
+		asl
+		asl
+		clc
+		adc $a8
+		adc pieceX
+		sta $a8
+		lda pieceOrientation
+		asl
+		asl
+		sta lineIndex
+		asl
+		clc
+		adc lineIndex
+		tax
+		ldy #$0
+		lda #$4
+		sta $aa
+lbl_94aa
+		lda orientationTable,x
+		clc
+		adc pieceY
+		adc #$2
+		cmp #$16
+		bcs lbl_94e9
+		lda orientationTable,x
+		asl
+		sta $ab
+		asl
+		asl
+		clc
+		adc $ab
+		clc
+		adc $a8
+		sta $ad
+		inx
+		inx
+		lda orientationTable,x
+		clc
+		adc $ad
+		tay
+		lda ($b8),y
+		cmp #$ef
+		bcc lbl_94e9
+		lda orientationTable,x
+		clc
+		adc pieceX
+		cmp #$a
+		bcs lbl_94e9
+		inx
+		dec $aa
+		bne lbl_94aa
+		lda #$0
+		sta $a8
+lbl_94e8
+		rts
+lbl_94e9
+		lda #$ff
+		sta $a8
+		rts
+;--------------------
+renderPlayAndDemoScreens subroutine
+		lda $68
+		cmp #$4
+		bne lbl_9522
+		lda #$4
+		sta $b9
+		lda $72
+		sta clearColumnIndex
+		lda $6a
+		sta completedRowIndices
+		lda $6b
+		sta completedRowIndices+1
+		lda $6c
+		sta completedRowIndices+2
+		lda $6d
+		sta completedRowIndices+3
+		lda $68
+		sta playState
+		jsr lbl_977f
+		lda clearColumnIndex
+		sta $72
+		lda playState
+		sta $68
+		lda #$0
+		sta $69
+		jmp lbl_953a
+lbl_9522
+		lda $69
+		sta vramRow
+		lda #$4
+		sta $b9
+		jsr lbl_9725
+		jsr lbl_9725
+		jsr lbl_9725
+		jsr lbl_9725
+		lda vramRow
+		sta $69
+lbl_953a
+		lda numPlayers
+		cmp #$2
+		bne lbl_958c
+		lda $88
+		cmp #$4
+		bne lbl_9574
+		lda #$5
+		sta $b9
+		lda $92
+		sta clearColumnIndex
+		lda $8a
+		sta completedRowIndices
+		lda $8b
+		sta completedRowIndices+1
+		lda $8c
+		sta completedRowIndices+2
+		lda $8d
+		sta completedRowIndices+3
+		lda $88
+		sta playState
+		jsr lbl_977f
+		lda clearColumnIndex
+		sta $92
+		lda playState
+		sta $88
+		lda #$0
+		sta $89
+		jmp lbl_958c
+lbl_9574
+		lda $89
+		sta vramRow
+		lda #$5
+		sta $b9
+		jsr lbl_9725
+		jsr lbl_9725
+		jsr lbl_9725
+		jsr lbl_9725
+		lda vramRow
+		sta $89
+lbl_958c
+		lda $a3
+		and #$1
+		beq lbl_95e3
+		lda numPlayers
+		cmp #$2
+		beq lbl_95b5
+		lda #$20
+		sta PPUADDR
+		lda #$73
+		sta PPUADDR
+		lda linesHighByteCopy
+		sta PPUDATA
+		lda linesLowByteCopy
+		jsr printTwoDigitNumber
+		lda $a3
+		and #$fe
+		sta $a3
+		jmp lbl_95e3
+lbl_95b5
+		lda #$20
+		sta PPUADDR
+		lda #$68
+		sta PPUADDR
+		lda linesHighByteCopy
+		sta PPUDATA
+		lda linesLowByteCopy
+		jsr printTwoDigitNumber
+		lda #$20
+		sta PPUADDR
+		lda #$7a
+		sta PPUADDR
+		lda $91
+		sta PPUDATA
+		lda $90
+		jsr printTwoDigitNumber
+		lda $a3
+		and #$fe
+		sta $a3
+lbl_95e3
+		lda $a3
+		and #$2
+		beq lbl_960e
+		lda numPlayers
+		cmp #$2
+		beq lbl_960e
+		ldx $64
+		lda lbl_96b8,x
+		sta $a8
+		lda #$22
+		sta PPUADDR
+		lda #$ba
+		sta PPUADDR
+		lda $a8
+		jsr printTwoDigitNumber
+		jsr lbl_9808
+		lda $a3
+		and #$fd
+		sta $a3
+lbl_960e
+		lda numPlayers
+		cmp #$2
+		beq lbl_9639
+		lda $a3
+		and #$4
+		beq lbl_9639
+		lda #$21
+		sta PPUADDR
+		lda #$18
+		sta PPUADDR
+		lda $75
+		jsr printTwoDigitNumber
+		lda $74
+		jsr printTwoDigitNumber
+		lda $73
+		jsr printTwoDigitNumber
+		lda $a3
+		and #$fb
+		sta $a3
+lbl_9639
+		lda numPlayers
+		cmp #$2
+		beq lbl_9673
+		lda $a3
+		and #$40
+		beq lbl_9673
+		lda #$0
+		sta $b0
+lbl_9649
+		lda $b0
+		asl
+		tax
+		lda lbl_96aa,x
+		sta PPUADDR
+		lda lbl_96aa+1,x
+		sta PPUADDR
+		lda tetriminoStatHighByte,x
+		sta PPUDATA
+		lda tetriminoStatLowByte,x
+		jsr printTwoDigitNumber
+		inc $b0
+		lda $b0
+		cmp #$7
+		bne lbl_9649
+		lda $a3
+		and #$bf
+		sta $a3
+lbl_9673
+		lda #$3f
+		sta PPUADDR
+		lda #$e
+		sta PPUADDR
+		ldx #$0
+		lda $56
+		cmp #$4
+		bne lbl_9698
+		lda frameCounterLowByte
+		and #$3
+		bne lbl_9698
+		ldx #$30
+		lda frameCounterLowByte
+		and #$7
+		bne lbl_9698
+		lda #LINE_CLEARING_SOUND
+		sta waveSoundEffect
+lbl_9698
+		stx PPUDATA
+		ldy #$0
+		sty scrollX
+		sty PPUSCROLL
+		ldy #$0
+		sty scrollY
+		sty PPUSCROLL
+		rts
+;--------------------
+lbl_96aa
+		dc.b $21, $86, $21, $c6, $22, $06, $22, $46, $22, $86, $22, $c6, $23, $06
+lbl_96b8
+		dc.b $00, $01
+		dc.b $02, $03, $04, $05, $06, $07, $08, $09, $10, $11, $12, $13, $14, $15, $16, $17
+		dc.b $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+lbl_96d6
+		dc.b $00, $0a, $14, $1e
+		dc.b $28, $32, $3c, $46, $50, $5a, $64, $6e, $78, $82, $8c, $96, $a0, $aa, $b4, $be
+lbl_96ea
+		dc.b $c6, $20, $e6, $20, $06, $21, $26, $21, $46, $21, $66, $21, $86, $21, $a6, $21
+		dc.b $c6, $21, $e6, $21, $06, $22, $26, $22, $46, $22, $66, $22, $86, $22, $a6, $22
+		dc.b $c6, $22, $e6, $22, $06, $23, $26, $23
+printTwoDigitNumber
+		sta $a8
+		and #$f0
+		lsr
+		lsr
+		lsr
+		lsr
+		sta PPUDATA
+		lda $a8
+		and #$f
+		sta PPUDATA
+		rts
+;--------------------
+lbl_9725
+		ldx vramRow
+		cpx #$15
+		bpl lbl_977e
+		lda lbl_96d6,x
+		tay
+		txa
+		asl
+		tax
+		inx
+		lda lbl_96ea,x
+		sta PPUADDR
+		dex
+		lda numPlayers
+		cmp #$1
+		beq lbl_975e
+		lda $b9
+		cmp #$5
+		beq lbl_9752
+		lda lbl_96ea,x
+		sec
+		sbc #$2
+		sta PPUADDR
+		jmp lbl_9767
+;--------------------
+lbl_9752
+		lda lbl_96ea,x
+		clc
+		adc #$c
+		sta PPUADDR
+		jmp lbl_9767
+;--------------------
+lbl_975e
+		lda lbl_96ea,x
+		clc
+		adc #$6
+		sta PPUADDR
+lbl_9767
+		ldx #$a
+lbl_9769
+		lda ($b8),y
+		sta PPUDATA
+		iny
+		dex
+		bne lbl_9769
+		inc vramRow
+		lda vramRow
+		cmp #$14
+		bmi lbl_977e
+		lda #$20
+		sta vramRow
+lbl_977e
+		rts
+;--------------------
+lbl_977f
+		lda frameCounterLowByte
+		and #$3
+		bne lbl_97fd
+		lda #$0
+		sta $aa
+lbl_9789
+		ldx $aa
+		lda completedRowIndices,x
+		beq lbl_97eb
+		asl
+		tay
+		lda lbl_96ea,y
+		sta $a8
+		lda numPlayers
+		cmp #$1
+		bne lbl_97a6
+		lda $a8
+		clc
+		adc #$6
+		sta $a8
+		jmp lbl_97bd
+;--------------------
+lbl_97a6
+		lda $b9
+		cmp #$4
+		bne lbl_97b6
+		lda $a8
+		sec
+		sbc #$2
+		sta $a8
+		jmp lbl_97bd
+;--------------------
+lbl_97b6
+		lda $a8
+		clc
+		adc #$c
+		sta $a8
+lbl_97bd
+		iny
+		lda lbl_96ea,y
+		sta lineIndex
+		sta PPUADDR
+		ldx clearColumnIndex
+		lda leftColumns,x
+		clc
+		adc $a8
+		sta PPUADDR
+		lda #$ff
+		sta PPUDATA
+		lda lineIndex
+		sta PPUADDR
+		ldx clearColumnIndex
+		lda rightColumns,x
+		clc
+		adc $a8
+		sta PPUADDR
+		lda #$ff
+		sta PPUDATA
+lbl_97eb
+		inc $aa
+		lda $aa
+		cmp #$4
+		bne lbl_9789
+		inc clearColumnIndex
+		lda clearColumnIndex
+		cmp #$5
+		bmi lbl_97fd
+		inc playState
+lbl_97fd
+		rts
+;--------------------
+leftColumns
+		dc.b $04, $03, $02, $01, $00
+rightColumns
+		dc.b $05, $06, $07, $08, $09
+lbl_9808		
+		lda $64
+lbl_980a 
+		cmp #$a
+		bmi lbl_9814
+		sec
+		sbc #$a
+		jmp lbl_980a
+;--------------------
+lbl_9814
+		asl
+		asl
+		tax
+		lda #$0
+		sta $a8
+lbl_981b		
+		lda #$3f
+		sta PPUADDR
+lbl_9820
+		lda #$8
+		clc
+		adc $a8
+		sta PPUADDR
+		lda lbl_984c,x
+		sta PPUDATA
+		lda lbl_984c+1,x
+		sta PPUDATA
+		lda lbl_984c+2,x
+		sta PPUDATA
+		lda lbl_984c+3,x
+		sta PPUDATA
+		lda $a8
+		clc
+		adc #$10
+		sta $a8
+		cmp #$20
+		bne lbl_981b
+		rts
+;--------------------
+lbl_984c
+		dc.b $0f, $30, $21, $12
+		dc.b $0f, $30, $29, $1a
+		dc.b $0f, $30, $24, $14
+		dc.b $0f, $30, $2a, $12
+		dc.b $0f, $30, $2b, $15
+		dc.b $0f, $30, $22, $2b
+		dc.b $0f, $30, $00, $16
+		dc.b $0f, $30, $05, $13
+		dc.b $0f, $30, $16, $12
+		dc.b $0f, $30, $27, $16
+lbl_9874
+		rts
+		inc $69
+		lda $69
+		cmp #$14
+		bmi lbl_9881
+		lda #$20
+		sta $69
+lbl_9881
+		inc $89
+		lda $89
+		cmp #$14
+		bmi lbl_988d
+		lda #$20
+		sta $89
+lbl_988d
+		rts
+;--------------------
+spawnTetrimino subroutine
+		lda vramRow
+		cmp #$20
+		bmi .return
+		lda numPlayers
+		cmp #$1
+		beq .skipTwoPlayer
+lbl_989a
+		lda $a4
+		cmp #$0
+		bne lbl_98ae
+		inc $a4
+		lda $b7
+		sta $a5
+		jsr getNextTetrimino
+		sta $a6
+		jmp .return
+lbl_98ae
+		lda $a5
+		cmp $b7
+		bne .return
+		lda $a4
+		cmp #$1c
+		bne .return
+.skipTwoPlayer
+		lda #$0
+		sta $a4
+		sta fallTimer
+		sta pieceY
+		lda #PLAY_STATE_TETRIMINO_ACTIVE
+		sta playState
+		lda #$5
+		sta pieceX
+		ldx nextTetrimino
+		lda spawnOrientations,x
+		sta pieceOrientation
+		jsr updateTetriminoStats
+		lda numPlayers
+		cmp #$1
+		beq lbl_98e1
+		lda $a6
+		sta nextTetrimino
+		jmp .resetAutoRepeatY
+lbl_98e1
+		jsr getNextTetrimino
+		sta nextTetrimino
+.resetAutoRepeatY
+		lda #$0
+		sta autoRepeatY
+.return
+		rts
+;--------------------
+getNextTetrimino subroutine
+		lda gameMode
+		cmp #GAME_MODE_DEMO
+		bne .notInDemoMode
+		ldx demoIndex
+		inc demoIndex
+		lda demoPieceSpawns,x
+		lsr
+		lsr
+		lsr
+		lsr
+		and #$7
+		tax
+		lda spawnTable,x
+		rts
+.notInDemoMode
+		jsr generateRandomTetrimino
+		rts
+;--------------------
+generateRandomTetrimino subroutine
+		inc spawnCount
+		lda randomNumberHighByte
+		clc
+		adc spawnCount
+		and #$7
+		cmp #$7
+		beq .rerollRandomNumber
+		tax
+		lda spawnTable,x
+		cmp nextSpawnId
+		bne .keepSpawnId
+.rerollRandomNumber
+		ldx #randomNumberHighByte
+		ldy #$2
+		jsr generateRandomNumber
+		lda randomNumberHighByte
+		and #$7
+		clc
+		adc nextSpawnId
+.subtract7
+		cmp #$7
+		bcc .smallerThan7
+		sec
+		sbc #$7
+		jmp .subtract7
+.smallerThan7
+		tax
+		lda spawnTable,x
+.keepSpawnId
+		sta nextSpawnId
+		rts
+;--------------------
+tetriminoTypes
+		dc.b $00, $00, $00, $00	; T
+		dc.b $01, $01, $01, $01	; J
+		dc.b $02, $02			; Z
+		dc.b $03				; O
+		dc.b $04, $04			; S
+		dc.b $05, $05, $05, $05	; L
+		dc.b $06, $06			; I
+spawnTable
+		dc.b $02	; Td
+		dc.b $07	; Jd
+		dc.b $08	; Zh
+		dc.b $0a	; O
+		dc.b $0b	; Sh
+		dc.b $0e	; Ld
+		dc.b $12	; Ih
+		dc.b $02	; Td
+spawnOrientations
+		dc.b $02, $02, $02, $02	; Td
+		dc.b $07, $07, $07, $07	; Jd
+		dc.b $08, $08			; Zh
+		dc.b $0a				; O
+		dc.b $0b, $0b			; Sh
+		dc.b $0e, $0e, $0e, $0e	; Ld
+		dc.b $12, $12			; Ih
+;--------------------
+		; Updates the Tetrimino stats based on the orientation ID in register A.
+updateTetriminoStats subroutine
+		tax
+		lda tetriminoTypes,x
+		asl
+		tax
+		lda tetriminoStatLowByte,x
+		clc
+		adc #$1
+		sta $a8
+		and #$f
+		cmp #$a
+		bmi lbl_9996
+		lda $a8
+		clc
+		adc #$6
+		sta $a8
+		cmp #$a0
+		bcc lbl_9996
+		clc
+		adc #$60
+		sta $a8
+		lda tetriminoStatHighByte,x
+		clc
+		adc #$1
+		sta tetriminoStatHighByte,x
+lbl_9996
+		lda $a8
+		sta tetriminoStatLowByte,x
+		lda $a3
+		ora #$40
+		sta $a3
+		rts
+;--------------------
+lockTetrimino subroutine
+		jsr isPositionValid
+		beq lbl_99b8
+		lda #GAME_OVER_CURTAIN_SOUND
+		sta noiseSoundEffect
+		lda #PLAY_STATE_GAME_OVER_CURTAIN
+		sta playState
+		lda #$f0
+		sta $58
+		jsr updateAudio
+		rts
+;--------------------
+lbl_99b8
+		lda vramRow
+		cmp #$20
+		bmi lbl_9a10
+		lda pieceY
+		asl
+		sta $a8
+		asl
+		asl
+		clc
+		adc $a8
+		adc pieceX
+		sta $a8
+		lda pieceOrientation
+		asl
+		asl
+		sta lineIndex
+		asl
+		clc
+		adc lineIndex
+		tax
+		ldy #$0
+		lda #$4
+		sta $aa
+lbl_99dd		
+		lda orientationTable,x
+		asl
+		sta $ab
+		asl
+		asl
+		clc
+		adc $ab
+		clc
+		adc $a8
+		sta $ad
+		inx
+		lda orientationTable,x
+		sta $ac
+		inx
+		lda orientationTable,x
+		clc
+		adc $ad
+		tay
+		lda $ac
+		sta ($b8),y
+		inx
+		dec $aa
+		bne lbl_99dd
+		lda #$0
+		sta $57
+		jsr lbl_9caf
+		jsr lbl_9d17
+		inc playState
+lbl_9a10
+		rts
+;--------------------
+updateGameOverCurtain subroutine
+
+		lda $58
+		cmp #$14
+		beq lbl_9a47
+		lda frameCounterLowByte
+		and #$3
+		bne lbl_9a46
+		ldx $58
+		bmi lbl_9a3e
+		lda lbl_96d6,x
+		tay
+		lda #$0
+		sta $aa
+		lda #$13
+		sta pieceOrientation
+lbl_9a2d
+		lda #$4f
+		sta ($b8),y
+		iny
+		inc $aa
+		lda $aa
+		cmp #$a
+		bne lbl_9a2d
+		lda $58
+		sta vramRow
+lbl_9a3e
+		inc $58
+		lda $58
+		cmp #$14
+		bne lbl_9a46
+lbl_9a46
+		rts
+;--------------------
+lbl_9a47 subroutine
+
+		lda numPlayers
+		cmp #$2
+		beq lbl_9a64
+		lda $75
+		cmp #$3
+		bcc lbl_9a5e
+		lda #$80
+		jsr initialLegalScreenWait
+		jsr lbl_9e3a
+		jmp lbl_9a64
+lbl_9a5e
+		lda buttonsPressed1
+		cmp #$10
+		bne lbl_9a6a
+lbl_9a64
+		lda #$0
+		sta playState			; PLAY_STATE_UNASSIGN_ORIENTATION_ID
+		sta buttonsPressed1
+lbl_9a6a
+		rts
+;--------------------
+checkCompletedRows subroutine
+
+		lda vramRow
+		cmp #$20
+		bpl lbl_9a74
+		jmp lbl_9b02
+lbl_9a74
+		lda pieceY
+		sec
+		sbc #$2
+		bpl lbl_9a7d
+		lda #$0
+lbl_9a7d
+		clc
+		adc $57
+		sta lineIndex
+		asl
+		sta $a8
+		asl
+		asl
+		clc
+		adc $a8
+		sta $a8
+		tay
+		ldx #$a
+lbl_9a8f
+		lda ($b8),y
+		cmp #$ef
+		beq lbl_9acc
+		iny
+		dex
+		bne lbl_9a8f
+		lda #LINE_COMPLETED_SOUND
+		sta waveSoundEffect
+		inc $56
+		ldx $57
+		lda lineIndex
+		sta completedRowIndices,x
+		ldy $a8
+		dey
+lbl_9aa9		
+		lda ($b8),y
+		ldx #$a
+		stx $b8
+		sta ($b8),y
+		lda #$0
+		sta $b8
+		dey
+		cpy #$ff
+		bne lbl_9aa9
+		lda #$ef
+		ldy #$0
+lbl_9abe		
+		sta ($b8),y
+		iny
+		cpy #$a
+		bne lbl_9abe
+		lda #$13
+		sta pieceOrientation
+		jmp lbl_9ad2
+;--------------------
+lbl_9acc
+		ldx $57
+		lda #$0
+		sta completedRowIndices,x
+lbl_9ad2
+		inc $57
+		lda $57
+		cmp #$4
+		bmi lbl_9b02
+		ldy $56
+		lda lbl_9b53,y
+		clc
+		adc $bc
+		sta $bc
+		lda #$0
+		sta vramRow
+		sta clearColumnIndex
+		lda $56
+		cmp #$4
+		bne lbl_9af5
+		lda #TETRIS_ACHIEVED_SOUND
+		sta waveSoundEffect
+lbl_9af5
+		inc playState
+		lda $56
+		bne lbl_9b02
+		inc playState
+		lda #LOCK_TETRIMINO_SOUND
+		sta waveSoundEffect
+lbl_9b02
+		rts
+;--------------------
+unused2PlayerLogic subroutine
+
+		lda numPlayers
+		cmp #$1
+		beq lbl_9b50
+		ldy $bb
+		beq lbl_9b50
+		lda vramRow
+		cmp #$20
+		bmi lbl_9b52
+		lda lbl_96d6,y
+		sta lineIndex
+		lda #$0
+		sta $a8
+lbl_9b1c
+		ldy lineIndex
+		lda ($b8),y
+		ldy $a8
+		sta ($b8),y
+		inc $a8
+		inc lineIndex
+		lda lineIndex
+		cmp #$c8
+		bne lbl_9b1c
+		iny
+		ldx #$0
+lbl_9b31
+		cpx $5a
+		beq lbl_9b3a
+		lda #$78
+		jmp lbl_9b3c
+lbl_9b3a
+		lda #$ff
+lbl_9b3c
+		sta ($b8),y
+		inx
+		cpx #$a
+		bne lbl_9b45
+		ldx #$0
+lbl_9b45
+		iny
+		cpy #$c8
+		bne lbl_9b31
+		lda #$0
+		sta $bb
+		sta vramRow
+lbl_9b50
+		inc playState
+lbl_9b52
+		rts
+;--------------------
+lbl_9b53
+		dc.b $00, $00, $01, $02, $04
+;--------------------
+updateLinesStats subroutine
+
+		jsr lbl_9d17
+		lda $56
+		bne lbl_9b62
+		jmp lbl_9bfe
+lbl_9b62
+		tax
+		dex
+		lda $d8,x
+		clc
+		adc #$1
+		sta $d8,x
+		and #$f
+		cmp #$a
+		bmi lbl_9b78
+		lda $d8,x
+		clc
+		adc #$6
+		sta $d8,x
+lbl_9b78
+		lda $a3
+		ora #$1
+		sta $a3
+		lda bType
+		beq lbl_9ba6
+		lda $56
+		sta $a8
+		lda linesLowByte
+		sec
+		sbc $a8
+		sta linesLowByte
+		bpl lbl_9b96
+		lda #$0
+		sta linesLowByte
+		jmp lbl_9bfe
+lbl_9b96
+		and #$f
+		cmp #$a
+		bmi lbl_9bfe
+		lda linesLowByte
+		sec
+		sbc #$6
+		sta linesLowByte
+		jmp lbl_9bfe
+lbl_9ba6
+		ldx $56
+lbl_9ba8
+		inc linesLowByte
+		lda linesLowByte
+		and #$f
+		cmp #$a
+		bmi lbl_9bc7
+		lda linesLowByte
+		clc
+		adc #$6
+		sta linesLowByte
+		and #$f0
+		cmp #$a0
+		bcc lbl_9bc7
+		lda linesLowByte
+		and #$f
+		sta linesLowByte
+		inc linesHighByte
+lbl_9bc7
+		lda linesLowByte
+		and #$f
+		bne lbl_9bfb
+		jmp lbl_9bd0
+lbl_9bd0
+		lda linesHighByte
+		sta lineIndex
+		lda linesLowByte
+		sta $a8
+		lsr lineIndex
+		ror $a8
+		lsr lineIndex
+		ror $a8
+		lsr lineIndex
+		ror $a8
+		lsr lineIndex
+		ror $a8
+		lda level
+		cmp $a8
+		bpl lbl_9bfb
+		inc level
+		lda #LEVEL_UP_SOUND
+		sta waveSoundEffect
+		lda $a3
+		ora #$2
+		sta $a3
+lbl_9bfb
+		dex
+		bne lbl_9ba8
+lbl_9bfe
+		lda $4f
+		cmp #$2
+		bmi lbl_9c2d
+		clc
+		dec $53
+		adc $53
+		sta $53
+		and #$f
+		cmp #$a
+		bcc lbl_9c18
+		lda $53
+		clc
+		adc #$6
+		sta $53
+lbl_9c18
+		lda $53
+		and #$f0
+		cmp #$a0
+		bcc lbl_9c27
+		clc
+		adc #$60
+		sta $53
+		inc $54
+lbl_9c27
+		lda $a3
+		ora #$4
+		sta $a3
+lbl_9c2d
+		lda #$0
+		sta $4f
+		lda level
+		sta $a8
+		inc $a8
+lbl_9c37		
+		lda $56
+		asl
+		tax
+		lda scoreTable,x
+		clc
+		adc $53
+		sta $53
+		cmp #$a0
+		bcc lbl_9c4e
+		clc
+		adc #$60
+		sta $53
+		inc $54
+lbl_9c4e
+		inx
+		lda scoreTable,x
+		clc
+		adc $54
+		sta $54
+		and #$f
+		cmp #$a
+		bcc lbl_9c64
+		lda $54
+		clc
+		adc #$6
+		sta $54
+lbl_9c64
+		lda $54
+		and #$f0
+		cmp #$a0
+		bcc lbl_9c75
+		lda $54
+		clc
+		adc #$60
+		sta $54
+		inc $55
+lbl_9c75
+		lda $55
+		and #$f
+		cmp #$a
+		bcc lbl_9c84
+		lda $55
+		clc
+		adc #$6
+		sta $55
+lbl_9c84
+		lda $55
+		and #$f0
+		cmp #$a0
+		bcc lbl_9c94
+		lda #$99
+		sta $53
+		sta $54
+		sta $55
+lbl_9c94
+		dec $a8
+		bne lbl_9c37
+		lda $a3
+		ora #$4
+		sta $a3
+		lda #$0
+		sta $56
+		inc playState
+		rts
+;--------------------
+scoreTable
+		dc.b $00, $00 ; 0 lines
+		dc.b $40, $00 ; 1 line
+		dc.b $00, $01 ; 2 lines
+		dc.b $00, $03 ; 3 lines
+		dc.b $00, $12 ; 4 lines
+;--------------------
+lbl_9caf
+		ldx pieceY
+		dex
+		dex
+		txa
+		bpl lbl_9cb8
+		lda #$0
+lbl_9cb8
+		cmp vramRow
+		bpl lbl_9cbe
+lbl_9cbc
+		sta vramRow
+lbl_9cbe
+		rts
+;--------------------
+lbl_9cbf
+		lda #$5
+		sta lineIndex
+		lda $68
+		cmp #$0
+		beq lbl_9cd9
+		lda numPlayers
+		cmp #$1
+		beq lbl_9d14
+		lda #$4
+		sta lineIndex
+		lda $88
+		cmp #$0
+		bne lbl_9d14
+lbl_9cd9
+		lda numPlayers
+		cmp #$1
+		beq lbl_9ce4
+		lda #$9
+		sta playMode
+lbl_9ce3
+		rts
+;--------------------
+lbl_9ce4
+		lda #RENDER_MODE_PLAY_AND_DEMO_SCREENS
+		sta renderMode
+		lda numPlayers
+		cmp #$1
+		bne lbl_9cf1
+		jsr lbl_a0ee
+lbl_9cf1
+		lda #$1
+		sta $68
+		sta $88
+		lda #$ef
+		ldx #$4
+		ldy #$5
+		jsr fillMemPage
+		lda #$0
+		sta $69
+		sta $89
+		lda #$1
+		sta $68
+		sta $88
+		jsr waitAndClearPage2
+		lda #GAME_MODE_LEVEL_AND_HEIGHT_MENU
+		sta gameMode
+lbl_9d13
+		rts
+;--------------------
+lbl_9d14
+		inc playMode
+		rts
+;--------------------
+lbl_9d17
+		ldx #$5
+		lda lbl_96d6,x
+lbl_9d1c
+		tay
+		ldx #$a
+lbl_9d1f
+		lda ($b8),y
+		cmp #$ef
+		bne lbl_9d3c
+		iny
+		dex
+		bne lbl_9d1f
+		lda $ba
+		beq lbl_9d50
+		lda #$0
+		sta $ba
+		ldx $c2
+		lda lbl_85d2,x
+		jsr lbl_9e07
+		jmp lbl_9d50
+;--------------------
+lbl_9d3c
+		lda $ba
+		bne lbl_9d50
+		lda #$ff
+		sta $ba
+		lda $c2
+		clc
+		adc #$4
+		tax
+		lda lbl_85d2,x
+		jsr lbl_9e07
+lbl_9d50
+		rts
+;--------------------
+lbl_9d51
+		lda gameMode
+		cmp #GAME_MODE_DEMO
+		beq lbl_9d5b
+		jsr lbl_ab9d
+lbl_9d5a
+		rts
+;--------------------
+lbl_9d5b
+		lda $d0
+		cmp #$ff
+		beq lbl_9db0
+		jsr lbl_ab9d
+		lda buttonsPressed1
+		cmp #$10
+		beq exitDemo
+		lda $cf
+		beq lbl_9d73
+		dec $cf
+		jmp lbl_9d9a
+;--------------------
+lbl_9d73
+		ldx #$0
+		lda (demoButtonsLowByte,x)
+		sta $a8
+		jsr lbl_9de8
+		lda $ce
+		eor $a8
+		and $a8
+		sta buttonsPressed1
+		lda $a8
+		sta $ce
+		ldx #$0
+		lda (demoButtonsLowByte,x)
+        sta $cf
+		jsr lbl_9de8
+		lda demoButtonsHighByte
+		cmp #$df
+		beq lbl_9da2
+		jmp lbl_9d9e
+;--------------------
+lbl_9d9a
+		lda #$0
+		sta buttonsPressed1
+lbl_9d9e
+		lda $ce
+		sta $f7
+lbl_9da2
+		rts
+;--------------------
+exitDemo subroutine
+
+		lda #>demoButtons
+		sta demoButtonsHighByte
+		lda #<demoButtons
+		sta frameCounterHighByte
+		lda #GAME_MODE_TITLE_SCREEN
+		sta gameMode
+		rts
+;--------------------
+lbl_9db0
+		jsr lbl_ab9d
+		lda gameMode
+		cmp #GAME_MODE_DEMO
+		bne lbl_9de7
+		lda $d0
+		cmp #$ff
+		bne lbl_9de7
+		lda $f7
+		cmp $ce
+		beq lbl_9de4
+		ldx #$0
+		lda $ce
+		sta (demoButtonsLowByte,x)
+		jsr lbl_9de8
+		lda $cf
+		sta (demoButtonsLowByte,x)
+		jsr lbl_9de8
+		lda demoButtonsHighByte
+		cmp #$df
+		beq lbl_9de7
+		lda $f7
+		sta $ce
+		lda #$0
+		sta $cf
+lbl_9de3
+		rts
+;--------------------
+lbl_9de4
+		inc $cf
+lbl_9de6
+		rts
+;--------------------
+lbl_9de7
+		rts
+;--------------------
+lbl_9de8
+		lda demoButtonsLowByte
+		clc
+		adc #$1
+		sta demoButtonsLowByte
+		lda #$0
+		adc demoButtonsHighByte
+		sta demoButtonsHighByte
+		rts
+;--------------------
+gameModeInitDemo subroutine
+		lda #$0
+		sta bType
+		sta $67
+		sta playMode
+		sta $68
+		lda #GAME_MODE_DEMO
+		sta gameMode
+		jmp gameModePlay
+;--------------------
+lbl_9e07
+		sta $6f5
+		lda gameMode
+		cmp #GAME_MODE_DEMO
+		bne lbl_9e15
+		lda #$ff
+		sta $6f5
+lbl_9e15
+		rts
+;--------------------
+lbl_9e16
+		lda $f7
+		cmp #$f0
+		beq lbl_9e1f
+		inc playMode
+lbl_9e1e
+		rts
+;--------------------
+lbl_9e1f
+		jsr updateAudio
+		lda #GAME_MODE_LEGAL_SCREEN
+		sta gameMode
+		rts
+;--------------------
+lbl_9e27
+		lda #$2
+		sta playMode
+		jsr lbl_9874
+		rts
+;--------------------
+unassignOrientationId subroutine
+
+		lda #$13
+		sta pieceOrientation
+		rts
+;--------------------
+		inc playMode
+		rts
+;--------------------
+incrementPlayState
+		inc playState
+returnPlayState
+		rts
+;--------------------
+lbl_9e3a
+		lda #$2
+		sta $a2
+		lda #RENDER_MODE_ENDING_ANIMATION
+		sta renderMode
+		lda bType
+		bne lbl_9e49
+		jmp lbl_a926
+;--------------------
+lbl_9e49
+		ldx $64
+		lda lbl_96b8,x
+		and #$f
+		sta level
+		lda #$0
+		sta $de
+		sta $dd
+		sta $dc
+		lda level
+		asl
+		asl
+		asl
+		asl
+		sta $ab
+		lda $79
+		asl
+		asl
+		asl
+		asl
+		sta $ac
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+		lda level
+		cmp #$9
+		bne lbl_9e88
+		lda #$1
+		jsr switchCharBank0
+		lda #$1
+		jsr switchCharBank1
+		jsr copyToVRAM
+		dc.b <b_type_ending_lvl9_screen_background, >b_type_ending_lvl9_screen_background
+		jmp lbl_9ea4
+;--------------------
+lbl_9e88
+		ldx #$3
+		lda level
+		cmp #$2
+		beq lbl_9e96
+		cmp #$6
+		beq lbl_9e96
+		ldx #$2
+lbl_9e96
+		txa
+		jsr switchCharBank0
+		lda #$2
+		jsr switchCharBank1
+		jsr copyToVRAM
+		dc.b <b_type_ending_screen_background, >b_type_ending_screen_background
+lbl_9ea4		
+		jsr copyToVRAM
+		dc.b <ending_screen_color_palette, >ending_screen_color_palette
+		jsr lbl_a463
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		lda #RENDER_MODE_ENDING_ANIMATION
+		sta renderMode
+		lda #$a
+		jsr lbl_9e07
+		lda #$80
+		jsr lbl_a7fd
+		lda $73
+		sta $dc
+		lda $74
+		sta $dd
+		lda $75
+		sta $de
+		lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		lda #$0
+		sta $73
+		sta $74
+		sta $75
+		lda #$40
+		jsr lbl_a7fd
+		lda $ab
+		beq lbl_9f12
+lbl_9ee8
+		dec $ab
+		lda $ab
+		and #$f
+		cmp #$f
+		bne lbl_9efa
+		lda $ab
+		and #$f0
+		ora #$9
+		sta $ab
+lbl_9efa
+		lda $ab
+		jsr lbl_9f62
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda #$2
+		jsr lbl_a7fd
+		lda $ab
+		bne lbl_9ee8
+		lda #$40
+		jsr lbl_a7fd
+lbl_9f12
+		lda $ac
+		beq lbl_9f45
+lbl_9f16
+		dec $ac
+		lda $ac
+		and #$f
+		cmp #$f
+		bne lbl_9f28
+		lda $ac
+		and #$f0
+		ora #$9
+		sta $ac
+lbl_9f28
+		lda $ac
+		jsr lbl_9f62
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda #$2
+		jsr lbl_a7fd
+		lda $ac
+		bne lbl_9f16
+		lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		lda #$40
+		jsr lbl_a7fd
+lbl_9f45
+		jsr lbl_a527
+		jsr waitAndClearPage2
+		lda buttonsPressed1
+		cmp #$10
+		bne lbl_9f45
+		lda $64
+		sta level
+		lda $dc
+		sta $53
+		lda $dd
+		sta $54
+		lda $de
+		sta $55
+		rts
+;--------------------
+lbl_9f62
+		lda #$1
+		clc
+		adc $dd
+		sta $dd
+		and #$f
+		cmp #$a
+		bcc lbl_9f76
+		lda $dd
+		clc
+		adc #$6
+		sta $dd
+lbl_9f76
+		and #$f0
+		cmp #$a0
+		bcc lbl_9f85
+		lda $dd
+		clc
+		adc #$60
+		sta $dd
+		inc $de
+lbl_9f85
+		lda $de
+		and #$f
+		cmp #$a
+		bcc lbl_9f94
+		lda $de
+		clc
+		adc #$6
+		sta $de
+lbl_9f94
+		rts
+;--------------------
+renderEndingAnimation subroutine
+
+		lda #$20
+		sta PPUADDR
+		lda #$8e
+		sta PPUADDR
+		lda $75
+		jsr printTwoDigitNumber
+		lda $74
+		jsr printTwoDigitNumber
+		lda $73
+		jsr printTwoDigitNumber
+		lda bType
+		beq lbl_9fe9
+		lda #$20
+		sta PPUADDR
+		lda #$b0
+		sta PPUADDR
+		lda $ab
+		jsr printTwoDigitNumber
+		lda #$20
+		sta PPUADDR
+		lda #$d0
+		sta PPUADDR
+		lda $ac
+		jsr printTwoDigitNumber
+		lda #$21
+		sta PPUADDR
+		lda #$2e
+		sta PPUADDR
+		lda $de
+		jsr printTwoDigitNumber
+		lda $dd
+		jsr printTwoDigitNumber
+		lda $dc
+		jsr printTwoDigitNumber
+lbl_9fe9
+		ldy #$0
+		sty PPUSCROLL
+		sty PPUSCROLL
+		rts
+;--------------------
+lbl_9ff2
+		lda numPlayers
+		cmp #$1
+		beq lbl_9ffb
+		jmp lbl_a085
+;--------------------
+lbl_9ffb
+		jsr copyToVRAM
+		dc.b <highscore_table_background, >highscore_table_background
+		lda #$0
+		sta lineIndex
+		lda bType
+		beq lbl_a00c
+		lda #$4
+		sta lineIndex
+lbl_a00c
+		lda lineIndex
+		and #$3
+		asl
+		tax
+		lda lbl_a086,x
+		sta PPUADDR
+		lda lineIndex
+		and #$3
+		asl
+		tax
+		inx
+		lda lbl_a086,x
+		sta PPUADDR
+		lda lineIndex
+		asl
+		sta $a8
+		asl
+		clc
+		adc $a8
+		tay
+		ldx #$6
+lbl_a031
+		lda $700,y
+		sty $a8
+		tay
+		lda lbl_a08c,y
+		ldy $a8
+		sta PPUDATA
+		iny
+		dex
+		bne lbl_a031
+		lda #$ff
+		sta PPUDATA
+		lda lineIndex
+		sta $a8
+		asl
+		clc
+		adc $a8
+		tay
+		lda $730,y
+		jsr printTwoDigitNumber
+		iny
+		lda $730,y
+		jsr printTwoDigitNumber
+		iny
+		lda $730,y
+lbl_a062
+		jsr printTwoDigitNumber
+		lda #$ff
+		sta PPUDATA
+		ldy lineIndex
+		lda $748,y
+		tax
+		lda lbl_a0bc,x
+		jsr printTwoDigitNumber
+		inc lineIndex
+		lda lineIndex
+		cmp #$3
+		beq lbl_a085
+		cmp #$7
+		beq lbl_a085
+lbl_a082
+		jmp lbl_a00c
+;--------------------
+lbl_a085
+		rts
+;--------------------
+lbl_a086
+		dc.b $22, $89, $22, $c9, $23, $09
+lbl_a08c
+		dc.b $24, $0a
+		dc.b $0b, $0c, $0d, $0e, $0f, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $1a, $1b, $1c, $1d, $1e, $1f, $20, $21, $22, $23
+		dc.b $00, $01, $02, $03, $04, $05, $06, $07, $08, $09, $25, $4f, $5e, $5f, $6e, $6f, $ff, $00, $00, $00, $00
+lbl_a0bc
+		dc.b $00, $01, $02, $03, $04, $05, $06, $07, $08, $09, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49
+lbl_a0ee
+		lda #$00
+		sta $d5
+		lda bType
+		beq lbl_a0fa
+		lda #$4
+		sta $d5
+lbl_a0fa
+		lda $d5
+		sta lineIndex
+		asl
+		clc
+		adc lineIndex
+		tay
+		lda $730,y
+		cmp $75
+		beq lbl_a10e
+		bcs lbl_a124
+		bcc lbl_a134
+lbl_a10e
+		iny
+		lda $730,y
+		cmp $74
+		beq lbl_a11a
+		bcs lbl_a124
+		bcc lbl_a134
+lbl_a11a
+		iny
+		lda $730,y
+		cmp $73
+		beq lbl_a134
+		bcc lbl_a134
+lbl_a124
+		inc $d5
+		lda $d5
+		cmp #$3
+		beq lbl_a133
+		cmp #$7
+		beq lbl_a133
+		jmp lbl_a0fa
+;--------------------
+lbl_a133
+		rts
+;--------------------
+lbl_a134
+		lda $d5
+		and #$3
+		cmp #$2
+		bpl lbl_a160
+		lda #$6
+		jsr lbl_a192
+		lda #$3
+		jsr lbl_a1c1
+		lda #$1
+		jsr lbl_a1e0
+		lda $d5
+		and #$3
+		bne lbl_a160
+		lda #$0
+		jsr lbl_a192
+		lda #$0
+		jsr lbl_a1c1
+		lda #$0
+		jsr lbl_a1e0
+lbl_a160
+		ldx $d5
+		lda lbl_a1f1,x
+		tax
+		ldy #$6
+		lda #$0
+lbl_a16a
+		sta $700,x
+		inx
+		dey
+		bne lbl_a16a
+		ldx $d5
+		lda lbl_a1f9,x
+		tax
+		lda $75
+		sta $730,x
+		inx
+		lda $74
+		sta $730,x
+		inx
+		lda $73
+		sta $730,x
+		ldx $d5
+		lda $64
+		sta $748,x
+		jmp lbl_a201
+;--------------------
+lbl_a192
+		sta $a8
+		lda bType
+		beq lbl_a19f
+		lda #$18
+		clc
+		adc $a8
+		sta $a8
+lbl_a19f
+		lda #$5
+		sta lineIndex
+lbl_a1a3
+		lda $a8
+		clc
+		adc lineIndex
+		tax
+		lda $700,x
+		sta $aa
+		txa
+		clc
+		adc #$6
+		tax
+		lda $aa
+		sta $700,x
+		dec lineIndex
+		lda lineIndex
+		cmp #$ff
+		bne lbl_a1a3
+		rts
+;--------------------
+lbl_a1c1
+		tax
+		lda bType
+		beq lbl_a1cb
+		txa
+		clc
+		adc #$c
+lbl_a1ca
+		tax
+lbl_a1cb
+		lda $730,x
+		sta $733,x
+		inx
+		lda $730,x
+		sta $733,x
+		inx
+		lda $730,x
+		sta $733,x
+		rts
+;--------------------
+lbl_a1e0
+		tax
+		lda bType
+		beq lbl_a1ea
+		txa
+		clc
+		adc #$4
+lbl_a1e9
+		tax
+lbl_a1ea
+		lda $748,x
+		sta $749,x
+		rts
+;--------------------
+lbl_a1f1
+		dc.b $00, $06, $0c, $12, $18, $1e, $24, $2a
+lbl_a1f9
+		dc.b $00, $03, $06, $09, $0c, $0f, $12, $15
+lbl_a201
+		inc $8000
+		lda #$10
+		jsr setMmc1Control
+		lda #$9
+		jsr lbl_9e07
+		lda #RENDER_MODE_CONGRATULATIONS_SCREENS
+		sta renderMode
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+		lda #$0
+		jsr switchCharBank0
+		lda #$0
+		jsr switchCharBank1
+		jsr copyToVRAM
+		dc.b <menu_screen_color_palette, >menu_screen_color_palette
+		jsr copyToVRAM
+		dc.b <highscore_screen_background, >highscore_screen_background
+		lda #$20
+		sta PPUADDR
+		lda #$6d
+		sta PPUADDR
+		lda #$a
+		clc
+		adc bType
+		sta PPUDATA
+		jsr lbl_9ff2
+		lda #RENDER_MODE_CONGRATULATIONS_SCREENS
+		sta renderMode
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		lda $d5
+		asl
+		sta $a8
+		asl
+		clc
+		adc $a8
+		sta $d6
+		lda #$0
+		sta $d4
+		sta $200
+		lda $d5
+		and #$3
+		tax
+		lda lbl_a33b,x
+		sta $a1
+lbl_a26d
+		lda #$0
+		sta $200
+		ldx $d4
+		lda lbl_a33e,x
+		sta $a0
+		lda #$e
+		sta $a2
+		lda frameCounterLowByte
+		and #$3
+		bne lbl_a287
+		lda #$2
+		sta $a2
+lbl_a287
+		jsr lbl_8c27
+		lda buttonsPressed1
+		and #$10
+		beq lbl_a298
+		lda #MENU_SCREEN_SELECT_SOUND
+		sta waveSoundEffect
+		jmp lbl_a337
+;--------------------
+lbl_a298
+		lda buttonsPressed1
+		and #$81
+		beq lbl_a2af
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		inc $d4
+		lda $d4
+		cmp #$6
+		bmi lbl_a2af
+		lda #$0
+		sta $d4
+lbl_a2af
+		lda buttonsPressed1
+		and #$42
+		beq lbl_a2c4
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		dec $d4
+		lda $d4
+		bpl lbl_a2c4
+		lda #$5
+		sta $d4
+lbl_a2c4
+		lda $f7
+		and #$4
+		beq lbl_a2f2
+		lda frameCounterLowByte
+		and #$7
+		bne lbl_a2f2
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $d6
+		sta $a8
+		clc
+		adc $d4
+		tax
+		lda $700,x
+		sta $a8
+		dec $a8
+		lda $a8
+		bpl lbl_a2ed
+		clc
+lbl_a2e9
+		adc #$2c
+		sta $a8
+lbl_a2ed
+		lda $a8
+		sta $700,x
+lbl_a2f2
+		lda $f7
+		and #$8
+		beq lbl_a322
+		lda frameCounterLowByte
+		and #$7
+		bne lbl_a322
+		lda #MENU_OPTION_SELECT_SOUND
+		sta waveSoundEffect
+		lda $d6
+		sta $a8
+		clc
+		adc $d4
+		tax
+		lda $700,x
+		sta $a8
+		inc $a8
+		lda $a8
+		cmp #$2c
+		bmi lbl_a31d
+		sec
+		sbc #$2c
+		sta $a8
+lbl_a31d
+		lda $a8
+		sta $700,x
+lbl_a322
+		lda $d6
+		clc
+		adc $d4
+		tax
+		lda $700,x
+		sta $d7
+		lda #$80
+		sta $a3
+		jsr waitAndClearPage2
+		jmp lbl_a26d
+;--------------------
+lbl_a337
+		jsr waitAndClearPage2
+		rts
+;--------------------
+lbl_a33b
+		dc.b $9f, $af, $bf
+lbl_a33e
+		dc.b $48, $50, $58, $60, $68, $70
+;--------------------
+renderCongratulationsScreens subroutine
+
+		lda $a3
+		and #$80
+		beq lbl_a37e
+		lda $d5
+		and #$3
+		asl
+		tax
+		lda lbl_a086,x
+		sta PPUADDR
+		lda $d5
+		and #$3
+		asl
+		tax
+		inx
+		lda lbl_a086,x
+		sta $a8
+		clc
+		adc $d4
+		sta PPUADDR
+		ldx $d7
+		lda lbl_a08c,x
+		sta PPUDATA
+		lda #$0
+		sta scrollX
+		sta PPUSCROLL
+		sta scrollY
+		sta PPUSCROLL
+		sta $a3
+lbl_a37e
+		rts
+;--------------------
+lbl_a37f subroutine
+		lda gameMode
+		cmp #GAME_MODE_DEMO
+		bne .demoNotExited
+		lda buttonsPressed1
+		cmp #$10
+		bne .demoNotExited
+		lda #GAME_MODE_TITLE_SCREEN
+		sta gameMode
+		jmp .nextPlayMode
+.demoNotExited
+		lda renderMode
+		cmp #RENDER_MODE_PLAY_AND_DEMO_SCREENS
+		bne .nextPlayMode
+lbl_a398
+		lda buttonsPressed1
+		and #$10
+		bne lbl_a3a1
+		jmp .nextPlayMode
+lbl_a3a1
+		lda $68
+		cmp #$a
+		bne lbl_a3aa
+		jmp .nextPlayMode
+lbl_a3aa
+		lda #$5
+		sta $68d
+		lda #RENDER_MODE_LEGAL_TITLE_SCREENS
+		sta renderMode
+		jsr waitForVerticalBlankingInterval
+		lda #$16
+		sta PPUMASK
+		lda #$ff
+		ldx #$2
+		ldy #$2
+		jsr fillMemPage
+lbl_a3c4
+		lda #linesLowByteCopy
+		sta $a0
+		lda #$77
+		sta $a1
+		lda #$5
+		sta $a2
+		jsr lbl_8c27
+		lda buttonsPressed1
+		cmp #$10
+		beq lbl_a3df
+		jsr waitAndClearPage2
+		jmp lbl_a3c4
+lbl_a3df
+		lda #$1e
+		sta PPUMASK
+		lda #$0
+		sta $68d
+		sta $69
+		lda #RENDER_MODE_PLAY_AND_DEMO_SCREENS
+		sta renderMode
+.nextPlayMode
+		inc playMode
+		rts
+;--------------------
+checkBTypeGoal subroutine
+
+		lda bType
+		beq lbl_a42b
+		lda linesLowByte
+		bne lbl_a42b
+		lda #$2
+		jsr lbl_9e07
+		ldy #$46
+		ldx #$0
+lbl_a403
+		lda lbl_a42e,x
+		cmp #$80
+		beq lbl_a411
+		sta ($b8),y
+		inx
+		iny
+		jmp lbl_a403
+lbl_a411
+		lda #$0
+		sta $69
+		jsr lbl_a44d
+		lda #RENDER_MODE_LEGAL_TITLE_SCREENS
+		sta renderMode
+		lda #$80
+		jsr initialLegalScreenWait
+		jsr lbl_9e3a
+		lda #PLAY_STATE_UNASSIGN_ORIENTATION_ID
+		sta playState
+		inc playMode
+lbl_a42a
+		rts
+lbl_a42b
+		inc playState
+		rts
+;--------------------
+lbl_a42e
+		dc.b $38, $39, $39, $39, $39, $39, $39, $39, $39, $3a, $3b, $1c, $1e, $0c, $0c, $0e, $1c, $1c, $28, $3c, $3d, $3e, $3e, $3e, $3e, $3e, $3e, $3e, $3e, $3f, $80 
+lbl_a44d
+		lda #$14
+		sta legalScreenCounter1
+lbl_a451
+		jsr waitAndClearPage2
+		lda legalScreenCounter1
+		bne lbl_a451
+		rts
+;--------------------
+initialLegalScreenWait
+		sta legalScreenCounter1
+.waitForTimeOut
+		jsr waitAndClearPage2
+		lda legalScreenCounter1
+		bne .waitForTimeOut
+		rts
+;--------------------
+lbl_a463
+		lda #$0
+		sta ending
+		sta $c5
+		sta $cd
+		lda #$2
+		sta $a2
+		lda level
+		cmp #$9
+		bne lbl_a49a
+		lda $79
+		clc
+		adc #$1
+		sta ending
+		jsr lbl_a4b1
+		lda #$0
+		sta ending
+		sta $c7
+		lda lbl_a73d
+		sta $c8
+		lda lbl_a73d+1
+		sta $c9
+		lda lbl_a73d+2
+		sta $ca
+		lda lbl_a73d+3
+		sta $cb
+lbl_a499
+		rts
+;--------------------
+lbl_a49a
+		ldx level
+		lda lbl_a767,x
+		sta $c7
+		sta $c8
+		sta $c9
+		sta $ca
+		sta $cb
+		ldx level
+		lda lbl_a75d,x
+		sta $c6
+		rts
+;--------------------
+lbl_a4b1
+		lda ending
+		jsr switch
+		dc.b <lbl_a4c4, >lbl_a4c4
+		dc.b <lbl_a4cf, >lbl_a4cf
+		dc.b <lbl_a4da, >lbl_a4da
+		dc.b <lbl_a4e5, >lbl_a4e5
+		dc.b <lbl_a4f0, >lbl_a4f0
+		dc.b <lbl_a4fb, >lbl_a4fb
+		dc.b <lbl_a506, >lbl_a506
+lbl_a4c4
+		lda #$a8
+		sta $15
+		lda #$22
+		sta $14
+		jsr lbl_a507
+lbl_a4cf
+		lda #$a8
+		sta $15
+		lda #$34
+		sta $14
+		jsr lbl_a507
+lbl_a4da
+		lda #$a8
+		sta $15
+		lda #$4a
+		sta $14
+		jsr lbl_a507
+lbl_a4e5
+		lda #$a8
+		sta $15
+		lda #$62
+		sta $14
+		jsr lbl_a507
+lbl_a4f0
+		lda #$a8
+		sta $15
+		lda #$7a
+		sta $14
+		jsr lbl_a507
+lbl_a4fb
+		lda #$a8
+		sta $15
+		lda #$96
+		sta $14
+		jsr lbl_a507
+lbl_a506
+		rts
+;--------------------
+lbl_a507
+		ldy #$0
+lbl_a509
+		lda ($14),y
+		sta PPUADDR
+		iny
+		lda ($14),y
+		sta PPUADDR
+		iny
+lbl_a515
+		lda ($14),y
+		iny
+		cmp #$fe
+		beq lbl_a509
+		cmp #$fd
+		beq lbl_a526
+		sta PPUDATA
+		jmp lbl_a515
+;--------------------
+lbl_a526
+		rts
+;--------------------
+lbl_a527
+		lda bType
+		bne lbl_a52e
+		jmp lbl_a9b1
+;--------------------
+lbl_a52e
+		lda level
+		cmp #$9
+		beq lbl_a537
+		jmp lbl_a625
+;--------------------
+lbl_a537
+		jsr lbl_a53b
+		rts
+;--------------------
+lbl_a53b
+		lda $79
+		jsr switch
+		dc.b <lbl_a609, >lbl_a609
+		dc.b <lbl_a5f1, >lbl_a5f1
+		dc.b <lbl_a5d9, >lbl_a5d9
+		dc.b <lbl_a5c1, >lbl_a5c1
+		dc.b <lbl_a5a9, >lbl_a5a9
+		dc.b <lbl_a54c, >lbl_a54c
+lbl_a54c
+		lda #200
+		sta $a0
+		lda #$47
+		sta $a1
+		lda frameCounterLowByte
+		and #$8
+		lsr
+		lsr
+		lsr
+		clc
+		adc #$21
+		sta $a2
+		jsr lbl_8c27
+		lda #$a0
+		sta $a0
+		lda #$27
+		sta $a2
+		lda frameCounterLowByte
+		and #$18
+		lsr
+		lsr
+		lsr
+		tax
+		lda lbl_a80a,x
+		sta $a1
+		cmp #$97
+		beq lbl_a580
+		lda #$28
+		sta $a2
+lbl_a580
+		jsr lbl_8c27
+lbl_a583
+		lda #$c0
+		sta $a0
+		lda ending
+		lsr
+		lsr
+		lsr
+		cmp #$a
+lbl_a58e
+		bne lbl_a599
+		lda #$0
+		sta ending
+		inc $c5
+		jmp lbl_a583
+;--------------------
+lbl_a599
+		tax
+		lda lbl_a80e,x
+		sta $a1
+		lda lbl_a818,x
+		sta $a2
+		jsr lbl_8c27
+		inc ending
+lbl_a5a9
+		lda #$30
+		sta $a0
+		lda #$a7
+		sta $a1
+		lda frameCounterLowByte
+		and #$10
+		lsr
+		lsr
+		lsr
+		lsr
+		clc
+		adc #$1f
+		sta $a2
+		jsr lbl_8c27
+lbl_a5c1
+		lda #$40
+		sta $a0
+		lda #$77
+		sta $a1
+		lda frameCounterLowByte
+		and #$10
+		lsr
+		lsr
+		lsr
+		lsr
+		clc
+		adc #$1d
+		sta $a2
+		jsr lbl_8c27
+lbl_a5d9
+		lda #$a8
+		sta $a0
+		lda #$d7
+		sta $a1
+		lda frameCounterLowByte
+		and #$10
+		lsr
+		lsr
+		lsr
+		lsr
+		clc
+		adc #$1a
+		sta $a2
+		jsr lbl_8c27
+lbl_a5f1
+		lda #$c8
+		sta $a0
+		lda #$d7
+		sta $a1
+		lda frameCounterLowByte
+		and #$10
+		lsr
+		lsr
+		lsr
+		lsr
+		clc
+		adc #$18
+		sta $a2
+		jsr lbl_8c27
+lbl_a609
+		lda #$28
+		sta $a0
+		lda #$77
+		sta $a1
+		lda frameCounterLowByte
+		and #$10
+		lsr
+		lsr
+		lsr
+		lsr
+		clc
+		adc #$16
+		sta $a2
+		jsr lbl_8c27
+		jsr lbl_a6bc
+		rts
+;--------------------
+lbl_a625
+		jsr lbl_a690
+		inc $cd
+		lda #$0
+		sta $cc
+lbl_a62e
+		ldx level
+		lda lbl_a767,x
+		sta $a8
+		ldx $cc
+		lda $c6,x
+		cmp $a8
+		beq lbl_a675
+		sta $a0
+		jsr lbl_a6ae
+		lda lbl_a7b7,x
+		sta $a1
+		jsr lbl_8c27
+		ldx level
+		lda lbl_a753,x
+		cmp $cd
+		bne lbl_a675
+		ldx level
+		lda lbl_a771,x
+		clc
+		adc $a0
+		sta $a0
+		ldx $cc
+		sta $c6,x
+		jsr lbl_a6ae
+		lda lbl_a77b,x
+		cmp $a0
+		bne lbl_a675
+		ldx level
+		lda lbl_a75d,x
+		ldx $cc
+		inx
+		sta $c6,x
+lbl_a675
+		lda $cc
+		sta $a8
+		cmp $59
+		beq lbl_a682
+		inc $cc
+		jmp lbl_a62e
+;--------------------
+lbl_a682
+		ldx level
+		lda lbl_a753,x
+		cmp $cd
+		bne lbl_a68f
+		lda #$0
+		sta $cd
+lbl_a68f
+		rts
+;--------------------
+lbl_a690
+		inc ending
+		ldx level
+		lda lbl_a749,x
+		cmp ending
+		bne lbl_a6a5
+		lda $c5
+		eor #$1
+		sta $c5
+		lda #$0
+		sta ending
+lbl_a6a5
+		lda lbl_a7f3,x
+		clc
+		adc $c5
+		sta $a2
+		rts
+;--------------------
+lbl_a6ae
+		lda level
+		asl
+		sta $a8
+		asl
+		clc
+		adc $a8
+		clc
+		adc $cc
+		tax
+		rts
+;--------------------
+lbl_a6bc
+		ldx #$0
+lbl_a6be
+		lda lbl_a735,x
+		cmp $c5
+		bne lbl_a6d0
+		lda $c8,x
+		beq lbl_a6d0
+		sec
+		sbc #$1
+		sta $c8,x
+		inc $c5
+lbl_a6d0
+		inx
+		cpx #$4
+		bne lbl_a6be
+		lda #$0
+		sta $cc
+lbl_a6d9		
+		ldx $cc
+		lda $c8,x
+		beq lbl_a72c
+		sta $a8
+		lda lbl_a73d,x
+		cmp $a8
+		beq lbl_a6f7
+		lda #ENDING_ROCKET_SOUND
+		sta noiseSoundEffect
+		dec $a8
+		lda $a8
+		cmp #$a0
+		bcs lbl_a6f7
+		dec $a8
+lbl_a6f7
+		lda $a8
+		sta $c8,x
+		sta $a1
+		lda lbl_a739,x
+		sta $a0
+		lda lbl_a741,x
+		sta $a2
+		jsr lbl_8c27
+		ldx $cc
+		lda $c8,x
+		sta $a8
+		lda lbl_a73d,x
+		cmp $a8
+		beq lbl_a72c
+		lda lbl_a745,x
+		clc
+		adc $a0
+		sta $a0
+		lda frameCounterLowByte
+		and #$2
+		lsr
+		clc
+		adc #$51
+		sta $a2
+		jsr lbl_8c27
+lbl_a72c
+		inc $cc
+		lda $cc
+		cmp #$4
+		bne lbl_a6d9
+		rts
+;--------------------
+lbl_a735
+		dc.b $05, $07, $09, $0b
+lbl_a739
+		dc.b $60, $90, $70, $7e
+lbl_a73d
+		dc.b $bc, $b8, $bc, $b3
+lbl_a741
+		dc.b $4d, $50, $4e, $4f
+lbl_a745
+		dc.b $00, $00, $00, $02
+lbl_a749
+		dc.b $02, $04, $06, $03
+lbl_a74d
+		dc.b $10, $03, $05, $06, $02, $05
+lbl_a753
+		dc.b $03, $01, $01, $01, $02, $05, $01
+		dc.b $02, $01, $01
+lbl_a75d
+		dc.b $02, $02, $fe, $fe, $02, $fe, $02, $02, $fe, $02
+lbl_a767
+		dc.b $00, $00, $00, $02, $f0, $10
+lbl_a76d
+		dc.b $f0, $f0, $20, $f0
+lbl_a771
+		dc.b $01, $01, $ff, $fc, $01, $ff
+lbl_a777
+		dc.b $02, $02, $fe, $02
+lbl_a77b
+		dc.b $3a, $24, $0a, $4a, $3a, $ff, $22, $44, $12, $32, $4a, $ff, $ae, $6e, $8e
+		dc.b $6e, $1e, $02
+lbl_a78d		
+		dc.b $42, $42, $42, $42, $42, $02, $22, $0a, $1a, $04, $0a, $ff, $ee
+		dc.b $de, $fc, $fc, $f6, $02, $80, $80, $80, $80, $80, $ff, $e8, $e8, $e8, $e8, $48
+		dc.b $ff, $80, $ae, $9e, $90, $80, $02, $80, $80, $80, $80, $80, $ff
+
+lbl_a7b7
+		tya
+		tay
+		cpy #$a8
+		bcc lbl_a76d
+		bcs lbl_a777
+		ldy #$b8
+		tay
+		ldy #$c8
+		iny
+		iny
+		iny
+		iny
+		iny
+		bmi lbl_a7eb
+		rti
+;--------------------
+		plp
+		ldy #$80
+		tay
+		dey
+		pla
+		tay
+		pha
+		sei
+		cli
+		pla
+		clc
+		pha
+		sei
+		sec
+		iny
+		iny
+		iny
+		iny
+		iny
+		iny
+		bcc lbl_a83b
+		bvs lbl_a78d
+		rti
+;--------------------
+		sec
+		pla
+		dey
+		sei
+lbl_a7ea
+		clc
+lbl_a7eb
+		pha
+		tay
+		iny
+		iny
+		iny
+		iny
+		iny
+		iny
+lbl_a7f3
+		bit $542e
+		dc.b $32	;?
+		dc.b $34	;?
+		rol $4b,x
+		sec
+		dc.b $3a	;?
+		dc.b $4b	;?
+lbl_a7fd
+		sta legalScreenCounter1
+lbl_a7ff
+		jsr lbl_a527
+		jsr waitAndClearPage2
+		lda legalScreenCounter1
+		bne lbl_a7ff
+		rts
+;--------------------
+lbl_a80a
+		dc.b $97, $8f, $87, $8f
+lbl_a80e
+		dc.b $97, $8f, $87, $87, $8f, $97, $8f, $87, $87, $8f
+lbl_a818
+		dc.b $29, $29, $29, $2a, $2a, $2a, $2a, $2a, $29, $29, $21, $a5, $ff, $ff, $ff, $fe
+		dc.b $21, $c5, $ff, $ff, $ff, $fe, $21, $e5, $ff, $ff, $ff, $fd, $23, $1a, $ff, $fe
+		dc.b $23, $39, $ff
+lbl_a83b
+		dc.b $ff, $ff, $fe, $23, $59, $ff, $ff, $ff, $fe, $23, $79, $ff, $ff, $ff, $fd, $23
+		dc.b $15, $ff, $ff, $ff, $fe, $23, $35, $ff, $ff, $ff, $fe, $23, $55, $ff, $ff, $ff
+		dc.b $fe, $23, $75, $ff, $ff, $ff, $fd, $21, $88, $ff, $ff, $ff, $fe, $21, $a8, $ff
+		dc.b $ff, $ff, $fe, $21, $c8, $ff, $ff, $ff, $fe, $21, $e8, $ff, $ff, $ff, $fd, $22
+		dc.b $46, $ff, $ff, $ff, $ff, $fe, $22, $66, $ff, $ff, $ff, $ff, $fe, $22, $86, $ff
+		dc.b $ff, $ff, $ff, $fe, $22, $a6, $ff, $ff, $ff, $ff, $fd, $20, $f9, $ff, $ff, $ff
+		dc.b $fe, $21, $19, $ff, $ff, $ff, $fe, $21, $39, $ff, $ff, $ff, $fd, $23, $35, $ff
+		dc.b $ff, $ff, $fe, $23, $55, $ff, $ff, $ff, $fe, $23, $75, $ff, $ff, $ff, $fd, $23
+		dc.b $39, $ff, $ff, $ff, $fe, $23, $59, $ff, $ff, $ff, $fe, $23, $79, $ff, $ff, $ff
+		dc.b $fd, $22, $58, $ff, $fe, $22, $75, $ff, $ff, $ff, $ff, $ff, $ff, $fe, $22, $94
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fe, $22, $b4, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $fe, $22, $d4, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fe, $22
+		dc.b $f4, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fe, $23, $14, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $fe, $23, $34, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fe
+		dc.b $22, $ca, $46, $47, $fe, $22, $ea, $56, $57, $fd, $fc
+lbl_a926
+		jsr disableBackgroundAndSprites
+		jsr disableVerticalBlankingNMI
+		lda #$2
+		jsr switchCharBank0
+		lda #$2
+		jsr switchCharBank1
+		jsr copyToVRAM
+		dc.b <type_a_ending_screen_background, >type_a_ending_screen_background
+		jsr copyToVRAM
+		dc.b <ending_screen_color_palette, >ending_screen_color_palette
+		jsr lbl_a96e
+		jsr enableVerticalBlankingNMI
+		jsr waitAndClearPage2
+		jsr enableBackgroundAndSprites
+		jsr waitAndClearPage2
+		lda #RENDER_MODE_ENDING_ANIMATION
+		sta renderMode
+		lda #$a
+		jsr lbl_9e07
+		lda #$80
+		jsr lbl_a7fd
+lbl_a95d
+		jsr lbl_a527
+		jsr waitAndClearPage2
+		lda $c5
+		bne lbl_a95d
+		lda buttonsPressed1
+		cmp #$10
+		bne lbl_a95d
+		rts
+;--------------------
+lbl_a96e
+		lda #$0
+		sta ending
+		lda $75
+		cmp #$5
+		bcc lbl_a9a5
+		lda #$1
+		sta ending
+		lda $75
+		cmp #$7
+		bcc lbl_a9a5
+		lda #$2
+		sta ending
+		lda $75
+		cmp #$10
+		bcc lbl_a9a5
+		lda #$3
+		sta ending
+		lda $75
+		cmp #$12
+		bcc lbl_a9a5
+		lda #$4
+		sta ending
+		lda #$a8
+		sta $15
+		lda #$cc
+		sta $14
+		jsr lbl_a507
+lbl_a9a5
+		ldx ending
+		lda lbl_aa2a,x
+		sta $c5
+		lda #$0
+		sta $c6
+		rts
+;--------------------
+lbl_a9b1
+		lda $c5
+		cmp #$0
+		beq lbl_aa10
+		sta $a1
+		lda #$58
+		ldx ending
+		lda lbl_aa25,x
+		sta $a0
+		lda lbl_aa11,x
+		sta $a2
+lbl_a9c7
+		jsr lbl_8c27
+		lda ending
+		asl
+		sta $a8
+		lda frameCounterLowByte
+		and #$2
+		lsr
+		clc
+		adc $a8
+		tax
+		lda lbl_aa16,x
+		sta $a2
+		ldx ending
+		lda lbl_aa20,x
+		clc
+		adc $a0
+		sta $a0
+		jsr lbl_8c27
+		lda $c6
+		cmp #$f0
+		bne lbl_aa0e
+		lda $c5
+		cmp #$b0
+		bcc lbl_a9fc
+		lda frameCounterLowByte
+		and #$1
+		bne lbl_aa0b
+lbl_a9fc
+		lda #ENDING_ROCKET_SOUND
+		sta noiseSoundEffect
+		dec $c5
+		lda $c5
+		cmp #$80
+		bcs lbl_aa0b
+		dec $c5
+lbl_aa0b
+		jmp lbl_aa10
+;--------------------
+lbl_aa0e
+		inc $c6
+lbl_aa10
+		rts
+;--------------------
+lbl_aa11
+		dc.b $3e, $41, $44, $47, $4a
+lbl_aa16
+		dc.b $3f, $40, $42, $43, $45, $46, $48, $49, $23, $24
+lbl_aa20
+		dc.b $00, $00, $00, $00, $00
+lbl_aa25
+		dc.b $54, $54, $50, $48, $a0
+lbl_aa2a
+		dc.b $bf, $bf, $bf, $bf, $c7
+waitAndClearPage2
+		jsr lbl_e000
+		lda #$0
+		sta verticalBlankingInterval
+		nop
+lbl_aa37
+		lda verticalBlankingInterval
+		beq lbl_aa37
+		lda #$ff
+		ldx #$2
+		ldy #$2
+		jsr fillMemPage
+		rts
+;--------------------
+waitForVerticalBlankingInterval
+		jsr lbl_e000
+		lda #$0
+		sta verticalBlankingInterval
+		nop
+lbl_aa4d
+		lda verticalBlankingInterval
+		beq lbl_aa4d
+		rts
+;--------------------
+disableBackgroundAndSprites
+		jsr waitForVerticalBlankingInterval
+		lda ppuMaskFlags	; Disable background and sprites
+		and #$e1
+setPpuMask
+		sta PPUMASK		;PPU Control Register #2
+		sta ppuMaskFlags
+		rts
+;--------------------
+enableBackgroundAndSprites
+		jsr waitForVerticalBlankingInterval
+		jsr resetPpuScrollAndCtrlFlags
+		lda ppuMaskFlags
+		ora #$1e			; Enable background and sprites
+		bne setPpuMask
+;--------------------
+enableVerticalBlankingNMI
+		lda PPUSTATUS	 ; Wait for vertical blank
+		and #$80
+		bne enableVerticalBlankingNMI
+		lda ppuCtrlFlags
+		ora #$80
+		bne setPpuCtrl
+disableVerticalBlankingNMI
+		lda ppuCtrlFlags
+		and #$7f
+setPpuCtrl
+		sta PPUCTRL		;PPU Control Register #1 
+		sta ppuCtrlFlags
+		rts
+;--------------------
+clearVRAM
+		ldx #$ff
+		ldy #$0
+		jsr fillVRAM
+		rts
+;--------------------
+resetPpuScrollAndCtrlFlags
+		lda #$0
+		sta PPUSCROLL
+		sta PPUSCROLL
+		lda ppuCtrlFlags
+		sta PPUCTRL		;PPU Control Register #1 
+		rts
+;--------------------
+copyToVRAM
+		jsr patchReturnAddress
+		jmp lbl_aaf2
+;--------------------
+lbl_aa9e
+		pha
+		sta PPUADDR
+		iny
+		lda ($0),y
+		sta PPUADDR
+		iny
+		lda ($0),y
+		asl
+		pha
+		lda ppuCtrlFlags
+		ora #$4
+		bcs lbl_aab5
+		and #$fb
+lbl_aab5
+		sta PPUCTRL		;PPU Control Register #1 
+		sta ppuCtrlFlags
+		pla
+		asl
+		php
+		bcc lbl_aac2
+		ora #$2
+lbl_aac1
+		iny
+lbl_aac2
+		plp
+		clc
+		bne lbl_aac7
+lbl_aac6
+		sec
+lbl_aac7
+		ror
+		lsr
+lbl_aac9
+		tax
+lbl_aaca
+		bcs lbl_aacd
+lbl_aacc
+		iny
+lbl_aacd
+		lda ($0),y
+		sta PPUDATA
+		dex
+		bne lbl_aaca
+		pla
+		cmp #$3f
+		bne lbl_aae6
+		sta PPUADDR
+		stx PPUADDR
+		stx PPUADDR
+		stx PPUADDR
+lbl_aae6
+		sec
+		tya
+		adc $0
+		sta $0
+		lda #$0
+		adc $1
+		sta $1
+lbl_aaf2
+		ldx PPUSTATUS	;PPU Status Register
+		ldy #$0
+		lda ($0),y
+		bpl lbl_aafc
+lbl_aafb
+		rts
+;--------------------
+lbl_aafc
+		cmp #$60
+		bne lbl_ab0a
+		pla
+		sta $1
+		pla
+		sta $0
+		ldy #$2
+		bne lbl_aae6
+lbl_ab0a
+		cmp #$4c
+		bne lbl_aa9e
+		lda $0
+		pha
+		lda $1
+		pha
+		iny
+		lda ($0),y
+		tax
+		iny
+		lda ($0),y
+		sta $1
+		stx $0
+		bcs lbl_aaf2
+
+		; Modify return address on the stack based on the 2 bytes following the jump into this routine.
+
+patchReturnAddress
+		tsx			; Store original return address in $5-$6.
+		lda $103,x
+		sta $5
+		lda $104,x
+		sta $6
+		ldy #$1  	; Store 2 bytes following the original return address in $0-$1.
+		lda ($5),y
+		sta $0
+		iny
+		lda ($5),y
+		sta $1
+		clc			; Add 2 to the return address and copy back to stack.
+		lda #$2
+		adc $5
+		sta $103,x
+		lda #$0
+		adc $6
+		sta $104,x
+		rts
+;--------------------
+
+		; Generates a new pseudo random value at the memory address contained in register X and with length contained
+		; in register Y.
+
+generateRandomNumber
+		lda $0,x		; extract bit 1
+		and #$2
+		sta $0
+		lda $1,x		; extract bit 9
+		and #$2
+		eor $0			; XOR bits 1 and 9 and set/clear carry accordingly
+		clc
+		beq lbl_ab57
+lbl_ab56
+		sec
+lbl_ab57				; right shift, shift in the XORed value
+		ror $00,x
+		inx
+		dey
+		bne lbl_ab57
+		rts
+;--------------------
+lbl_ab5e
+		lda #$0
+		sta OAMADDR		;SPR-RAM Address Register
+		lda #$2
+		sta OAMDMA		;Sprite DMA Register
+		rts
+;--------------------
+lbl_ab69
+		ldx $fb
+		inx
+		stx JOY1		;Joypad #1
+		dex
+		stx JOY1		;Joypad #1
+		ldx #$8
+lbl_ab75
+		lda JOY1		;Joypad #1
+		lsr
+		rol buttonsPressed1
+		lsr
+		rol $00
+		lda JOY2		;Joypad #2/SOFTCLK
+		lsr
+		rol buttonsPressed2
+		lsr
+		rol $01
+		dex
+		bne lbl_ab75
+		rts
+;--------------------
+lbl_ab8b
+		lda $0
+		ora buttonsPressed1
+		sta buttonsPressed1
+		lda $1
+		ora buttonsPressed2
+		sta buttonsPressed2
+		rts
+;--------------------
+		jsr lbl_ab69
+		beq lbl_abbd
+lbl_ab9d
+		jsr lbl_ab69
+		jsr lbl_ab8b
+		lda buttonsPressed1
+		sta lineIndex
+		lda buttonsPressed2
+		sta $aa
+		jsr lbl_ab69
+		jsr lbl_ab8b
+		lda buttonsPressed1
+		and lineIndex
+		sta buttonsPressed1
+		lda buttonsPressed2
+		and $aa
+		sta buttonsPressed2
+lbl_abbd
+		ldx #$1
+lbl_abbf
+		lda buttonsPressed1,x
+		tay
+		eor $f7,x
+		and buttonsPressed1,x
+		sta buttonsPressed1,x
+		sty $f7,x
+		dex
+		bpl lbl_abbf
+		rts
+;--------------------
+		jsr lbl_ab69
+lbl_abd1
+		ldy buttonsPressed1
+		lda buttonsPressed2
+		pha
+		jsr lbl_ab69
+		pla
+		cmp buttonsPressed2
+		bne lbl_abd1
+		cpy buttonsPressed1
+		bne lbl_abd1
+		beq lbl_abbd
+		jsr lbl_ab69
+		jsr lbl_ab8b
+lbl_abea
+		ldy buttonsPressed1
+		lda buttonsPressed2
+		pha
+		jsr lbl_ab69
+		jsr lbl_ab8b
+		pla
+		cmp buttonsPressed2
+		bne lbl_abea
+		cpy buttonsPressed1
+		bne lbl_abea
+		beq lbl_abbd
+		jsr lbl_ab69
+		lda $0
+		sta $f7
+		lda $1
+		sta $f8
+		ldx #$3
+lbl_ac0d		
+		lda buttonsPressed1,x
+		tay
+		eor $f1,x
+		and buttonsPressed1,x
+		sta buttonsPressed1,x
+		sty $f1,x
+		dex
+		bpl lbl_ac0d
+		rts
+;--------------------
+fillVRAM
+		sta $0
+		stx $1
+		sty $2
+
+		lda PPUSTATUS
+
+		lda ppuCtrlFlags	; Disable background
+		and #$fb
+		sta PPUCTRL
+		sta ppuCtrlFlags
+
+		lda $0
+		sta PPUADDR
+		ldy #$0
+		sty PPUADDR
+		ldx #$4
+		cmp #$20
+		bcs lbl_ac40
+		ldx $2
+lbl_ac40
+		ldy #$0
+		lda $1
+lbl_ac44
+		sta PPUDATA
+		dey
+		bne lbl_ac44
+		dex
+		bne lbl_ac44
+		ldy $2
+		lda $0
+		cmp #$20
+		bcc lbl_ac67
+		adc #$2
+		sta PPUADDR
+		lda #$c0
+		sta PPUADDR
+		ldx #$40
+lbl_ac61
+		sty PPUDATA
+		dex
+		bne lbl_ac61
+lbl_ac67
+		ldx $1
+		rts
+;--------------------
+
+		; Fills the memory with the value in register A. Start page in register X, end page in register Y.
+
+fillMemPage
+		pha
+		txa
+		sty $1
+		clc
+		sbc $1
+		tax
+		pla
+		ldy #$0
+		sty $0
+lbl_ac77
+		sta ($0),y
+		dey
+		bne lbl_ac77
+		dec $1
+		inx
+		bne lbl_ac77
+		rts
+;--------------------
+switch
+		asl
+		tay
+		iny
+		pla
+		sta $0
+		pla
+		sta $1
+		lda ($0),y
+		tax
+		iny
+		lda ($0),y
+		sta $1
+		stx $0
+		jmp ($0)
+;--------------------
+		sei
+		inc $8000
+		lda #$1a
+		jsr setMmc1Control
+		rts
+;--------------------
+		rts
+;--------------------
+setMmc1Control
+		sta $9fff
+		lsr
+		sta $9fff
+		lsr
+		sta $9fff
+		lsr
+		sta $9fff
+		lsr
+		sta $9fff
+		rts
+;--------------------
+switchCharBank0
+		sta $bfff	;MMC1 Port $A000 (chr bank 0)
+		lsr
+		sta $bfff	;MMC1 Port $A000 (chr bank 0)
+		lsr
+		sta $bfff	;MMC1 Port $A000 (chr bank 0)
+		lsr
+		sta $bfff	;MMC1 Port $A000 (chr bank 0)
+		lsr
+		sta $bfff	;MMC1 Port $A000 (chr bank 0)
+		rts
+;--------------------
+switchCharBank1
+		sta $dfff	;MMC1 Port $C000 (chr bank 1)
+		lsr
+		sta $dfff	;MMC1 Port $C000 (chr bank 1)
+		lsr
+		sta $dfff	;MMC1 Port $C000 (chr bank 1)
+		lsr
+		sta $dfff	;MMC1 Port $C000 (chr bank 1)
+		lsr
+		sta $dfff	;MMC1 Port $C000 (chr bank 1)
+		rts
+;--------------------
+switchPrgBank
+		sta $fff0	;MMC1 Port $E000 (prg bank)
+		lsr
+		sta $fff0	;MMC1 Port $E000 (prg bank)
+		lsr
+		sta $fff0	;MMC1 Port $E000 (prg bank)
+		lsr
+		sta $fff0	;MMC1 Port $E000 (prg bank)
+		lsr
+		sta $fff0	;MMC1 Port $E000 (prg bank)
+		rts
+;--------------------
+
+		; Color palettes
+
+ingame_screen_color_palette
+		dc.b $3f, $00, $20
+		dc.b $0f, $30, $12, $16, $0f, $20, $12, $18, $0f, $2c, $16, $29, $0f, $3c, $00, $30
+		dc.b $0f, $35, $15, $22, $0f, $35, $29, $26, $0f, $2c, $16, $29, $0f, $3c, $00, $30
+		dc.b $ff
+
+copyright_screen_color_palette
+		dc.b $3f, $00, $10
+		dc.b $0f, $27, $2a, $2b, $0f, $3c, $2a, $22, $0f, $27, $2c, $29, $0f, $30, $3a, $15
+		dc.b $ff
+
+menu_screen_color_palette
+		dc.b $3f, $00, $14
+		dc.b $0f, $30, $38, $00, $0f, $30, $16, $00, $0f, $30, $21, $00, $0f, $16, $2a, $28
+		dc.b $0f, $30, $29, $27
+		dc.b $ff
+
+ending_screen_color_palette
+		dc.b $3f, $00, $20
+		dc.b $12, $0f, $29, $37, $12, $0f, $30, $27, $12, $0f, $17, $27, $12, $0f, $15, $37
+		dc.b $12, $0f, $29, $37, $12, $0f, $30, $27, $12, $0f, $17, $27, $12, $0f, $15, $37
+		dc.b $ff
+
+lbl_ad67
+		dc.b $08, $0f, $17, $01, $12, $04, $0f, $14, $01, $13, $01, $0e, $0c, $01, $0e, $03
+		dc.b $05, $2b, $00, $00, $00, $00, $00, $00, $01, $0c, $05, $18, $2b, $2b, $14, $0f
+		dc.b $0e, $19, $2b, $2b, $0e, $09, $0e, $14, $05, $0e, $00, $00, $00, $00, $00, $00
+		dc.b $01, $00, $00, $00, $75, $00, $00, $50, $00, $00, $00, $00, $00, $20, $00, $00
+		dc.b $10, $00, $00, $05, $00, $00, $00, $00, $09, $05, $00, $00, $09, $05, $00, $00
+		dc.b $ff
+
+		; Screen background data
+
+copyright_screen_background
+		incbin backgrounds/copyright_screen.bin
+
+title_screen_background
+		incbin backgrounds/title_screen.bin
+
+game_select_screen_background
+		incbin backgrounds/game_select_screen.bin
+
+level_select_screen_background
+		incbin backgrounds/level_select_screen.bin
+
+ingame_screen_background
+		incbin backgrounds/ingame_screen.bin
+
+highscore_screen_background
+		incbin backgrounds/highscore_screen.bin
+
+highscore_table_background
+		incbin backgrounds/highscore_table.bin
+
+lbl_c95d
+		dc.b $3f, $0a, $01, $16, $20, $6d, $01, $0a, $20, $f3, $48, $ff
+		dc.b $21, $13, $48, $ff, $21, $33, $48, $ff, $21, $53, $47, $ff
+		dc.b $21, $73, $47, $ff, $21, $93, $47, $ff, $21, $b3, $47, $ff
+		dc.b $21, $d3, $47, $ff, $22, $33, $48, $ff, $22, $53, $48, $ff
+		dc.b $22, $73, $48, $ff, $22, $93, $47, $ff, $22, $b3, $47, $ff
+		dc.b $22, $d3, $47, $ff, $22, $f3, $47, $ff, $23, $13, $47, $ff
+		dc.b $ff
+
+b_type_ending_lvl9_screen_background
+		incbin backgrounds/b_type_ending_lvl9_screen.bin
+
+b_type_ending_screen_background
+		incbin backgrounds/b_type_ending_screen.bin
+
+type_a_ending_screen_background
+		incbin backgrounds/a_type_ending_screen.bin
+
+		; Padding
+
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $02
+		dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $10, $00, $00, $00
+		dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $80
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $10, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $08, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $10, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $04, $00, $00, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $40, $00, $00, $00, $00, $00, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $10, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $04, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $c0, $60, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $f7, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fb
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $7f, $ff, $df, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $df, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $fb, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $fe, $ff, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+		dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+		dc.b $00, $00, $00, $00, $00, $00, $00
+
+demoButtons
+
+		; Demo game controller inputs
+
+		dc.b $00, $31, $40, $06, $00, $04, $40, $07, $00, $5d, $04, $2e
+		dc.b $00, $05, $01, $08, $81, $05, $80, $00, $00, $04, $80, $04
+		dc.b $81, $01, $01, $1c, $00, $00, $04, $2d, $00, $06, $02, $02
+		dc.b $42, $06, $02, $04, $42, $04, $00, $1b, $02, $00, $00, $18
+		dc.b $02, $0b, $00, $05, $04, $2e, $00, $01, $02, $04, $42, $09
+		dc.b $02, $0a, $00, $11, $04, $2a, $00, $48, $02, $05, $82, $07
+		dc.b $02, $18, $00, $04, $04, $2a, $00, $03, $01, $06, $81, $0c
+		dc.b $01, $11, $00, $01, $04, $2d, $00, $08, $01, $0a, $00, $04
+		dc.b $01, $01, $00, $3d, $04, $1a, $00, $01, $02, $05, $00, $08
+		dc.b $04, $12, $00, $14, $02, $03, $42, $0b, $02, $03, $00, $10
+		dc.b $04, $2d, $00, $1c, $02, $12, $82, $16, $02, $02, $00, $06
+		dc.b $04, $28, $00, $07, $01, $0f, $00, $08, $01, $05, $00, $09
+		dc.b $04, $2f, $00, $2f, $04, $07, $00, $0a, $04, $26, $00, $04
+		dc.b $02, $03, $82, $0b, $02, $03, $00, $10, $02, $04, $00, $05
+		dc.b $04, $2f, $00, $5f, $04, $16, $00, $17, $04, $18, $00, $02
+		dc.b $02, $0a, $82, $18, $02, $02, $00, $03, $04, $2a, $00, $02
+		dc.b $01, $07, $81, $02, $01, $02, $81, $02, $01, $05, $00, $36
+		dc.b $40, $07, $00, $06, $04, $30, $00, $03, $02, $0d, $00, $04
+		dc.b $01, $0d, $81, $05, $01, $05, $00, $11, $04, $2a, $00, $04
+		dc.b $02, $03, $42, $0b, $02, $07, $00, $11, $04, $2f, $00, $21
+		dc.b $04, $26, $00, $1a, $02, $04, $42, $12, $02, $12, $00, $10
+		dc.b $04, $24, $00, $07, $01, $06, $81, $05, $01, $02, $00, $14
+		dc.b $01, $0a, $00, $1c, $01, $05, $00, $04, $04, $26, $00, $05
+		dc.b $02, $05, $00, $16, $04, $27, $00, $69, $81, $03, $01, $04
+		dc.b $00, $16, $04, $20, $00, $03, $02, $14, $00, $0d, $02, $05
+		dc.b $00, $09, $04, $0f, $00, $09, $04, $19, $00, $1b, $02, $05
+		dc.b $00, $31, $04, $1e, $00, $43, $01, $02, $81, $08, $00, $09
+		dc.b $01, $05, $00, $11, $04, $24, $00, $05, $02, $03, $82, $0e
+		dc.b $02, $06, $00, $0b, $02, $04, $00, $1e, $04, $21, $00, $1d
+		dc.b $02, $01, $42, $11, $02, $1a, $00, $13, $01, $11, $81, $0c
+		dc.b $01, $14, $80, $06, $00, $09, $01, $04, $00, $09, $04, $20
+		dc.b $00, $01, $01, $05, $41, $1d, $01, $04, $00, $01, $04, $31
+		dc.b $00, $1c, $02, $2a, $00, $16, $04, $28, $00, $18, $02, $09
+		dc.b $00, $4b, $02, $0b, $42, $0b, $02, $0c, $00, $07, $04, $1f
+		dc.b $00, $0b, $02, $08, $00, $04, $02, $07, $00, $17, $04, $26
+		dc.b $00, $05, $01, $02, $81, $03, $80, $00, $00, $12, $02, $03
+		dc.b $00, $08, $04, $2a, $00, $02, $01, $08, $41, $12, $01, $14
+		dc.b $00, $00, $04, $30, $00, $34, $02, $08, $00, $09, $02, $03
+		dc.b $00, $21, $04, $28, $00, $2a, $04, $2e, $00, $06, $01, $13
+		dc.b $81, $07, $01, $13, $00, $02, $04, $2d, $00, $29, $41, $0c
+		dc.b $01, $00, $00, $21, $04, $2c, $00, $29, $01, $07, $41, $16
+		dc.b $01, $0e, $00, $09, $04, $2b, $00, $0d, $01, $05, $81, $05
+		dc.b $01, $06, $00, $0b, $01, $05, $00, $1d
+
+demoPieceSpawns
+
+		; Demo game piece spawns
+
+		dc.b $00, $14, $8a, $45, $22, $11, $88, $44, $22, $91, $48, $a4, $52, $29, $14, $0a
+        dc.b $85, $c2, $e1, $70, $38, $9c, $4e, $a7, $53, $a9, $d4, $6a, $b5, $5a, $ad, $d6
+        dc.b $6b, $35, $1a, $8d, $c6, $e3, $71, $38, $9c, $ce, $e7, $73, $b9, $dc, $ee, $f7
+        dc.b $fb, $fd, $fe, $7f, $3f, $9f, $cf, $67, $33, $19, $0c, $86, $43, $21, $90, $c8
+        dc.b $e4, $f2, $f9, $7c, $be, $5f, $af, $d7, $eb, $f5, $fa, $fd, $7e, $3f, $1f, $0f
+        dc.b $07, $03, $81, $c0, $60, $b0, $d8, $ec, $f6, $7b, $3d, $1e, $8f, $c7, $e3, $f1
+        dc.b $78, $bc, $de, $ef, $77, $3b, $1d, $8e, $c7, $e3, $f1, $f8, $fc, $fe, $7f, $bf
+        dc.b $5f, $2f, $17, $8b, $c5, $62, $31, $98, $cc, $e6, $73, $39, $9c, $4e, $27, $93
+        dc.b $c9, $64, $b2, $59, $2c, $16, $0b, $05, $82, $c1, $60, $b0, $58, $2c, $96, $4b
+        dc.b $a5, $d2, $e9, $74, $3a, $9d, $4e, $27, $13, $89, $c4, $62, $b1, $d8, $6c, $b6
+        dc.b $5b, $2d, $16, $8b, $45, $22, $91, $48, $a4, $d2, $e9, $f4, $fa, $fd, $fe, $ff
+        dc.b $ff, $ff, $7f, $bf, $df, $6f, $b7, $5b, $2d, $96, $4b, $25, $92, $49, $a4, $d2
+        dc.b $69, $34, $9a, $4d, $26, $13, $89, $44, $a2, $d1, $68, $b4, $5a, $2d, $96, $cb
+        dc.b $e5, $f2, $f9, $7c, $3e, $1f, $8f, $47, $23, $91, $c8, $64, $32, $19, $8c, $c6
+        dc.b $63, $31, $18, $0c, $06, $03, $81, $40, $a0, $d0, $68, $34, $1a, $0d, $86, $c3
+        dc.b $78, $bc, $de, $ef, $77, $3b, $1d, $8e, $c7, $e3, $f1, $f8, $fc, $fe, $7f, $bf
+
+        ; Sound routines
+
+lbl_e000
+		jmp $e216
+updateAudio
+		jmp $e244
+initAudio
+		jmp $e1d8
+
+		incbin sound_routines.bin
+
+resetHandler
+        cld
+        sei
+        ldx	#$0
+        stx PPUCTRL
+        stx PPUMASK
+lbl_ff0a
+        lda PPUSTATUS
+        bpl lbl_ff0a
+lbl_ff0f
+        lda PPUSTATUS
+        bpl lbl_ff0f
+        dex
+        txs
+        inc $ff00
+        lda #$10
+        jsr setMmc1Control
+        lda #$0
+		jsr switchCharBank0
+        lda #$0
+		jsr switchCharBank1
+        lda #$0
+		jsr switchPrgBank
+        jmp boot
+
+		; Padding
+
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $bf, $ff, $ff, $ff, $ef, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff
+        dc.b $ef, $7f, $ff, $ff, $ff, $ff, $7d, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fb, $ff, $ff
+        dc.b $ff, $ff, $bf, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $bf, $ff, $ff, $7f, $ff, $ff, $ff, $ff, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+
+		; Interrupt vectors
+
+		dc.b <nmiHandler, >nmiHandler		; NMI vector
+		dc.b <resetHandler, >resetHandler	; Reset vector
+		dc.b <irqHandler, >irqHandler		; IRQ/BRK vector
+
+		incbin pattern_tables.bin

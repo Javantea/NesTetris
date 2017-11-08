@@ -1,0 +1,2 @@
+JOY1 equ $4016
+JOY2 equ $4017
