@@ -76,14 +76,14 @@ irqHandler
 render subroutine
         lda renderMode
         jsr switch
-        dc.b <renderLegalTitleScreens, >renderLegalTitleScreens 			; RENDER_MODE_LEGAL_TITLE_SCREENS
-        dc.b <renderMenuScreens, >renderMenuScreens							; RENDER_MODE_MENU_SCREENS
-        dc.b <renderCongratulationsScreens, >renderCongratulationsScreens 	; RENDER_MODE_CONGRATULATIONS_SCREENS
-        dc.b <renderPlayAndDemoScreens, >renderPlayAndDemoScreens 			; RENDER_MODE_PLAY_AND_DEMO_SCREENS
-        dc.b <renderEndingAnimation, >renderEndingAnimation 				; RENDER_MODE_ENDING_ANIMATION
+        dc.b <renderLegalTitleScreens, >renderLegalTitleScreens             ; RENDER_MODE_LEGAL_TITLE_SCREENS
+        dc.b <renderMenuScreens, >renderMenuScreens                         ; RENDER_MODE_MENU_SCREENS
+        dc.b <renderCongratulationsScreens, >renderCongratulationsScreens   ; RENDER_MODE_CONGRATULATIONS_SCREENS
+        dc.b <renderPlayAndDemoScreens, >renderPlayAndDemoScreens           ; RENDER_MODE_PLAY_AND_DEMO_SCREENS
+        dc.b <renderEndingAnimation, >renderEndingAnimation                 ; RENDER_MODE_ENDING_ANIMATION
 ;--------------------
 bootContinued
-        ldy #>$0600		; Clear memory from $0000-$06ff
+        ldy #>$0600        ; Clear memory from $0000-$06ff
         sty $1
         ldy #<$0600
         sty $0
@@ -149,17 +149,17 @@ lbl_80bc
 
         ; Initialize PPU registers.
 
-        ldy #$0				; scroll X = 0
+        ldy #$0                ; scroll X = 0
         sty scrollX
         sty PPUSCROLL
-        ldy #$0				; scroll Y = 0
+        ldy #$0                ; scroll Y = 0
         sty scrollY
         sty PPUSCROLL
-        lda #$90			; Generate NMI at each vertical blanking interval, background pattern table at $1000
+        lda #$90               ; Generate NMI at each vertical blanking interval, background pattern table at $1000
         sta ppuCtrlFlags
-        sta PPUCTRL			;PPU Control Register #1
-        lda #$6             ; Show background, show leftmost 8 pixels of background.
-        sta PPUMASK			;PPU Control Register #2
+        sta PPUCTRL
+        lda #$6                ; Show background, show leftmost 8 pixels of background.
+        sta PPUMASK
 
         ; Initialize sound.
 
@@ -234,13 +234,13 @@ gameModePlay subroutine
 advanceGameMode subroutine
         lda gameMode
         jsr switch
-        dc.b <gameModeLegalScreen, >gameModeLegalScreen 				; GAME_MODE_LEGAL_SCREEN
-        dc.b <gameModeTitleScreen, >gameModeTitleScreen 				; GAME_MODE_TITLE_SCREEN
-        dc.b <gameModeGameTypeMenu, >gameModeGameTypeMenu 				; GAME_MODE_GAME_TYPE_MENU
-        dc.b <gameModeLevelAndHeightMenu, >gameModeLevelAndHeightMenu 	; GAME_MODE_LEVEL_AND_HEIGHT_MENU
-        dc.b <gameModePlay, >gameModePlay 								; GAME_MODE_PLAY_HIGH_SCORE_ENDING_PAUSE
-        dc.b <gameModePlay, >gameModePlay 								; GAME_MODE_DEMO
-        dc.b <gameModeInitDemo, >gameModeInitDemo 						; GAME_MODE_INIT_DEMO
+        dc.b <gameModeLegalScreen, >gameModeLegalScreen                   ; GAME_MODE_LEGAL_SCREEN
+        dc.b <gameModeTitleScreen, >gameModeTitleScreen                   ; GAME_MODE_TITLE_SCREEN
+        dc.b <gameModeGameTypeMenu, >gameModeGameTypeMenu                 ; GAME_MODE_GAME_TYPE_MENU
+        dc.b <gameModeLevelAndHeightMenu, >gameModeLevelAndHeightMenu     ; GAME_MODE_LEVEL_AND_HEIGHT_MENU
+        dc.b <gameModePlay, >gameModePlay                                 ; GAME_MODE_PLAY_HIGH_SCORE_ENDING_PAUSE
+        dc.b <gameModePlay, >gameModePlay                                 ; GAME_MODE_DEMO
+        dc.b <gameModeInitDemo, >gameModeInitDemo                         ; GAME_MODE_INIT_DEMO
 ;--------------------
 lbl_8174
         jsr lbl_8776
@@ -279,18 +279,18 @@ advancePlayMode subroutine
 advancePlayState subroutine
         lda playState
         jsr switch
-        dc.b <unassignOrientationId, >unassignOrientationId	; PLAY_STATE_UNASSIGN_ORIENTATION_ID
-        dc.b <tetriminoActive, >tetriminoActive 			; PLAY_STATE_TETRIMINO_ACTIVE
-        dc.b <lockTetrimino, >lockTetrimino 				; PLAY_STATE_LOCK_TETRIMINO
-        dc.b <checkCompletedRows, >checkCompletedRows 		; PLAY_STATE_CHECK_COMPLETED_ROWS
-        dc.b <returnPlayState, >returnPlayState 			; PLAY_STATE_LINE_CLEAR_ANIMATION
-        dc.b <updateLinesStats, >updateLinesStats 			; PLAY_STATE_UPDATE_LINES_STATS
-        dc.b <checkBTypeGoal, >checkBTypeGoal				; PLAY_STATE_B_TYPE_GOAL_CHECK
-        dc.b <unused2PlayerLogic, >unused2PlayerLogic 		; PLAY_STATE_UNUSED_7
-        dc.b <spawnTetrimino, >spawnTetrimino 				; PLAY_STATE_SPAWN_TETRIMINO
-        dc.b <returnPlayState, >returnPlayState 			; PLAY_STATE_UNUSED_9
-        dc.b <updateGameOverCurtain, >updateGameOverCurtain ; PLAY_STATE_GAME_OVER_CURTAIN
-        dc.b <incrementPlayState, >incrementPlayState 		; PLAY_STATE_INCREMENT_PLAY_STATE
+        dc.b <unassignOrientationId, >unassignOrientationId    ; PLAY_STATE_UNASSIGN_ORIENTATION_ID
+        dc.b <tetriminoActive, >tetriminoActive                ; PLAY_STATE_TETRIMINO_ACTIVE
+        dc.b <lockTetrimino, >lockTetrimino                    ; PLAY_STATE_LOCK_TETRIMINO
+        dc.b <checkCompletedRows, >checkCompletedRows          ; PLAY_STATE_CHECK_COMPLETED_ROWS
+        dc.b <returnPlayState, >returnPlayState                ; PLAY_STATE_LINE_CLEAR_ANIMATION
+        dc.b <updateLinesStats, >updateLinesStats              ; PLAY_STATE_UPDATE_LINES_STATS
+        dc.b <checkBTypeGoal, >checkBTypeGoal                  ; PLAY_STATE_B_TYPE_GOAL_CHECK
+        dc.b <unused2PlayerLogic, >unused2PlayerLogic          ; PLAY_STATE_UNUSED_7
+        dc.b <spawnTetrimino, >spawnTetrimino                  ; PLAY_STATE_SPAWN_TETRIMINO
+        dc.b <returnPlayState, >returnPlayState                ; PLAY_STATE_UNUSED_9
+        dc.b <updateGameOverCurtain, >updateGameOverCurtain    ; PLAY_STATE_GAME_OVER_CURTAIN
+        dc.b <incrementPlayState, >incrementPlayState          ; PLAY_STATE_INCREMENT_PLAY_STATE
 ;--------------------
 tetriminoActive subroutine
         jsr shiftTetrimino
@@ -301,18 +301,18 @@ tetriminoActive subroutine
 advancePlayState2 subroutine
         lda playState
         jsr switch
-        dc.b <unassignOrientationId, >unassignOrientationId ; PLAY_STATE_UNASSIGN_ORIENTATION_ID
-        dc.b <lbl_81f6, >lbl_81f6 ; PLAY_STATE_TETRIMINO_ACTIVE
-        dc.b <lockTetrimino, >lockTetrimino ; PLAY_STATE_LOCK_TETRIMINO
-        dc.b <checkCompletedRows, >checkCompletedRows ; PLAY_STATE_CHECK_COMPLETED_ROWS
-        dc.b <returnPlayState, >returnPlayState ; PLAY_STATE_LINE_CLEAR_ANIMATION
-        dc.b <updateLinesStats, >updateLinesStats ; PLAY_STATE_UPDATE_LINES_STATS
-        dc.b <checkBTypeGoal, >checkBTypeGoal ; PLAY_STATE_B_TYPE_GOAL_CHECK
-        dc.b <unused2PlayerLogic, >unused2PlayerLogic ; PLAY_STATE_UNUSED_7
-        dc.b <spawnTetrimino, >spawnTetrimino ; PLAY_STATE_SPAWN_TETRIMINO
-        dc.b <returnPlayState, >returnPlayState ; PLAY_STATE_UNUSED_9
-        dc.b <updateGameOverCurtain, >updateGameOverCurtain ; PLAY_STATE_GAME_OVER_CURTAIN
-        dc.b <incrementPlayState, >incrementPlayState ; PLAY_STATE_INCREMENT_PLAY_STATE
+        dc.b <unassignOrientationId, >unassignOrientationId    ; PLAY_STATE_UNASSIGN_ORIENTATION_ID
+        dc.b <lbl_81f6, >lbl_81f6                              ; PLAY_STATE_TETRIMINO_ACTIVE
+        dc.b <lockTetrimino, >lockTetrimino                    ; PLAY_STATE_LOCK_TETRIMINO
+        dc.b <checkCompletedRows, >checkCompletedRows          ; PLAY_STATE_CHECK_COMPLETED_ROWS
+        dc.b <returnPlayState, >returnPlayState                ; PLAY_STATE_LINE_CLEAR_ANIMATION
+        dc.b <updateLinesStats, >updateLinesStats              ; PLAY_STATE_UPDATE_LINES_STATS
+        dc.b <checkBTypeGoal, >checkBTypeGoal                  ; PLAY_STATE_B_TYPE_GOAL_CHECK
+        dc.b <unused2PlayerLogic, >unused2PlayerLogic          ; PLAY_STATE_UNUSED_7
+        dc.b <spawnTetrimino, >spawnTetrimino                  ; PLAY_STATE_SPAWN_TETRIMINO
+        dc.b <returnPlayState, >returnPlayState                ; PLAY_STATE_UNUSED_9
+        dc.b <updateGameOverCurtain, >updateGameOverCurtain    ; PLAY_STATE_GAME_OVER_CURTAIN
+        dc.b <incrementPlayState, >incrementPlayState          ; PLAY_STATE_INCREMENT_PLAY_STATE
 ;--------------------
 lbl_81f6
         jsr shiftTetrimino
@@ -320,7 +320,7 @@ lbl_81f6
         jsr dropTetrimino
         rts
 ;--------------------
-gameModeLegalScreen	subroutine
+gameModeLegalScreen    subroutine
         jsr updateAudio
         lda #RENDER_MODE_LEGAL_TITLE_SCREENS
         sta renderMode
@@ -353,13 +353,13 @@ gameModeLegalScreen	subroutine
         jsr waitAndClearPage2
         dec $a8
         bne .waitForStartPressedOrTimeOut
-.start	inc gameMode
+.start    inc gameMode
         rts
 ;--------------------
 gameModeTitleScreen subroutine
         jsr updateAudio
         lda #$0
-        sta renderMode	; RENDER_MODE_LEGAL_TITLE_SCREENS
+        sta renderMode    ; RENDER_MODE_LEGAL_TITLE_SCREENS
         sta $d0
         sta $df
         jsr disableBackgroundAndSprites
@@ -391,7 +391,7 @@ gameModeTitleScreen subroutine
         cmp #$5
         beq .startDemo
         jmp .waitForStartPressedOrTimeOut
-.start	lda #MENU_SCREEN_SELECT_SOUND
+.start    lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
         inc gameMode
         rts
@@ -578,7 +578,7 @@ gameModeLevelAndHeightMenu subroutine
         bne lbl_8409
         jsr copyToVRAM
         dc.b <lbl_c95d, >lbl_c95d
-lbl_8409		
+lbl_8409        
         jsr lbl_9ff2
         jsr enableVerticalBlankingNMI
         jsr waitAndClearPage2
@@ -827,7 +827,7 @@ renderMenuScreens subroutine
         lda ppuCtrlFlags
         and #$fc
         sta ppuCtrlFlags
-        sta PPUCTRL		;PPU Control Register #1
+        sta PPUCTRL        ;PPU Control Register #1
         lda #$0
         sta scrollX
         sta PPUSCROLL
@@ -852,7 +852,7 @@ lbl_85f0
         sta PPUADDR
         lda bType
         bne lbl_863c
-        lda #$a		; Draw A in x-TYPE box
+        lda #$a        ; Draw A in x-TYPE box
         sta PPUDATA
         lda #$20
         sta PPUADDR
@@ -868,7 +868,7 @@ lbl_8622
         jmp lbl_8693
 ;--------------------
 lbl_863c
-        lda #$b					; Draw B in A-TYPE box
+        lda #$b                    ; Draw B in A-TYPE box
         sta PPUDATA
         lda #$20
         sta PPUADDR
@@ -882,7 +882,7 @@ lbl_863c
         jsr printTwoDigitNumber
         ldx #$0
 lbl_865f
-        lda heightBoxGraphics,x	; Draw height box
+        lda heightBoxGraphics,x    ; Draw height box
         inx
         sta PPUADDR
         lda heightBoxGraphics,x
@@ -1169,7 +1169,7 @@ lbl_8876
 lbl_887c
         dc.b $ef, $7b, $ef, $7c, $7d, $7d, $ef, $ef
 ;--------------------
-lbl_8884		
+lbl_8884        
         lda #$3
         jsr switchCharBank0
         lda #$3
@@ -1478,7 +1478,7 @@ lbl_8a93
         ; Represents the coordinates of the various Tetrimino orientations.
 
 orientationTable
-        dc.b $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01, $ff, $7b, $00	; 00: T up
+        dc.b $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01, $ff, $7b, $00    ; 00: T up
         dc.b $ff, $7b, $00, $00, $7b, $00, $00, $7b, $01, $01, $7b, $00 ; 01: T right
         dc.b $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01, $01, $7b, $00 ; 02: T down (spawn)
         dc.b $ff, $7b, $00, $00, $7b, $ff, $00, $7b, $00, $01, $7b, $00 ; 03: T left
@@ -1506,7 +1506,7 @@ orientationTable
 
         dc.b $00, $ff, $00, $00, $ff, $00, $00, $ff, $00, $00, $ff, $00 ; 13: Unused
 
-lbl_8b8c		
+lbl_8b8c        
         lda $a2
         asl
         asl
@@ -2049,7 +2049,7 @@ leftColumns
         dc.b $04, $03, $02, $01, $00
 rightColumns
         dc.b $05, $06, $07, $08, $09
-lbl_9808		
+lbl_9808        
         lda $64
 lbl_980a 
         cmp #$a
@@ -2064,7 +2064,7 @@ lbl_9814
         tax
         lda #$0
         sta $a8
-lbl_981b		
+lbl_981b        
         lda #$3f
         sta PPUADDR
 lbl_9820
@@ -2222,30 +2222,30 @@ generateRandomTetrimino subroutine
         rts
 ;--------------------
 tetriminoTypes
-        dc.b $00, $00, $00, $00	; T
-        dc.b $01, $01, $01, $01	; J
-        dc.b $02, $02			; Z
-        dc.b $03				; O
-        dc.b $04, $04			; S
-        dc.b $05, $05, $05, $05	; L
-        dc.b $06, $06			; I
+        dc.b $00, $00, $00, $00    ; T
+        dc.b $01, $01, $01, $01    ; J
+        dc.b $02, $02            ; Z
+        dc.b $03                ; O
+        dc.b $04, $04            ; S
+        dc.b $05, $05, $05, $05    ; L
+        dc.b $06, $06            ; I
 spawnTable
-        dc.b $02	; Td
-        dc.b $07	; Jd
-        dc.b $08	; Zh
-        dc.b $0a	; O
-        dc.b $0b	; Sh
-        dc.b $0e	; Ld
-        dc.b $12	; Ih
-        dc.b $02	; Td
+        dc.b $02    ; Td
+        dc.b $07    ; Jd
+        dc.b $08    ; Zh
+        dc.b $0a    ; O
+        dc.b $0b    ; Sh
+        dc.b $0e    ; Ld
+        dc.b $12    ; Ih
+        dc.b $02    ; Td
 spawnOrientations
-        dc.b $02, $02, $02, $02	; Td
-        dc.b $07, $07, $07, $07	; Jd
-        dc.b $08, $08			; Zh
-        dc.b $0a				; O
-        dc.b $0b, $0b			; Sh
-        dc.b $0e, $0e, $0e, $0e	; Ld
-        dc.b $12, $12			; Ih
+        dc.b $02, $02, $02, $02    ; Td
+        dc.b $07, $07, $07, $07    ; Jd
+        dc.b $08, $08            ; Zh
+        dc.b $0a                ; O
+        dc.b $0b, $0b            ; Sh
+        dc.b $0e, $0e, $0e, $0e    ; Ld
+        dc.b $12, $12            ; Ih
 ;--------------------
         ; Updates the Tetrimino stats based on the orientation ID in register A.
 updateTetriminoStats subroutine
@@ -2317,7 +2317,7 @@ lbl_99b8
         ldy #$0
         lda #$4
         sta $aa
-lbl_99dd		
+lbl_99dd        
         lda orientationTable,x
         asl
         sta $ab
@@ -2401,7 +2401,7 @@ lbl_9a5e
         bne lbl_9a6a
 lbl_9a64
         lda #$0
-        sta playState			; PLAY_STATE_UNASSIGN_ORIENTATION_ID
+        sta playState            ; PLAY_STATE_UNASSIGN_ORIENTATION_ID
         sta buttonsPressed1
 lbl_9a6a
         rts
@@ -2446,7 +2446,7 @@ lbl_9a8f
         sta completedRowIndices,x
         ldy $a8
         dey
-lbl_9aa9		
+lbl_9aa9        
         lda ($b8),y
         ldx #$a
         stx $b8
@@ -2458,7 +2458,7 @@ lbl_9aa9
         bne lbl_9aa9
         lda #$ef
         ldy #$0
-lbl_9abe		
+lbl_9abe        
         sta ($b8),y
         iny
         cpy #$a
@@ -2681,7 +2681,7 @@ lbl_9c2d
         lda level
         sta $a8
         inc $a8
-lbl_9c37		
+lbl_9c37        
         lda $56
         asl
         tax
@@ -3077,7 +3077,7 @@ lbl_9e96
         jsr switchCharBank1
         jsr copyToVRAM
         dc.b <b_type_ending_screen_background, >b_type_ending_screen_background
-lbl_9ea4		
+lbl_9ea4        
         jsr copyToVRAM
         dc.b <ending_screen_color_palette, >ending_screen_color_palette
         jsr lbl_a463
@@ -4184,7 +4184,7 @@ lbl_a6d0
         bne lbl_a6be
         lda #$0
         sta $cc
-lbl_a6d9		
+lbl_a6d9        
         ldx $cc
         lda $c8,x
         beq lbl_a72c
@@ -4262,7 +4262,7 @@ lbl_a777
 lbl_a77b
         dc.b $3a, $24, $0a, $4a, $3a, $ff, $22, $44, $12, $32, $4a, $ff, $ae, $6e, $8e
         dc.b $6e, $1e, $02
-lbl_a78d		
+lbl_a78d        
         dc.b $42, $42, $42, $42, $42, $02, $22, $0a, $1a, $04, $0a, $ff, $ee
         dc.b $de, $fc, $fc, $f6, $02, $80, $80, $80, $80, $80, $ff, $e8, $e8, $e8, $e8, $48
         dc.b $ff, $80, $ae, $9e, $90, $80, $02, $80, $80, $80, $80, $80, $ff
@@ -4325,12 +4325,12 @@ lbl_a7eb
         iny
 lbl_a7f3
         bit $542e
-        dc.b $32	;?
-        dc.b $34	;?
+        dc.b $32    ;?
+        dc.b $34    ;?
         rol $4b,x
         sec
-        dc.b $3a	;?
-        dc.b $4b	;?
+        dc.b $3a    ;?
+        dc.b $4b    ;?
 lbl_a7fd
         sta legalScreenCounter1
 lbl_a7ff
@@ -4523,10 +4523,10 @@ lbl_aa4d
 ;--------------------
 disableBackgroundAndSprites
         jsr waitForVerticalBlankingInterval
-        lda ppuMaskFlags	; Disable background and sprites
+        lda ppuMaskFlags    ; Disable background and sprites
         and #$e1
 setPpuMask
-        sta PPUMASK		;PPU Control Register #2
+        sta PPUMASK
         sta ppuMaskFlags
         rts
 ;--------------------
@@ -4534,11 +4534,11 @@ enableBackgroundAndSprites
         jsr waitForVerticalBlankingInterval
         jsr resetPpuScrollAndCtrlFlags
         lda ppuMaskFlags
-        ora #$1e			; Enable background and sprites
+        ora #$1e            ; Enable background and sprites
         bne setPpuMask
 ;--------------------
 enableVerticalBlankingNMI
-        lda PPUSTATUS	 ; Wait for vertical blank
+        lda PPUSTATUS       ; Wait for vertical blank
         and #$80
         bne enableVerticalBlankingNMI
         lda ppuCtrlFlags
@@ -4548,7 +4548,7 @@ disableVerticalBlankingNMI
         lda ppuCtrlFlags
         and #$7f
 setPpuCtrl
-        sta PPUCTRL		;PPU Control Register #1
+        sta PPUCTRL
         sta ppuCtrlFlags
         rts
 ;--------------------
@@ -4563,7 +4563,7 @@ resetPpuScrollAndCtrlFlags
         sta PPUSCROLL
         sta PPUSCROLL
         lda ppuCtrlFlags
-        sta PPUCTRL		;PPU Control Register #1
+        sta PPUCTRL
         rts
 ;--------------------
 copyToVRAM
@@ -4585,7 +4585,7 @@ lbl_aa9e
         bcs lbl_aab5
         and #$fb
 lbl_aab5
-        sta PPUCTRL		;PPU Control Register #1
+        sta PPUCTRL
         sta ppuCtrlFlags
         pla
         asl
@@ -4630,7 +4630,7 @@ lbl_aae6
         adc $1
         sta $1
 lbl_aaf2
-        ldx PPUSTATUS	;PPU Status Register
+        ldx PPUSTATUS
         ldy #$0
         lda ($0),y
         bpl lbl_aafc
@@ -4665,18 +4665,18 @@ lbl_ab0a
         ; Modify return address on the stack based on the 2 bytes following the jump into this routine.
 
 patchReturnAddress
-        tsx			; Store original return address in $5-$6.
+        tsx            ; Store original return address in $5-$6.
         lda $103,x
         sta $5
         lda $104,x
         sta $6
-        ldy #$1  	; Store 2 bytes following the original return address in $0-$1.
+        ldy #$1        ; Store 2 bytes following the original return address in $0-$1.
         lda ($5),y
         sta $0
         iny
         lda ($5),y
         sta $1
-        clc			; Add 2 to the return address and copy back to stack.
+        clc            ; Add 2 to the return address and copy back to stack.
         lda #$2
         adc $5
         sta $103,x
@@ -4690,17 +4690,17 @@ patchReturnAddress
         ; in register Y.
 
 generateRandomNumber
-        lda $0,x		; extract bit 1
+        lda $0,x        ; extract bit 1
         and #$2
         sta $0
-        lda $1,x		; extract bit 9
+        lda $1,x        ; extract bit 9
         and #$2
-        eor $0			; XOR bits 1 and 9 and set/clear carry accordingly
+        eor $0          ; XOR bits 1 and 9 and set/clear carry accordingly
         clc
         beq lbl_ab57
 lbl_ab56
         sec
-lbl_ab57				; right shift, shift in the XORed value
+lbl_ab57                ; right shift, shift in the XORed value
         ror $00,x
         inx
         dey
@@ -4709,25 +4709,25 @@ lbl_ab57				; right shift, shift in the XORed value
 ;--------------------
 lbl_ab5e
         lda #$0
-        sta OAMADDR		;SPR-RAM Address Register
+        sta OAMADDR
         lda #$2
-        sta OAMDMA		;Sprite DMA Register
+        sta OAMDMA
         rts
 ;--------------------
 lbl_ab69
         ldx $fb
         inx
-        stx JOY1		;Joypad #1
+        stx JOY1
         dex
-        stx JOY1		;Joypad #1
+        stx JOY1
         ldx #$8
 lbl_ab75
-        lda JOY1		;Joypad #1
+        lda JOY1
         lsr
         rol buttonsPressed1
         lsr
         rol $00
-        lda JOY2		;Joypad #2/SOFTCLK
+        lda JOY2
         lsr
         rol buttonsPressed2
         lsr
@@ -4807,7 +4807,7 @@ lbl_abea
         lda $1
         sta $f8
         ldx #$3
-lbl_ac0d		
+lbl_ac0d        
         lda buttonsPressed1,x
         tay
         eor $f1,x
@@ -4825,7 +4825,7 @@ fillVRAM
 
         lda PPUSTATUS
 
-        lda ppuCtrlFlags	; Disable background
+        lda ppuCtrlFlags    ; Disable background
         and #$fb
         sta PPUCTRL
         sta ppuCtrlFlags
@@ -4923,39 +4923,39 @@ setMmc1Control
         rts
 ;--------------------
 switchCharBank0
-        sta $bfff	;MMC1 Port $A000 (chr bank 0)
+        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
         lsr
-        sta $bfff	;MMC1 Port $A000 (chr bank 0)
+        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
         lsr
-        sta $bfff	;MMC1 Port $A000 (chr bank 0)
+        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
         lsr
-        sta $bfff	;MMC1 Port $A000 (chr bank 0)
+        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
         lsr
-        sta $bfff	;MMC1 Port $A000 (chr bank 0)
+        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
         rts
 ;--------------------
 switchCharBank1
-        sta $dfff	;MMC1 Port $C000 (chr bank 1)
+        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
         lsr
-        sta $dfff	;MMC1 Port $C000 (chr bank 1)
+        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
         lsr
-        sta $dfff	;MMC1 Port $C000 (chr bank 1)
+        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
         lsr
-        sta $dfff	;MMC1 Port $C000 (chr bank 1)
+        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
         lsr
-        sta $dfff	;MMC1 Port $C000 (chr bank 1)
+        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
         rts
 ;--------------------
 switchPrgBank
-        sta $fff0	;MMC1 Port $E000 (prg bank)
+        sta $fff0    ;MMC1 Port $E000 (prg bank)
         lsr
-        sta $fff0	;MMC1 Port $E000 (prg bank)
+        sta $fff0    ;MMC1 Port $E000 (prg bank)
         lsr
-        sta $fff0	;MMC1 Port $E000 (prg bank)
+        sta $fff0    ;MMC1 Port $E000 (prg bank)
         lsr
-        sta $fff0	;MMC1 Port $E000 (prg bank)
+        sta $fff0    ;MMC1 Port $E000 (prg bank)
         lsr
-        sta $fff0	;MMC1 Port $E000 (prg bank)
+        sta $fff0    ;MMC1 Port $E000 (prg bank)
         rts
 ;--------------------
 
@@ -5252,7 +5252,7 @@ initAudio
 resetHandler
         cld
         sei
-        ldx	#$0
+        ldx    #$0
         stx PPUCTRL
         stx PPUMASK
 lbl_ff0a
@@ -5296,8 +5296,8 @@ lbl_ff0f
 
         ; Interrupt vectors
 
-        dc.b <nmiHandler, >nmiHandler		; NMI vector
-        dc.b <resetHandler, >resetHandler	; Reset vector
-        dc.b <irqHandler, >irqHandler		; IRQ/BRK vector
+        dc.b <nmiHandler, >nmiHandler        ; NMI vector
+        dc.b <resetHandler, >resetHandler    ; Reset vector
+        dc.b <irqHandler, >irqHandler        ; IRQ/BRK vector
 
         incbin pattern_tables.bin
