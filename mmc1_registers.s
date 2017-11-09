@@ -1,0 +1,5 @@
+MMC1_LOAD equ $8000
+MMC1_CONTROL equ $9fff
+MMC1_CHR_BANK_0 equ $bfff
+MMC1_CHR_BANK_1 equ $dfff
+MMC1_PRG_BANK equ $fff0

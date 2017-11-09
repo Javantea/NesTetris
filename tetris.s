@@ -1,5 +1,6 @@
         processor 6502
 
+        include mmc1_registers.s
         include ppu_registers.s
         include control_port_registers.s
         include game_variables.s
@@ -422,7 +423,7 @@ renderLegalTitleScreens
         rts
 ;--------------------
 gameModeGameTypeMenu subroutine
-        inc $8000
+        inc MMC1_LOAD       ; Clear MMC1 shift register
         lda #$10
         jsr setMmc1Control
         lda #RENDER_MODE_MENU_SCREENS
@@ -556,7 +557,7 @@ lbl_83ce
         jmp lbl_830b
 ;--------------------
 gameModeLevelAndHeightMenu subroutine
-        inc $8000
+        inc MMC1_LOAD       ; Clear MMC1 shift register
         lda #$10
         jsr setMmc1Control
         jsr updateAudio
@@ -1565,6 +1566,7 @@ lbl_8c05
         dc.b $00, $13, $00, $00, $00, $15, $00, $ff, $fe, $fd, $fc, $fd, $fe, $ff, $00, $01
         dc.b $02, $03, $04, $05, $06, $07, $08, $09, $0a, $0b, $0c, $0d, $0e, $0f, $10, $11
         dc.b $12, $13
+;--------------------
 lbl_8c27
         clc
         lda $a2
@@ -3490,7 +3492,7 @@ lbl_a1f1
 lbl_a1f9
         dc.b $00, $03, $06, $09, $0c, $0f, $12, $15
 lbl_a201
-        inc $8000
+        inc MMC1_LOAD       ; Clear MMC1 shift register
         lda #$10
         jsr setMmc1Control
         lda #CONGRATULATIONS_SCREEN_MUSIC
@@ -4838,7 +4840,7 @@ switch
         jmp ($0)
 ;--------------------
         sei
-        inc $8000
+        inc MMC1_LOAD       ; Clear MMC1 shift register
         lda #$1a
         jsr setMmc1Control
         rts
@@ -4846,51 +4848,51 @@ switch
         rts
 ;--------------------
 setMmc1Control
-        sta $9fff
+        sta MMC1_CONTROL
         lsr
-        sta $9fff
+        sta MMC1_CONTROL
         lsr
-        sta $9fff
+        sta MMC1_CONTROL
         lsr
-        sta $9fff
+        sta MMC1_CONTROL
         lsr
-        sta $9fff
+        sta MMC1_CONTROL
         rts
 ;--------------------
 switchCharBank0
-        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
+        sta MMC1_CHR_BANK_0
         lsr
-        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
+        sta MMC1_CHR_BANK_0
         lsr
-        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
+        sta MMC1_CHR_BANK_0
         lsr
-        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
+        sta MMC1_CHR_BANK_0
         lsr
-        sta $bfff    ;MMC1 Port $A000 (chr bank 0)
+        sta MMC1_CHR_BANK_0
         rts
 ;--------------------
 switchCharBank1
-        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
+        sta MMC1_CHR_BANK_1
         lsr
-        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
+        sta MMC1_CHR_BANK_1
         lsr
-        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
+        sta MMC1_CHR_BANK_1
         lsr
-        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
+        sta MMC1_CHR_BANK_1
         lsr
-        sta $dfff    ;MMC1 Port $C000 (chr bank 1)
+        sta MMC1_CHR_BANK_1
         rts
 ;--------------------
 switchPrgBank
-        sta $fff0    ;MMC1 Port $E000 (prg bank)
+        sta MMC1_PRG_BANK
         lsr
-        sta $fff0    ;MMC1 Port $E000 (prg bank)
+        sta MMC1_PRG_BANK
         lsr
-        sta $fff0    ;MMC1 Port $E000 (prg bank)
+        sta MMC1_PRG_BANK
         lsr
-        sta $fff0    ;MMC1 Port $E000 (prg bank)
+        sta MMC1_PRG_BANK
         lsr
-        sta $fff0    ;MMC1 Port $E000 (prg bank)
+        sta MMC1_PRG_BANK
         rts
 ;--------------------
 
