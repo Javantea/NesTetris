@@ -10,6 +10,7 @@ pieceOrientation equ $42
 level equ $44
 fallTimer equ $45
 autoRepeatX equ $46
+levelSelected equ $47
 
 playState equ $48
 
@@ -29,20 +30,48 @@ PLAY_STATE_INCREMENT_PLAY_STATE equ $0b
 vramRow  equ $49
 completedRowIndices equ $4a ; $4a-$4d
 autoRepeatY  equ $4e
+holdDownPoints equ $4f
 linesLowByte equ $50
 linesHighByte equ $51
 clearColumnIndex equ $52
-linesLowByteCopy equ $70
-linesHighByteCopy equ $71
+score equ $53 ; $53-$55
+completedLines equ $56
+completedLineIndex equ $57
+curtainRow equ $58
+bTypeHeight equ $59   
+pieceXMirror equ $60
+pieceYMirror equ $61
+pieceOrientationMirror equ $62
+levelMirror equ $64
+fallTimerMirror equ $65
+autoRepeatXMirror equ $66
+levelSelectedMirror equ $67
+playStateMirror equ $68
+vramRowMirror equ $69
+completedRowIndicesMirror equ $6a ; $6a-$6d
+autoRepeatYMirror equ $6e
+holdDownPointsMirror equ $6f
+linesLowByteMirror equ $70
+linesHighByteMirror equ $71
+clearColumnIndexMirror equ $72
+scoreMirror equ $73 ; $73-$75
+completedLinesMirror equ $76
+completedLineIndexMirror equ $77
+curtainRowMirror equ $78
+bTypeHeightMirror equ $79
 
 playMode equ $a7
 lineIndex equ $a9
+loopIndex equ $aa
 originalValue equ $ae
 tempSpeed equ $af
 
 frameCounterLowByte equ $b1
 frameCounterHighByte equ $b2
-
+buttonState equ $b5
+buttonPressed equ $b6
+leftPlayfield equ $b9
+totalGarbage equ $bc
 renderMode equ $bd
 
 RENDER_MODE_LEGAL_TITLE_SCREENS equ $00
@@ -67,21 +96,28 @@ GAME_MODE_INIT_DEMO equ $06
 
 legalScreenCounter1 equ $c3
 ending equ $c4
+heldButtons equ $ce
+repeats equ $cf
 
 recordingMode equ $d0
 demoButtonsLowByte equ $d1
 demoButtonsHighByte equ $d2
 demoIndex equ $d3
 
-buttonsPressed1 equ $f5
-buttonsPressed2 equ $f6
+buttonStateMirror equ $f5
+buttonPressedMirror equ $f6
+heldButtonsMirror equ $f7
 scrollY equ $fc
 scrollX equ $fd
 ppuMaskFlags equ $fe
 ppuCtrlFlags equ $ff
 
-tetriminoStatLowByte equ $3f0
+tetriminoStats equ $3ef ; base address used in loops
+tetriminoStatLowByte equ $3f0 ; $3f0-$3fd
 tetriminoStatHighByte equ $3f1
+
+playfield equ $400 ; $400-$4ff
+playfield2 equ $500 ; $500-$5ff
 
 noiseSoundEffect equ $6f0
 
@@ -100,3 +136,23 @@ LOCK_TETRIMINO_SOUND equ $07
 CHIRP_CHIRP_SOUND equ $08
 LINE_CLEARING_SOUND equ $09
 LINE_COMPLETED_SOUND equ $0a
+
+backgroundMusic equ $6f5
+
+UNUSED_TITLE_SCREEN_MUSIC equ $01
+B_TYPE_GOAL_ACHIEVED_MUSIC equ $02
+MUSIC_1_MUSIC equ $03
+MUSIC_2_MUSIC equ $04
+MUSIC_3_MUSIC equ $05
+MUSIC_1_ALLEGRO_MUSIC equ $06
+MUSIC_2_ALLEGRO_MUSIC equ $07
+MUSIC_3_ALLEGRO_MUSIC equ $08
+CONGRATULATIONS_SCREEN_MUSIC equ $09
+ENDINGS_MUSIC equ $0a
+B_TYPE_GOAL_ACHIEVED_2_MUSIC equ $0b
+NO_MUSIC equ $ff
+
+highScoreTable equ $700
+highScoresAType equ $730
+highScoresBType equ $73c
+highScoreLevelsAType equ $748

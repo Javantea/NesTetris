@@ -82,7 +82,7 @@ render subroutine
         dc.b <renderPlayAndDemoScreens, >renderPlayAndDemoScreens           ; RENDER_MODE_PLAY_AND_DEMO_SCREENS
         dc.b <renderEndingAnimation, >renderEndingAnimation                 ; RENDER_MODE_ENDING_ANIMATION
 ;--------------------
-bootContinued
+bootContinued subroutine
         ldy #>$0600        ; Clear memory from $0000-$06ff
         sty $1
         ldy #<$0600
@@ -112,16 +112,16 @@ lbl_8064
         lda $754
         cmp #$9a
         bne lbl_8095
-        jmp lbl_80bc
+        jmp .keepHighScores
 
-        ; Copy data from ROM to RAM at $700-$750.
+        ; Copy initial highscore table from ROM to RAM.
 
         ldx #$0
 lbl_8095
-        lda lbl_ad67,x
+        lda initialHighScoreTable,x
         cmp #$ff
         beq lbl_80a3
-        sta $700,x
+        sta highScoreTable,x
         inx
         jmp lbl_8095
 
@@ -141,7 +141,7 @@ lbl_80a3
 
         ; Initialize random number to $8889.
 
-lbl_80bc
+.keepHighScores
         ldx #$89
         stx randomNumberHighByte
         dex
@@ -266,7 +266,7 @@ lbl_8186
 advancePlayMode subroutine
         lda playMode
         jsr switch
-        dc.b <lbl_85f0, >lbl_85f0
+        dc.b <initializePlayBackground, >initializePlayBackground
         dc.b <initializePlayMode, >initializePlayMode
         dc.b <lbl_8884, >lbl_8884
         dc.b <lbl_9cbf, >lbl_9cbf
@@ -347,7 +347,7 @@ gameModeLegalScreen    subroutine
         lda #$ff
         sta $a8
 .waitForStartPressedOrTimeOut
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         beq .start
         jsr waitAndClearPage2
@@ -384,7 +384,7 @@ gameModeTitleScreen subroutine
         sta frameCounterHighByte
 .waitForStartPressedOrTimeOut
         jsr waitAndClearPage2
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         beq .start
         lda frameCounterHighByte
@@ -414,7 +414,7 @@ renderLegalTitleScreens
         rts
 ;--------------------
         lda #$0
-        sta $64
+        sta levelMirror
         lda #$0
         sta bType
         lda #GAME_MODE_PLAY_HIGH_SCORE_ENDING_PAUSE
@@ -442,14 +442,14 @@ gameModeGameTypeMenu subroutine
         jsr enableBackgroundAndSprites
         jsr waitAndClearPage2
         ldx $c2
-        lda lbl_85d2,x
-        jsr lbl_9e07
+        lda inGameMusics,x
+        jsr startMusic
 lbl_830b
         lda #$ff
         ldx #$2
         ldy #$2
         jsr fillMemPage
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$1
         bne lbl_8326
         lda #$1
@@ -458,7 +458,7 @@ lbl_830b
         sta waveSoundEffect
         jmp lbl_8335
 lbl_8326
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$2
         bne lbl_8335
         lda #$0
@@ -466,7 +466,7 @@ lbl_8326
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
 lbl_8335
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$4
         bne lbl_8350
         lda #MENU_OPTION_SELECT_SOUND
@@ -476,10 +476,10 @@ lbl_8335
         beq lbl_8369
         inc $c2
         ldx $c2
-        lda lbl_85d2,x
-        jsr lbl_9e07
+        lda inGameMusics,x
+        jsr startMusic
 lbl_8350
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$8
         bne lbl_8369
         lda #MENU_OPTION_SELECT_SOUND
@@ -488,19 +488,18 @@ lbl_8350
         beq lbl_8369
         dec $c2
         ldx $c2
-        lda lbl_85d2,x
-        jsr lbl_9e07
+        lda inGameMusics,x
+        jsr startMusic
 lbl_8369
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         bne lbl_8377
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
         inc gameMode
         rts
-;--------------------
 lbl_8377
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$40
         bne lbl_8389
         lda #MENU_SCREEN_SELECT_SOUND
@@ -509,7 +508,6 @@ lbl_8377
         sta frameCounterHighByte
         dec gameMode
         rts
-;--------------------
 lbl_8389
         ldy #$0
         lda bType
@@ -577,7 +575,7 @@ gameModeLevelAndHeightMenu subroutine
         lda bType
         bne lbl_8409
         jsr copyToVRAM
-        dc.b <lbl_c95d, >lbl_c95d
+        dc.b <a_type_menu_color_palette_background, >a_type_menu_color_palette_background
 lbl_8409        
         jsr lbl_9ff2
         jsr enableVerticalBlankingNMI
@@ -592,42 +590,42 @@ lbl_8409
         sta originalValue
         sta tempSpeed
 lbl_8428
-        lda $67
+        lda levelSelectedMirror
         cmp #$a
         bcc lbl_8436
         sec
         sbc #$a
-        sta $67
+        sta levelSelectedMirror
         jmp lbl_8428
 ;--------------------
 lbl_8436
         lda #$0
         sta $b7
-        lda $67
-        sta $47
-        lda $79
-        sta $59
+        lda levelSelectedMirror
+        sta levelSelected
+        lda bTypeHeightMirror
+        sta bTypeHeight
         lda originalValue
         sta $ad
-        lda buttonsPressed1
-        sta $b5
+        lda buttonStateMirror
+        sta buttonState
         jsr lbl_84ae
-        lda $47
-        sta $67
-        lda $59
-        sta $79
+        lda levelSelected
+        sta levelSelectedMirror
+        lda bTypeHeight
+        sta bTypeHeightMirror
         lda $ad
         sta originalValue
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         bne lbl_8478
-        lda $f7
+        lda heldButtonsMirror
         cmp #$90
         bne lbl_846c
-        lda $67
+        lda levelSelectedMirror
         clc
         adc #$a
-        sta $67
+        sta levelSelectedMirror
 lbl_846c
         lda #$0
         sta playMode
@@ -637,7 +635,7 @@ lbl_846c
         rts
 ;--------------------
 lbl_8478
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$40
         bne lbl_8486
         lda #MENU_SCREEN_SELECT_SOUND
@@ -667,91 +665,91 @@ lbl_8497
         jmp lbl_8436
 ;--------------------
 lbl_84ae
-        lda $b5
+        lda buttonState
         cmp #$1
         bne lbl_84d0
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
         lda $ad
         bne lbl_84c8
-        lda $47
+        lda levelSelected
         cmp #$9
         beq lbl_84d0
-        inc $47
+        inc levelSelected
         jmp lbl_84d0
 ;--------------------
 lbl_84c8
-        lda $59
+        lda bTypeHeight
         cmp #$5
         beq lbl_84d0
-        inc $59
+        inc bTypeHeight
 lbl_84d0
-        lda $b5
+        lda buttonState
         cmp #$2
         bne lbl_84ee
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
         lda $ad
         bne lbl_84e8
-        lda $47
+        lda levelSelected
         beq lbl_84ee
-        dec $47
+        dec levelSelected
         jmp lbl_84ee
 ;--------------------
 lbl_84e8
-        lda $59
+        lda bTypeHeight
         beq lbl_84ee
-        dec $59
+        dec bTypeHeight
 lbl_84ee
-        lda $b5
+        lda buttonState
         cmp #$4
         bne lbl_8517
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
         lda $ad
         bne lbl_850b
-        lda $47
+        lda levelSelected
         cmp #$5
         bpl lbl_8517
         clc
         adc #$5
-        sta $47
+        sta levelSelected
         jmp lbl_8517
 ;--------------------
 lbl_850b
-        lda $59
+        lda bTypeHeight
         cmp #$3
         bpl lbl_8517
-        inc $59
-        inc $59
-        inc $59
+        inc bTypeHeight
+        inc bTypeHeight
+        inc bTypeHeight
 lbl_8517
-        lda $b5
+        lda buttonState
         cmp #$8
         bne lbl_8540
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
         lda $ad
         bne lbl_8534
-        lda $47
+        lda levelSelected
         cmp #$5
         bmi lbl_8540
         sec
         sbc #$5
-        sta $47
+        sta levelSelected
         jmp lbl_8540
 ;--------------------
 lbl_8534
-        lda $59
+        lda bTypeHeight
         cmp #$3
         bmi lbl_8540
-        dec $59
-        dec $59
-        dec $59
+        dec bTypeHeight
+        dec bTypeHeight
+        dec bTypeHeight
 lbl_8540
         lda bType
         beq lbl_8555
-        lda $b5
+        lda buttonState
         cmp #$80
         bne lbl_8555
         lda #MENU_OPTION_SELECT_SOUND
@@ -766,12 +764,12 @@ lbl_8555
         and #$3
         beq lbl_8581
 lbl_855f
-        ldx $47
+        ldx levelSelected
         lda lbl_85b2,x
         sta $a1
         lda #$0
         sta $a2
-        ldx $47
+        ldx levelSelected
         lda lbl_85bc,x
         sta $a0
         lda $b7
@@ -792,12 +790,12 @@ lbl_8581
         and #$3
         beq lbl_85b1
 lbl_858f
-        ldx $59
+        ldx bTypeHeight
         lda lbl_85c6,x
         sta $a1
         lda #$0
         sta $a2
-        ldx $59
+        ldx bTypeHeight
         lda lbl_85cc,x
         sta $a0
         lda $b7
@@ -820,8 +818,9 @@ lbl_85c6
         dc.b $53, $53, $53, $63, $63, $63
 lbl_85cc
         dc.b $9c, $ac, $bc, $9c, $ac, $bc
-lbl_85d2
-        dc.b $03, $04, $05, $ff, $06, $07, $08, $ff
+inGameMusics
+        dc.b MUSIC_1_MUSIC, MUSIC_2_MUSIC, MUSIC_3_MUSIC, NO_MUSIC
+        dc.b MUSIC_1_ALLEGRO_MUSIC, MUSIC_2_ALLEGRO_MUSIC, MUSIC_3_ALLEGRO_MUSIC, NO_MUSIC
 ;--------------------
 renderMenuScreens subroutine
         lda ppuCtrlFlags
@@ -835,7 +834,7 @@ renderMenuScreens subroutine
         sta PPUSCROLL
         rts
 ;--------------------
-lbl_85f0
+initializePlayBackground subroutine
         jsr disableBackgroundAndSprites
         jsr disableVerticalBlankingNMI
         lda #$3
@@ -852,33 +851,31 @@ lbl_85f0
         sta PPUADDR
         lda bType
         bne lbl_863c
-        lda #$a        ; Draw A in x-TYPE box
+        lda #$a                    ; Draw A in x-TYPE box
         sta PPUDATA
-        lda #$20
+        lda #$20                   ; Draw top A-TYPE score
         sta PPUADDR
-lbl_8622
         lda #$b8
         sta PPUADDR
-        lda $730
+        lda highScoresAType
         jsr printTwoDigitNumber
-        lda $731
+        lda highScoresAType+1
         jsr printTwoDigitNumber
-        lda $732
+        lda highScoresAType+2
         jsr printTwoDigitNumber
         jmp lbl_8693
-;--------------------
 lbl_863c
         lda #$b                    ; Draw B in A-TYPE box
         sta PPUDATA
-        lda #$20
+        lda #$20                   ; Draw top B-TYPE score
         sta PPUADDR
         lda #$b8
         sta PPUADDR
-        lda $73c
+        lda highScoresBType
         jsr printTwoDigitNumber
-        lda $73d
+        lda highScoresBType+1
         jsr printTwoDigitNumber
-        lda $73e
+        lda highScoresBType+2
         jsr printTwoDigitNumber
         ldx #$0
 lbl_865f
@@ -897,27 +894,25 @@ lbl_866d
         beq lbl_867f
         sta PPUDATA
         jmp lbl_866d
-;--------------------
 lbl_867f
         lda #$23
         sta PPUADDR
         lda #$3b
         sta PPUADDR
-        lda $59
+        lda bTypeHeight
         and #$f
         sta PPUDATA
         jmp lbl_8693
-;--------------------
 lbl_8693
         jsr enableVerticalBlankingNMI
         jsr waitAndClearPage2
         jsr enableBackgroundAndSprites
         jsr waitAndClearPage2
         lda #$1
-        sta $68
+        sta playStateMirror
         sta $88
-        lda $67
-        sta $64
+        lda levelSelectedMirror
+        sta levelMirror
         lda $87
         sta $84
         inc playMode
@@ -937,29 +932,29 @@ initializePlayMode
         ldx #$f
         lda #$0
 lbl_86e9
-        sta $3ef,x
+        sta tetriminoStats,x
         dex
         bne lbl_86e9
         lda #$5
-        sta $60
+        sta pieceXMirror
         sta $80
         lda #$0
-        sta $61
+        sta pieceYMirror
         sta $81
-        sta $69
+        sta vramRowMirror
         sta $89
-        sta $65
+        sta fallTimerMirror
         sta $85
         sta $bb
-        sta $bc
-        sta $73
-        sta $74
-        sta $75
+        sta totalGarbage
+        sta scoreMirror
+        sta scoreMirror+1
+        sta scoreMirror+2
         sta $93
         sta $94
         sta $95
-        sta linesLowByteCopy
-        sta linesHighByteCopy
+        sta linesLowByteMirror
+        sta linesHighByteMirror
         sta $90
         sta $91
         sta $a4
@@ -968,8 +963,8 @@ lbl_86e9
         sta $da
         sta $db
         sta $ba
-        sta $ce
-        sta $cf
+        sta heldButtons
+        sta repeats
         sta demoIndex
         sta demoButtonsLowByte
         sta nextSpawnId
@@ -978,10 +973,10 @@ lbl_86e9
         lda #RENDER_MODE_PLAY_AND_DEMO_SCREENS
         sta renderMode
         lda #$a0
-        sta $6e
+        sta autoRepeatYMirror
         sta $8e
         jsr getNextTetrimino
-        sta $62
+        sta pieceOrientationMirror
         sta $82
         jsr updateTetriminoStats
         ldx #randomNumberHighByte
@@ -993,7 +988,7 @@ lbl_86e9
         lda bType
         beq lbl_8761
         lda #$25
-        sta linesLowByteCopy
+        sta linesLowByteMirror
         sta $90
 lbl_8761
         lda #$47
@@ -1001,8 +996,8 @@ lbl_8761
         jsr waitAndClearPage2
         jsr lbl_87dc
         ldx $c2
-        lda lbl_85d2,x
-        jsr lbl_9e07
+        lda inGameMusics,x
+        jsr startMusic
         inc playMode
         rts
 ;--------------------
@@ -1011,14 +1006,14 @@ lbl_8776
         sta $b7
 lbl_877a
         lda #$4
-        sta $b9
-        lda buttonsPressed1
-        sta $b5
-        lda $f7
-        sta $b6
+        sta leftPlayfield
+        lda buttonStateMirror
+        sta buttonState
+        lda heldButtonsMirror
+        sta buttonPressed
         ldx #$1f
 lbl_8788
-        lda $60,x
+        lda pieceXMirror,x
         sta pieceX,x
         dex
         cpx #$ff
@@ -1029,11 +1024,11 @@ lbl_8792
         lda #$2
         sta $b7
         lda #$5
-        sta $b9
-        lda buttonsPressed2
-        sta $b5
+        sta leftPlayfield
+        lda buttonPressedMirror
+        sta buttonState
         lda $f8
-        sta $b6
+        sta buttonPressed
         ldx #$1f
 lbl_87a4
         lda $80,x
@@ -1047,7 +1042,7 @@ lbl_87ae
         ldx #$1f
 lbl_87b0
         lda pieceX,x
-        sta $60,x
+        sta pieceXMirror,x
         dex
         cpx #$ff
         bne lbl_87b0
@@ -1055,9 +1050,9 @@ lbl_87b0
         cmp #$1
         beq lbl_87c7
         ldx $bb
-        lda $bc
+        lda totalGarbage
         sta $bb
-        stx $bc
+        stx totalGarbage
 lbl_87c7
         rts
 ;--------------------
@@ -1070,9 +1065,9 @@ lbl_87ca
         cpx #$ff
         bne lbl_87ca
         ldx $bb
-        lda $bc
+        lda totalGarbage
         sta $bb
-        stx $bc
+        stx totalGarbage
         rts
 ;--------------------
 lbl_87dc
@@ -1091,10 +1086,10 @@ lbl_87e7
         sbc $a8
         sta lineIndex
         lda #$0
-        sta $69
+        sta vramRowMirror
         sta $89
         lda #$9
-        sta $aa
+        sta loopIndex
 lbl_87fc
         ldx #randomNumberHighByte
         ldy #$2
@@ -1107,13 +1102,13 @@ lbl_87fc
         ldx lineIndex
         lda lbl_96d6,x
         clc
-        adc $aa
+        adc loopIndex
         tay
         lda $ab
-        sta $400,y
-        lda $aa
+        sta playfield,y
+        lda loopIndex
         beq lbl_8824
-        dec $aa
+        dec loopIndex
 lbl_8821
         jmp lbl_87fc
 ;--------------------
@@ -1132,23 +1127,23 @@ lbl_8824
         adc $ac
         tay
         lda #$ef
-        sta $400,y
+        sta playfield,y
         jsr waitAndClearPage2
         dec $a8
         bne lbl_87e7
 lbl_884a
         ldx #$c8
 lbl_884c
-        lda $400,x
-        sta $500,x
+        lda playfield,x
+        sta playfield2,x
         dex
         bne lbl_884c
-        ldx $79
+        ldx bTypeHeightMirror
         lda lbl_8876,x
         tay
         lda #$ef
 lbl_885d
-        sta $400,y
+        sta playfield,y
         dey
         cpy #$ff
         bne lbl_885d
@@ -1157,7 +1152,7 @@ lbl_885d
         tay
         lda #$ef
 lbl_886d
-        sta $500,y
+        sta playfield2,y
         dey
         cpy #$ff
         bne lbl_886d
@@ -1176,13 +1171,13 @@ lbl_8884
         jsr switchCharBank1
         lda #$0
         sta $b3
-        inc $65
+        inc fallTimerMirror
         inc $85
         lda $a4
         beq lbl_889c
         inc $a4
 lbl_889c
-        lda buttonsPressed1
+        lda buttonStateMirror
         and #$20
         beq lbl_88a8
         lda $df
@@ -1199,7 +1194,7 @@ rotateTetrimino subroutine
         lda pieceOrientation
         asl
         tax
-        lda $b5
+        lda buttonState
         and #$80
         cmp #$80
         bne lbl_88cf
@@ -1212,7 +1207,7 @@ rotateTetrimino subroutine
         sta waveSoundEffect
         jmp lbl_88ed
 lbl_88cf
-        lda $b5
+        lda buttonState
         and #$40
         cmp #$40
         bne lbl_88ed
@@ -1260,7 +1255,7 @@ dropTetrimino
         lda autoRepeatY
         bpl lbl_8922
 lbl_8918
-        lda $b5
+        lda buttonState
         and #$4
         beq lbl_8989
 lbl_891e
@@ -1268,10 +1263,10 @@ lbl_891e
         sta autoRepeatY
 lbl_8922
         bne lbl_8939
-        lda $b6
+        lda buttonPressed
         and #$3
         bne lbl_8973
-        lda $b5
+        lda buttonState
         and #$f
         cmp #$4
         bne lbl_8973
@@ -1280,13 +1275,13 @@ lbl_8922
         jmp lbl_8973
 ;--------------------
 lbl_8939
-        lda $b6
+        lda buttonPressed
         and #$f
         cmp #$4
         beq lbl_894a
         lda #$0
         sta autoRepeatY
-        sta $4f
+        sta holdDownPoints
         jmp lbl_8973
 ;--------------------
 lbl_894a
@@ -1296,7 +1291,7 @@ lbl_894a
         bcc lbl_8973
         lda #$1
         sta autoRepeatY
-        inc $4f
+        inc holdDownPoints
 lbl_8958
         lda #$0
         sta fallTimer
@@ -1337,13 +1332,13 @@ framesPerDropTable
 shiftTetrimino subroutine
         lda pieceX
         sta originalValue
-        lda $b6
+        lda buttonPressed
         and #$4
         bne lbl_8a09
-        lda $b5
+        lda buttonState
         and #$3
         bne lbl_89d3
-        lda $b6
+        lda buttonPressed
         and #$3
         beq lbl_8a09
         inc autoRepeatX
@@ -1357,7 +1352,7 @@ lbl_89d3
         lda #$0
         sta autoRepeatX
 lbl_89d7
-        lda $b6
+        lda buttonPressed
         and #$1
         beq lbl_89ec
         inc pieceX
@@ -1367,7 +1362,7 @@ lbl_89d7
         sta waveSoundEffect
         jmp lbl_8a09
 lbl_89ec
-        lda $b6
+        lda buttonPressed
         and #$2
         beq lbl_8a09
         dec pieceX
@@ -1390,20 +1385,20 @@ lbl_8a0a
         asl
         asl
         adc #$60
-        sta $aa
+        sta loopIndex
         lda numPlayers
         cmp #$1
         beq lbl_8a2c
-        lda $aa
+        lda loopIndex
         sec
         sbc #$40
-        sta $aa
+        sta loopIndex
         lda $b7
         cmp #$1
         beq lbl_8a2c
-        lda $aa
+        lda loopIndex
         adc #$6f
-        sta $aa
+        sta loopIndex
 lbl_8a2c
         clc
         lda pieceY
@@ -1456,7 +1451,6 @@ lbl_8a4b
         lda #$0
         sta $200,y
         jmp lbl_8a93
-;--------------------
 lbl_8a84
         inc $b3
         iny
@@ -1465,7 +1459,7 @@ lbl_8a84
         asl
         asl
         clc
-        adc $aa
+        adc loopIndex
         sta $200,y
 lbl_8a93
         inc $b3
@@ -1637,7 +1631,7 @@ isPositionValid subroutine
         tax
         ldy #$0
         lda #$4
-        sta $aa
+        sta loopIndex
 lbl_94aa
         lda orientationTable,x
         clc
@@ -1670,7 +1664,7 @@ lbl_94aa
         cmp #$a
         bcs lbl_94e9
         inx
-        dec $aa
+        dec loopIndex
         bne lbl_94aa
         lda #$0
         sta $a8
@@ -1682,42 +1676,42 @@ lbl_94e9
         rts
 ;--------------------
 renderPlayAndDemoScreens subroutine
-        lda $68
+        lda playStateMirror
         cmp #$4
         bne lbl_9522
         lda #$4
-        sta $b9
-        lda $72
+        sta leftPlayfield
+        lda clearColumnIndexMirror
         sta clearColumnIndex
-        lda $6a
+        lda completedRowIndicesMirror
         sta completedRowIndices
-        lda $6b
+        lda completedRowIndicesMirror+1
         sta completedRowIndices+1
-        lda $6c
+        lda completedRowIndicesMirror+2
         sta completedRowIndices+2
-        lda $6d
+        lda completedRowIndicesMirror+3
         sta completedRowIndices+3
-        lda $68
+        lda playStateMirror
         sta playState
         jsr lbl_977f
         lda clearColumnIndex
-        sta $72
+        sta clearColumnIndexMirror
         lda playState
-        sta $68
+        sta playStateMirror
         lda #$0
-        sta $69
+        sta vramRowMirror
         jmp lbl_953a
 lbl_9522
-        lda $69
+        lda vramRowMirror
         sta vramRow
         lda #$4
-        sta $b9
+        sta leftPlayfield
         jsr lbl_9725
         jsr lbl_9725
         jsr lbl_9725
         jsr lbl_9725
         lda vramRow
-        sta $69
+        sta vramRowMirror
 lbl_953a
         lda numPlayers
         cmp #$2
@@ -1726,7 +1720,7 @@ lbl_953a
         cmp #$4
         bne lbl_9574
         lda #$5
-        sta $b9
+        sta leftPlayfield
         lda $92
         sta clearColumnIndex
         lda $8a
@@ -1751,7 +1745,7 @@ lbl_9574
         lda $89
         sta vramRow
         lda #$5
-        sta $b9
+        sta leftPlayfield
         jsr lbl_9725
         jsr lbl_9725
         jsr lbl_9725
@@ -1769,9 +1763,9 @@ lbl_958c
         sta PPUADDR
         lda #$73
         sta PPUADDR
-        lda linesHighByteCopy
+        lda linesHighByteMirror
         sta PPUDATA
-        lda linesLowByteCopy
+        lda linesLowByteMirror
         jsr printTwoDigitNumber
         lda $a3
         and #$fe
@@ -1782,9 +1776,9 @@ lbl_95b5
         sta PPUADDR
         lda #$68
         sta PPUADDR
-        lda linesHighByteCopy
+        lda linesHighByteMirror
         sta PPUDATA
-        lda linesLowByteCopy
+        lda linesLowByteMirror
         jsr printTwoDigitNumber
         lda #$20
         sta PPUADDR
@@ -1804,7 +1798,7 @@ lbl_95e3
         lda numPlayers
         cmp #$2
         beq lbl_960e
-        ldx $64
+        ldx levelMirror
         lda lbl_96b8,x
         sta $a8
         lda #$22
@@ -1828,11 +1822,11 @@ lbl_960e
         sta PPUADDR
         lda #$18
         sta PPUADDR
-        lda $75
+        lda scoreMirror+2
         jsr printTwoDigitNumber
-        lda $74
+        lda scoreMirror+1
         jsr printTwoDigitNumber
-        lda $73
+        lda scoreMirror
         jsr printTwoDigitNumber
         lda $a3
         and #$fb
@@ -1871,7 +1865,7 @@ lbl_9673
         lda #$e
         sta PPUADDR
         ldx #$0
-        lda $56
+        lda completedLines
         cmp #$4
         bne lbl_9698
         lda frameCounterLowByte
@@ -1935,7 +1929,7 @@ lbl_9725
         lda numPlayers
         cmp #$1
         beq lbl_975e
-        lda $b9
+        lda leftPlayfield
         cmp #$5
         beq lbl_9752
         lda lbl_96ea,x
@@ -1978,9 +1972,9 @@ lbl_977f
         and #$3
         bne lbl_97fd
         lda #$0
-        sta $aa
+        sta loopIndex
 lbl_9789
-        ldx $aa
+        ldx loopIndex
         lda completedRowIndices,x
         beq lbl_97eb
         asl
@@ -1997,7 +1991,7 @@ lbl_9789
         jmp lbl_97bd
 ;--------------------
 lbl_97a6
-        lda $b9
+        lda leftPlayfield
         cmp #$4
         bne lbl_97b6
         lda $a8
@@ -2033,8 +2027,8 @@ lbl_97bd
         lda #$ff
         sta PPUDATA
 lbl_97eb
-        inc $aa
-        lda $aa
+        inc loopIndex
+        lda loopIndex
         cmp #$4
         bne lbl_9789
         inc clearColumnIndex
@@ -2050,7 +2044,7 @@ leftColumns
 rightColumns
         dc.b $05, $06, $07, $08, $09
 lbl_9808        
-        lda $64
+        lda levelMirror
 lbl_980a 
         cmp #$a
         bmi lbl_9814
@@ -2101,12 +2095,12 @@ lbl_984c
         dc.b $0f, $30, $27, $16
 lbl_9874
         rts
-        inc $69
-        lda $69
+        inc vramRowMirror
+        lda vramRowMirror
         cmp #$14
         bmi lbl_9881
         lda #$20
-        sta $69
+        sta vramRowMirror
 lbl_9881
         inc $89
         lda $89
@@ -2289,7 +2283,7 @@ lockTetrimino subroutine
         lda #PLAY_STATE_GAME_OVER_CURTAIN
         sta playState
         lda #$f0
-        sta $58
+        sta curtainRow
         jsr updateAudio
         rts
 ;--------------------
@@ -2316,7 +2310,7 @@ lbl_99b8
         tax
         ldy #$0
         lda #$4
-        sta $aa
+        sta loopIndex
 lbl_99dd        
         lda orientationTable,x
         asl
@@ -2339,10 +2333,10 @@ lbl_99dd
         lda $ac
         sta ($b8),y
         inx
-        dec $aa
+        dec loopIndex
         bne lbl_99dd
         lda #$0
-        sta $57
+        sta completedLineIndex
         jsr lbl_9caf
         jsr lbl_9d17
         inc playState
@@ -2351,33 +2345,33 @@ lbl_9a10
 ;--------------------
 updateGameOverCurtain subroutine
 
-        lda $58
+        lda curtainRow
         cmp #$14
         beq lbl_9a47
         lda frameCounterLowByte
         and #$3
         bne lbl_9a46
-        ldx $58
+        ldx curtainRow
         bmi lbl_9a3e
         lda lbl_96d6,x
         tay
         lda #$0
-        sta $aa
+        sta loopIndex
         lda #$13
         sta pieceOrientation
 lbl_9a2d
         lda #$4f
         sta ($b8),y
         iny
-        inc $aa
-        lda $aa
+        inc loopIndex
+        lda loopIndex
         cmp #$a
         bne lbl_9a2d
-        lda $58
+        lda curtainRow
         sta vramRow
 lbl_9a3e
-        inc $58
-        lda $58
+        inc curtainRow
+        lda curtainRow
         cmp #$14
         bne lbl_9a46
 lbl_9a46
@@ -2388,7 +2382,7 @@ lbl_9a47 subroutine
         lda numPlayers
         cmp #$2
         beq lbl_9a64
-        lda $75
+        lda scoreMirror+2
         cmp #$3
         bcc lbl_9a5e
         lda #$80
@@ -2396,13 +2390,13 @@ lbl_9a47 subroutine
         jsr lbl_9e3a
         jmp lbl_9a64
 lbl_9a5e
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         bne lbl_9a6a
 lbl_9a64
         lda #$0
         sta playState            ; PLAY_STATE_UNASSIGN_ORIENTATION_ID
-        sta buttonsPressed1
+        sta buttonStateMirror
 lbl_9a6a
         rts
 ;--------------------
@@ -2420,7 +2414,7 @@ lbl_9a74
         lda #$0
 lbl_9a7d
         clc
-        adc $57
+        adc completedLineIndex
         sta lineIndex
         asl
         sta $a8
@@ -2440,8 +2434,8 @@ lbl_9a8f
         bne lbl_9a8f
         lda #LINE_COMPLETED_SOUND
         sta waveSoundEffect
-        inc $56
-        ldx $57
+        inc completedLines
+        ldx completedLineIndex
         lda lineIndex
         sta completedRowIndices,x
         ldy $a8
@@ -2468,30 +2462,30 @@ lbl_9abe
         jmp lbl_9ad2
 ;--------------------
 lbl_9acc
-        ldx $57
+        ldx completedLineIndex
         lda #$0
         sta completedRowIndices,x
 lbl_9ad2
-        inc $57
-        lda $57
+        inc completedLineIndex
+        lda completedLineIndex
         cmp #$4
         bmi lbl_9b02
-        ldy $56
+        ldy completedLines
         lda lbl_9b53,y
         clc
-        adc $bc
-        sta $bc
+        adc totalGarbage
+        sta totalGarbage
         lda #$0
         sta vramRow
         sta clearColumnIndex
-        lda $56
+        lda completedLines
         cmp #$4
         bne lbl_9af5
         lda #TETRIS_ACHIEVED_SOUND
         sta waveSoundEffect
 lbl_9af5
         inc playState
-        lda $56
+        lda completedLines
         bne lbl_9b02
         inc playState
         lda #LOCK_TETRIMINO_SOUND
@@ -2556,7 +2550,7 @@ lbl_9b53
 updateLinesStats subroutine
 
         jsr lbl_9d17
-        lda $56
+        lda completedLines
         bne lbl_9b62
         jmp lbl_9bfe
 lbl_9b62
@@ -2579,7 +2573,7 @@ lbl_9b78
         sta $a3
         lda bType
         beq lbl_9ba6
-        lda $56
+        lda completedLines
         sta $a8
         lda linesLowByte
         sec
@@ -2599,7 +2593,7 @@ lbl_9b96
         sta linesLowByte
         jmp lbl_9bfe
 lbl_9ba6
-        ldx $56
+        ldx completedLines
 lbl_9ba8
         inc linesLowByte
         lda linesLowByte
@@ -2648,94 +2642,94 @@ lbl_9bfb
         dex
         bne lbl_9ba8
 lbl_9bfe
-        lda $4f
+        lda holdDownPoints
         cmp #$2
         bmi lbl_9c2d
         clc
-        dec $53
-        adc $53
-        sta $53
+        dec score
+        adc score
+        sta score
         and #$f
         cmp #$a
         bcc lbl_9c18
-        lda $53
+        lda score
         clc
         adc #$6
-        sta $53
+        sta score
 lbl_9c18
-        lda $53
+        lda score
         and #$f0
         cmp #$a0
         bcc lbl_9c27
         clc
         adc #$60
-        sta $53
-        inc $54
+        sta score
+        inc score+1
 lbl_9c27
         lda $a3
         ora #$4
         sta $a3
 lbl_9c2d
         lda #$0
-        sta $4f
+        sta holdDownPoints
         lda level
         sta $a8
         inc $a8
 lbl_9c37        
-        lda $56
+        lda completedLines
         asl
         tax
         lda scoreTable,x
         clc
-        adc $53
-        sta $53
+        adc score
+        sta score
         cmp #$a0
         bcc lbl_9c4e
         clc
         adc #$60
-        sta $53
-        inc $54
+        sta score
+        inc score+1
 lbl_9c4e
         inx
         lda scoreTable,x
         clc
-        adc $54
-        sta $54
+        adc score+1
+        sta score+1
         and #$f
         cmp #$a
         bcc lbl_9c64
-        lda $54
+        lda score+1
         clc
         adc #$6
-        sta $54
+        sta score+1
 lbl_9c64
-        lda $54
+        lda score+1
         and #$f0
         cmp #$a0
         bcc lbl_9c75
-        lda $54
+        lda score+1
         clc
         adc #$60
-        sta $54
-        inc $55
+        sta score+1
+        inc score+2
 lbl_9c75
-        lda $55
+        lda score+2
         and #$f
         cmp #$a
         bcc lbl_9c84
-        lda $55
+        lda score+2
         clc
         adc #$6
-        sta $55
+        sta score+2
 lbl_9c84
-        lda $55
+        lda score+2
         and #$f0
         cmp #$a0
         bcc lbl_9c94
         lda #$99
-        sta $53
-        sta $54
-        sta $55
+        sta score
+        sta score+1
+        sta score+2
 lbl_9c94
         dec $a8
         bne lbl_9c37
@@ -2743,7 +2737,7 @@ lbl_9c94
         ora #$4
         sta $a3
         lda #$0
-        sta $56
+        sta completedLines
         inc playState
         rts
 ;--------------------
@@ -2772,7 +2766,7 @@ lbl_9cbe
 lbl_9cbf
         lda #$5
         sta lineIndex
-        lda $68
+        lda playStateMirror
         cmp #$0
         beq lbl_9cd9
         lda numPlayers
@@ -2801,17 +2795,17 @@ lbl_9ce4
         jsr lbl_a0ee
 lbl_9cf1
         lda #$1
-        sta $68
+        sta playStateMirror
         sta $88
         lda #$ef
         ldx #$4
         ldy #$5
         jsr fillMemPage
         lda #$0
-        sta $69
+        sta vramRowMirror
         sta $89
         lda #$1
-        sta $68
+        sta playStateMirror
         sta $88
         jsr waitAndClearPage2
         lda #GAME_MODE_LEVEL_AND_HEIGHT_MENU
@@ -2841,8 +2835,8 @@ lbl_9d1f
         lda #$0
         sta $ba
         ldx $c2
-        lda lbl_85d2,x
-        jsr lbl_9e07
+        lda inGameMusics,x
+        jsr startMusic
         jmp lbl_9d50
 ;--------------------
 lbl_9d3c
@@ -2854,8 +2848,8 @@ lbl_9d3c
         clc
         adc #$4
         tax
-        lda lbl_85d2,x
-        jsr lbl_9e07
+        lda inGameMusics,x
+        jsr startMusic
 lbl_9d50
         rts
 ;--------------------
@@ -2872,12 +2866,12 @@ lbl_9d5b
         cmp #$ff
         beq lbl_9db0
         jsr lbl_ab9d
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         beq exitDemo
-        lda $cf
+        lda repeats
         beq lbl_9d73
-        dec $cf
+        dec repeats
         jmp lbl_9d9a
 ;--------------------
 lbl_9d73
@@ -2885,15 +2879,15 @@ lbl_9d73
         lda (demoButtonsLowByte,x)
         sta $a8
         jsr lbl_9de8
-        lda $ce
+        lda heldButtons
         eor $a8
         and $a8
-        sta buttonsPressed1
+        sta buttonStateMirror
         lda $a8
-        sta $ce
+        sta heldButtons
         ldx #$0
         lda (demoButtonsLowByte,x)
-        sta $cf
+        sta repeats
         jsr lbl_9de8
         lda demoButtonsHighByte
         cmp #$df
@@ -2902,10 +2896,10 @@ lbl_9d73
 ;--------------------
 lbl_9d9a
         lda #$0
-        sta buttonsPressed1
+        sta buttonStateMirror
 lbl_9d9e
-        lda $ce
-        sta $f7
+        lda heldButtons
+        sta heldButtonsMirror
 lbl_9da2
         rts
 ;--------------------
@@ -2927,28 +2921,28 @@ lbl_9db0
         lda $d0
         cmp #$ff
         bne lbl_9de7
-        lda $f7
-        cmp $ce
+        lda heldButtonsMirror
+        cmp heldButtons
         beq lbl_9de4
         ldx #$0
-        lda $ce
+        lda heldButtons
         sta (demoButtonsLowByte,x)
         jsr lbl_9de8
-        lda $cf
+        lda repeats
         sta (demoButtonsLowByte,x)
         jsr lbl_9de8
         lda demoButtonsHighByte
         cmp #$df
         beq lbl_9de7
-        lda $f7
-        sta $ce
+        lda heldButtonsMirror
+        sta heldButtons
         lda #$0
-        sta $cf
+        sta repeats
 lbl_9de3
         rts
 ;--------------------
 lbl_9de4
-        inc $cf
+        inc repeats
 lbl_9de6
         rts
 ;--------------------
@@ -2968,25 +2962,25 @@ lbl_9de8
 gameModeInitDemo subroutine
         lda #$0
         sta bType
-        sta $67
+        sta levelSelectedMirror
         sta playMode
-        sta $68
+        sta playStateMirror
         lda #GAME_MODE_DEMO
         sta gameMode
         jmp gameModePlay
 ;--------------------
-lbl_9e07
-        sta $6f5
+startMusic
+        sta backgroundMusic
         lda gameMode
         cmp #GAME_MODE_DEMO
         bne lbl_9e15
-        lda #$ff
-        sta $6f5
+        lda #NO_MUSIC
+        sta backgroundMusic
 lbl_9e15
         rts
 ;--------------------
 lbl_9e16
-        lda $f7
+        lda heldButtonsMirror
         cmp #$f0
         beq lbl_9e1f
         inc playMode
@@ -3029,7 +3023,7 @@ lbl_9e3a
         jmp lbl_a926
 ;--------------------
 lbl_9e49
-        ldx $64
+        ldx levelMirror
         lda lbl_96b8,x
         and #$f
         sta level
@@ -3043,7 +3037,7 @@ lbl_9e49
         asl
         asl
         sta $ab
-        lda $79
+        lda bTypeHeightMirror
         asl
         asl
         asl
@@ -3087,22 +3081,22 @@ lbl_9ea4
         jsr waitAndClearPage2
         lda #RENDER_MODE_ENDING_ANIMATION
         sta renderMode
-        lda #$a
-        jsr lbl_9e07
+        lda #ENDINGS_MUSIC
+        jsr startMusic
         lda #$80
         jsr lbl_a7fd
-        lda $73
+        lda scoreMirror
         sta $dc
-        lda $74
+        lda scoreMirror+1
         sta $dd
-        lda $75
+        lda scoreMirror+2
         sta $de
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
         lda #$0
-        sta $73
-        sta $74
-        sta $75
+        sta scoreMirror
+        sta scoreMirror+1
+        sta scoreMirror+2
         lda #$40
         jsr lbl_a7fd
         lda $ab
@@ -3157,17 +3151,17 @@ lbl_9f28
 lbl_9f45
         jsr lbl_a527
         jsr waitAndClearPage2
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         bne lbl_9f45
-        lda $64
+        lda levelMirror
         sta level
         lda $dc
-        sta $53
+        sta score
         lda $dd
-        sta $54
+        sta score+1
         lda $de
-        sta $55
+        sta score+2
         rts
 ;--------------------
 lbl_9f62
@@ -3209,11 +3203,11 @@ renderEndingAnimation subroutine
         sta PPUADDR
         lda #$8e
         sta PPUADDR
-        lda $75
+        lda scoreMirror+2
         jsr printTwoDigitNumber
-        lda $74
+        lda scoreMirror+1
         jsr printTwoDigitNumber
-        lda $73
+        lda scoreMirror
         jsr printTwoDigitNumber
         lda bType
         beq lbl_9fe9
@@ -3283,7 +3277,7 @@ lbl_a00c
         tay
         ldx #$6
 lbl_a031
-        lda $700,y
+        lda highScoreTable,y
         sty $a8
         tay
         lda lbl_a08c,y
@@ -3300,21 +3294,21 @@ lbl_a031
         clc
         adc $a8
         tay
-        lda $730,y
+        lda highScoresAType,y
         jsr printTwoDigitNumber
         iny
-        lda $730,y
+        lda highScoresAType,y
         jsr printTwoDigitNumber
         iny
-        lda $730,y
+        lda highScoresAType,y
 lbl_a062
         jsr printTwoDigitNumber
         lda #$ff
         sta PPUDATA
         ldy lineIndex
-        lda $748,y
+		lda highScoreLevelsAType,y
         tax
-        lda lbl_a0bc,x
+        lda binaryToBinaryCodedDecimal,x
         jsr printTwoDigitNumber
         inc lineIndex
         lda lineIndex
@@ -3334,7 +3328,7 @@ lbl_a08c
         dc.b $24, $0a
         dc.b $0b, $0c, $0d, $0e, $0f, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $1a, $1b, $1c, $1d, $1e, $1f, $20, $21, $22, $23
         dc.b $00, $01, $02, $03, $04, $05, $06, $07, $08, $09, $25, $4f, $5e, $5f, $6e, $6f, $ff, $00, $00, $00, $00
-lbl_a0bc
+binaryToBinaryCodedDecimal
         dc.b $00, $01, $02, $03, $04, $05, $06, $07, $08, $09, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49
 lbl_a0ee
         lda #$00
@@ -3350,22 +3344,22 @@ lbl_a0fa
         clc
         adc lineIndex
         tay
-        lda $730,y
-        cmp $75
+        lda highScoresAType,y
+        cmp scoreMirror+2
         beq lbl_a10e
         bcs lbl_a124
         bcc lbl_a134
 lbl_a10e
         iny
-        lda $730,y
-        cmp $74
+        lda highScoresAType,y
+        cmp scoreMirror+1
         beq lbl_a11a
         bcs lbl_a124
         bcc lbl_a134
 lbl_a11a
         iny
-        lda $730,y
-        cmp $73
+        lda highScoresAType,y
+        cmp scoreMirror
         beq lbl_a134
         bcc lbl_a134
 lbl_a124
@@ -3407,24 +3401,24 @@ lbl_a160
         ldy #$6
         lda #$0
 lbl_a16a
-        sta $700,x
+        sta highScoreTable,x
         inx
         dey
         bne lbl_a16a
         ldx $d5
         lda lbl_a1f9,x
         tax
-        lda $75
-        sta $730,x
+        lda scoreMirror+2
+        sta highScoresAType,x
         inx
-        lda $74
-        sta $730,x
+        lda scoreMirror+1
+        sta highScoresAType,x
         inx
-        lda $73
-        sta $730,x
+        lda scoreMirror
+        sta highScoresAType,x
         ldx $d5
-        lda $64
-        sta $748,x
+        lda levelMirror
+        sta highScoreLevelsAType,x
         jmp lbl_a201
 ;--------------------
 lbl_a192
@@ -3443,14 +3437,14 @@ lbl_a1a3
         clc
         adc lineIndex
         tax
-        lda $700,x
-        sta $aa
+        lda highScoreTable,x
+        sta loopIndex
         txa
         clc
         adc #$6
         tax
-        lda $aa
-        sta $700,x
+        lda loopIndex
+        sta highScoreTable,x
         dec lineIndex
         lda lineIndex
         cmp #$ff
@@ -3467,14 +3461,14 @@ lbl_a1c1
 lbl_a1ca
         tax
 lbl_a1cb
-        lda $730,x
-        sta $733,x
+        lda highScoresAType,x
+        sta highScoresAType+3,x
         inx
-        lda $730,x
-        sta $733,x
+        lda highScoresAType,x
+        sta highScoresAType+3,x
         inx
-        lda $730,x
-        sta $733,x
+        lda highScoresAType,x
+        sta highScoresAType+3,x
         rts
 ;--------------------
 lbl_a1e0
@@ -3487,8 +3481,8 @@ lbl_a1e0
 lbl_a1e9
         tax
 lbl_a1ea
-        lda $748,x
-        sta $749,x
+        lda highScoreLevelsAType,x
+        sta highScoreLevelsAType+1,x
         rts
 ;--------------------
 lbl_a1f1
@@ -3499,8 +3493,8 @@ lbl_a201
         inc $8000
         lda #$10
         jsr setMmc1Control
-        lda #$9
-        jsr lbl_9e07
+        lda #CONGRATULATIONS_SCREEN_MUSIC
+        jsr startMusic
         lda #RENDER_MODE_CONGRATULATIONS_SCREENS
         sta renderMode
         jsr disableBackgroundAndSprites
@@ -3558,7 +3552,7 @@ lbl_a26d
         sta $a2
 lbl_a287
         jsr lbl_8c27
-        lda buttonsPressed1
+        lda buttonStateMirror
         and #$10
         beq lbl_a298
         lda #MENU_SCREEN_SELECT_SOUND
@@ -3566,7 +3560,7 @@ lbl_a287
         jmp lbl_a337
 ;--------------------
 lbl_a298
-        lda buttonsPressed1
+        lda buttonStateMirror
         and #$81
         beq lbl_a2af
         lda #MENU_OPTION_SELECT_SOUND
@@ -3578,7 +3572,7 @@ lbl_a298
         lda #$0
         sta $d4
 lbl_a2af
-        lda buttonsPressed1
+        lda buttonStateMirror
         and #$42
         beq lbl_a2c4
         lda #MENU_OPTION_SELECT_SOUND
@@ -3589,7 +3583,7 @@ lbl_a2af
         lda #$5
         sta $d4
 lbl_a2c4
-        lda $f7
+        lda heldButtonsMirror
         and #$4
         beq lbl_a2f2
         lda frameCounterLowByte
@@ -3602,7 +3596,7 @@ lbl_a2c4
         clc
         adc $d4
         tax
-        lda $700,x
+        lda highScoreTable,x
         sta $a8
         dec $a8
         lda $a8
@@ -3613,9 +3607,9 @@ lbl_a2e9
         sta $a8
 lbl_a2ed
         lda $a8
-        sta $700,x
+        sta highScoreTable,x
 lbl_a2f2
-        lda $f7
+        lda heldButtonsMirror
         and #$8
         beq lbl_a322
         lda frameCounterLowByte
@@ -3628,7 +3622,7 @@ lbl_a2f2
         clc
         adc $d4
         tax
-        lda $700,x
+        lda highScoreTable,x
         sta $a8
         inc $a8
         lda $a8
@@ -3639,13 +3633,13 @@ lbl_a2f2
         sta $a8
 lbl_a31d
         lda $a8
-        sta $700,x
+        sta highScoreTable,x
 lbl_a322
         lda $d6
         clc
         adc $d4
         tax
-        lda $700,x
+        lda highScoreTable,x
         sta $d7
         lda #$80
         sta $a3
@@ -3698,7 +3692,7 @@ lbl_a37f subroutine
         lda gameMode
         cmp #GAME_MODE_DEMO
         bne .demoNotExited
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         bne .demoNotExited
         lda #GAME_MODE_TITLE_SCREEN
@@ -3709,12 +3703,12 @@ lbl_a37f subroutine
         cmp #RENDER_MODE_PLAY_AND_DEMO_SCREENS
         bne .nextPlayMode
 lbl_a398
-        lda buttonsPressed1
+        lda buttonStateMirror
         and #$10
         bne lbl_a3a1
         jmp .nextPlayMode
 lbl_a3a1
-        lda $68
+        lda playStateMirror
         cmp #$a
         bne lbl_a3aa
         jmp .nextPlayMode
@@ -3731,14 +3725,14 @@ lbl_a3aa
         ldy #$2
         jsr fillMemPage
 lbl_a3c4
-        lda #linesLowByteCopy
+        lda #linesLowByteMirror
         sta $a0
         lda #$77
         sta $a1
         lda #$5
         sta $a2
         jsr lbl_8c27
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         beq lbl_a3df
         jsr waitAndClearPage2
@@ -3748,7 +3742,7 @@ lbl_a3df
         sta PPUMASK
         lda #$0
         sta $68d
-        sta $69
+        sta vramRowMirror
         lda #RENDER_MODE_PLAY_AND_DEMO_SCREENS
         sta renderMode
 .nextPlayMode
@@ -3761,8 +3755,8 @@ checkBTypeGoal subroutine
         beq lbl_a42b
         lda linesLowByte
         bne lbl_a42b
-        lda #$2
-        jsr lbl_9e07
+        lda #B_TYPE_GOAL_ACHIEVED_MUSIC
+        jsr startMusic
         ldy #$46
         ldx #$0
 lbl_a403
@@ -3775,7 +3769,7 @@ lbl_a403
         jmp lbl_a403
 lbl_a411
         lda #$0
-        sta $69
+        sta vramRowMirror
         jsr lbl_a44d
         lda #RENDER_MODE_LEGAL_TITLE_SCREENS
         sta renderMode
@@ -3820,7 +3814,7 @@ lbl_a463
         lda level
         cmp #$9
         bne lbl_a49a
-        lda $79
+        lda bTypeHeightMirror
         clc
         adc #$1
         sta ending
@@ -3927,19 +3921,17 @@ lbl_a527
         lda bType
         bne lbl_a52e
         jmp lbl_a9b1
-;--------------------
 lbl_a52e
         lda level
         cmp #$9
         beq lbl_a537
         jmp lbl_a625
-;--------------------
 lbl_a537
         jsr lbl_a53b
         rts
 ;--------------------
 lbl_a53b
-        lda $79
+        lda bTypeHeightMirror
         jsr switch
         dc.b <lbl_a609, >lbl_a609
         dc.b <lbl_a5f1, >lbl_a5f1
@@ -3947,6 +3939,7 @@ lbl_a53b
         dc.b <lbl_a5c1, >lbl_a5c1
         dc.b <lbl_a5a9, >lbl_a5a9
         dc.b <lbl_a54c, >lbl_a54c
+;--------------------
 lbl_a54c
         lda #200
         sta $a0
@@ -4121,7 +4114,7 @@ lbl_a62e
 lbl_a675
         lda $cc
         sta $a8
-        cmp $59
+        cmp bTypeHeight
         beq lbl_a682
         inc $cc
         jmp lbl_a62e
@@ -4266,71 +4259,14 @@ lbl_a78d
         dc.b $42, $42, $42, $42, $42, $02, $22, $0a, $1a, $04, $0a, $ff, $ee
         dc.b $de, $fc, $fc, $f6, $02, $80, $80, $80, $80, $80, $ff, $e8, $e8, $e8, $e8, $48
         dc.b $ff, $80, $ae, $9e, $90, $80, $02, $80, $80, $80, $80, $80, $ff
-
 lbl_a7b7
-        tya
-        tay
-        cpy #$a8
-        bcc lbl_a76d
-        bcs lbl_a777
-        ldy #$b8
-        tay
-        ldy #$c8
-        iny
-        iny
-        iny
-        iny
-        iny
-        bmi lbl_a7eb
-        rti
-;--------------------
-        plp
-        ldy #$80
-        tay
-        dey
-        pla
-        tay
-        pha
-        sei
-        cli
-        pla
-        clc
-        pha
-        sei
-        sec
-        iny
-        iny
-        iny
-        iny
-        iny
-        iny
-        bcc lbl_a83b
-        bvs lbl_a78d
-        rti
-;--------------------
-        sec
-        pla
-        dey
-        sei
-lbl_a7ea
-        clc
-lbl_a7eb
-        pha
-        tay
-        iny
-        iny
-        iny
-        iny
-        iny
-        iny
+       dc.b $98, $a8, $c0, $a8, $90, $b0, $b0, $b8, $a0, $b8, $a8, $a0, $c8, $c8, $c8, $c8
+       dc.b $c8, $c8, $30, $20, $40, $28, $a0, $80, $a8, $88, $68, $a8, $48, $78, $58, $68
+       dc.b $18, $48, $78, $38, $c8, $c8, $c8, $c8, $c8, $c8, $90, $58, $70, $a8, $40, $38
+       dc.b $68, $88, $78, $18, $48, $a8, $c8, $c8, $c8, $c8, $c8, $c8
 lbl_a7f3
-        bit $542e
-        dc.b $32    ;?
-        dc.b $34    ;?
-        rol $4b,x
-        sec
-        dc.b $3a    ;?
-        dc.b $4b    ;?
+        dc.b $2c, $2e, $54, $32, $34, $36, $4b, $38, $3a, $4b
+;--------------------
 lbl_a7fd
         sta legalScreenCounter1
 lbl_a7ff
@@ -4382,8 +4318,8 @@ lbl_a926
         jsr waitAndClearPage2
         lda #RENDER_MODE_ENDING_ANIMATION
         sta renderMode
-        lda #$a
-        jsr lbl_9e07
+        lda #ENDINGS_MUSIC
+        jsr startMusic
         lda #$80
         jsr lbl_a7fd
 lbl_a95d
@@ -4391,7 +4327,7 @@ lbl_a95d
         jsr waitAndClearPage2
         lda $c5
         bne lbl_a95d
-        lda buttonsPressed1
+        lda buttonStateMirror
         cmp #$10
         bne lbl_a95d
         rts
@@ -4399,22 +4335,22 @@ lbl_a95d
 lbl_a96e
         lda #$0
         sta ending
-        lda $75
+        lda scoreMirror+2
         cmp #$5
         bcc lbl_a9a5
         lda #$1
         sta ending
-        lda $75
+        lda scoreMirror+2
         cmp #$7
         bcc lbl_a9a5
         lda #$2
         sta ending
-        lda $75
+        lda scoreMirror+2
         cmp #$10
         bcc lbl_a9a5
         lda #$3
         sta ending
-        lda $75
+        lda scoreMirror+2
         cmp #$12
         bcc lbl_a9a5
         lda #$4
@@ -4636,7 +4572,6 @@ lbl_aaf2
         bpl lbl_aafc
 lbl_aafb
         rts
-;--------------------
 lbl_aafc
         cmp #$60
         bne lbl_ab0a
@@ -4724,12 +4659,12 @@ lbl_ab69
 lbl_ab75
         lda JOY1
         lsr
-        rol buttonsPressed1
+        rol buttonStateMirror
         lsr
         rol $00
         lda JOY2
         lsr
-        rol buttonsPressed2
+        rol buttonPressedMirror
         lsr
         rol $01
         dex
@@ -4738,11 +4673,11 @@ lbl_ab75
 ;--------------------
 lbl_ab8b
         lda $0
-        ora buttonsPressed1
-        sta buttonsPressed1
+        ora buttonStateMirror
+        sta buttonStateMirror
         lda $1
-        ora buttonsPressed2
-        sta buttonsPressed2
+        ora buttonPressedMirror
+        sta buttonPressedMirror
         rts
 ;--------------------
         jsr lbl_ab69
@@ -4750,69 +4685,69 @@ lbl_ab8b
 lbl_ab9d
         jsr lbl_ab69
         jsr lbl_ab8b
-        lda buttonsPressed1
+        lda buttonStateMirror
         sta lineIndex
-        lda buttonsPressed2
-        sta $aa
+        lda buttonPressedMirror
+        sta loopIndex
         jsr lbl_ab69
         jsr lbl_ab8b
-        lda buttonsPressed1
+        lda buttonStateMirror
         and lineIndex
-        sta buttonsPressed1
-        lda buttonsPressed2
-        and $aa
-        sta buttonsPressed2
+        sta buttonStateMirror
+        lda buttonPressedMirror
+        and loopIndex
+        sta buttonPressedMirror
 lbl_abbd
         ldx #$1
 lbl_abbf
-        lda buttonsPressed1,x
+        lda buttonStateMirror,x
         tay
-        eor $f7,x
-        and buttonsPressed1,x
-        sta buttonsPressed1,x
-        sty $f7,x
+        eor heldButtonsMirror,x
+        and buttonStateMirror,x
+        sta buttonStateMirror,x
+        sty heldButtonsMirror,x
         dex
         bpl lbl_abbf
         rts
 ;--------------------
         jsr lbl_ab69
 lbl_abd1
-        ldy buttonsPressed1
-        lda buttonsPressed2
+        ldy buttonStateMirror
+        lda buttonPressedMirror
         pha
         jsr lbl_ab69
         pla
-        cmp buttonsPressed2
+        cmp buttonPressedMirror
         bne lbl_abd1
-        cpy buttonsPressed1
+        cpy buttonStateMirror
         bne lbl_abd1
         beq lbl_abbd
         jsr lbl_ab69
         jsr lbl_ab8b
 lbl_abea
-        ldy buttonsPressed1
-        lda buttonsPressed2
+        ldy buttonStateMirror
+        lda buttonPressedMirror
         pha
         jsr lbl_ab69
         jsr lbl_ab8b
         pla
-        cmp buttonsPressed2
+        cmp buttonPressedMirror
         bne lbl_abea
-        cpy buttonsPressed1
+        cpy buttonStateMirror
         bne lbl_abea
         beq lbl_abbd
         jsr lbl_ab69
         lda $0
-        sta $f7
+        sta heldButtonsMirror
         lda $1
         sta $f8
         ldx #$3
 lbl_ac0d        
-        lda buttonsPressed1,x
+        lda buttonStateMirror,x
         tay
         eor $f1,x
-        and buttonsPressed1,x
-        sta buttonsPressed1,x
+        and buttonStateMirror,x
+        sta buttonStateMirror,x
         sty $f1,x
         dex
         bpl lbl_ac0d
@@ -4984,12 +4919,25 @@ ending_screen_color_palette
         dc.b $12, $0f, $29, $37, $12, $0f, $30, $27, $12, $0f, $17, $27, $12, $0f, $15, $37
         dc.b $ff
 
-lbl_ad67
-        dc.b $08, $0f, $17, $01, $12, $04, $0f, $14, $01, $13, $01, $0e, $0c, $01, $0e, $03
-        dc.b $05, $2b, $00, $00, $00, $00, $00, $00, $01, $0c, $05, $18, $2b, $2b, $14, $0f
-        dc.b $0e, $19, $2b, $2b, $0e, $09, $0e, $14, $05, $0e, $00, $00, $00, $00, $00, $00
-        dc.b $01, $00, $00, $00, $75, $00, $00, $50, $00, $00, $00, $00, $00, $20, $00, $00
-        dc.b $10, $00, $00, $05, $00, $00, $00, $00, $09, $05, $00, $00, $09, $05, $00, $00
+initialHighScoreTable
+        dc.b $08, $0f, $17, $01, $12, $04 ; A-Type #1 name: HOWARD
+        dc.b $0f, $14, $01, $13, $01, $0e ; A-Type #2 name: OTASAN
+        dc.b $0c, $01, $0e, $03, $05, $2b ; A-Type #3 name: LANCE
+        dc.b $00, $00, $00, $00, $00, $00
+        dc.b $01, $0c, $05, $18, $2b, $2b ; B-Type #1 name: ALEX
+        dc.b $14, $0f, $0e, $19, $2b, $2b ; B-Type #2 name: TONY
+        dc.b $0e, $09, $0e, $14, $05, $0e ; B-Type #3 name: NINTEN
+        dc.b $00, $00, $00, $00, $00, $00
+        dc.b $01, $00, $00 ; A-Type #1 score
+        dc.b $00, $75, $00 ; A-Type #2 score
+        dc.b $00, $50, $00 ; A-Type #3 score
+        dc.b $00, $00, $00
+        dc.b $00, $20, $00 ; B-Type #1 score
+        dc.b $00, $10, $00 ; B-Type #2 score
+        dc.b $00, $05, $00 ; B-Type #3 score
+        dc.b $00, $00, $00
+        dc.b $09, $05, $00, $00 ; A-Type levels
+        dc.b $09, $05, $00, $00 ; B-Type levels
         dc.b $ff
 
         ; Screen background data
@@ -5015,13 +4963,13 @@ highscore_screen_background
 highscore_table_background
         incbin backgrounds/highscore_table.bin
 
-lbl_c95d
-        dc.b $3f, $0a, $01, $16, $20, $6d, $01, $0a, $20, $f3, $48, $ff
-        dc.b $21, $13, $48, $ff, $21, $33, $48, $ff, $21, $53, $47, $ff
-        dc.b $21, $73, $47, $ff, $21, $93, $47, $ff, $21, $b3, $47, $ff
-        dc.b $21, $d3, $47, $ff, $22, $33, $48, $ff, $22, $53, $48, $ff
-        dc.b $22, $73, $48, $ff, $22, $93, $47, $ff, $22, $b3, $47, $ff
-        dc.b $22, $d3, $47, $ff, $22, $f3, $47, $ff, $23, $13, $47, $ff
+a_type_menu_color_palette_background
+        dc.b $3f, $0a, $01, $16
+        dc.b $20, $6d, $01, $0a, $20, $f3, $48, $ff, $21, $13, $48, $ff, $21, $33, $48, $ff
+        dc.b $21, $53, $47, $ff, $21, $73, $47, $ff, $21, $93, $47, $ff, $21, $b3, $47, $ff
+        dc.b $21, $d3, $47, $ff, $22, $33, $48, $ff, $22, $53, $48, $ff, $22, $73, $48, $ff
+        dc.b $22, $93, $47, $ff, $22, $b3, $47, $ff, $22, $d3, $47, $ff, $22, $f3, $47, $ff
+        dc.b $23, $13, $47, $ff
         dc.b $ff
 
 b_type_ending_lvl9_screen_background
