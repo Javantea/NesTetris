@@ -103,6 +103,9 @@ recordingMode equ $d0
 demoButtonsLowByte equ $d1
 demoButtonsHighByte equ $d2
 demoIndex equ $d3
+highScoreNameCharacterIndex equ $d4
+highScoreTableIndex equ $d5
+highScoreNameStartOffset equ $d6
 
 buttonStateMirror equ $f5
 buttonPressedMirror equ $f6
