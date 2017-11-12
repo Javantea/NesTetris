@@ -41,7 +41,7 @@ nmiHandler
         bne lbl_801b
         inc legalScreenCounter1
 lbl_801b
-        jsr lbl_ab5e
+        jsr initializeOAM
 
         lda frameCounterLowByte
         clc
@@ -194,10 +194,9 @@ lbl_80a3
         jsr fillMemPage
 
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
-lbl_8120
+        jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #$e
         sta $34
         lda #$0
@@ -211,7 +210,7 @@ mainGameLoop
         jsr advanceGameMode
         cmp playMode
         bne lbl_8142
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
 lbl_8142
         lda gameMode
         cmp #GAME_MODE_DEMO
@@ -336,9 +335,9 @@ gameModeLegalScreen    subroutine
         jsr copyToVRAM
         dc.b <copyright_screen_background, >copyright_screen_background
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #$0
         ldx #$2
         ldy #$2
@@ -349,9 +348,9 @@ gameModeLegalScreen    subroutine
         sta $a8
 .waitForStartPressedOrTimeOut
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         beq .start
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         dec $a8
         bne .waitForStartPressedOrTimeOut
 .start    inc gameMode
@@ -362,7 +361,7 @@ gameModeTitleScreen subroutine
         lda #$0
         sta renderMode    ; RENDER_MODE_LEGAL_TITLE_SCREENS
         sta $d0
-        sta $df
+        sta nextTetriminoHidden
         jsr disableBackgroundAndSprites
         jsr disableVerticalBlankingNMI
         lda #$0
@@ -374,9 +373,9 @@ gameModeTitleScreen subroutine
         jsr copyToVRAM
         dc.b <title_screen_background, >title_screen_background
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #$0
         ldx #$2
         ldy #$2
@@ -384,9 +383,9 @@ gameModeTitleScreen subroutine
         lda #$0
         sta frameCounterHighByte
 .waitForStartPressedOrTimeOut
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         beq .start
         lda frameCounterHighByte
         cmp #$5
@@ -439,10 +438,10 @@ gameModeGameTypeMenu subroutine
         lda #$0
         jsr switchCharBank1
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
-        ldx $c2
+        jsr waitForVerticalBlankAndClearOAM
+        ldx activeMusic
         lda inGameMusics,x
         jsr startMusic
 lbl_830b
@@ -451,7 +450,7 @@ lbl_830b
         ldy #$2
         jsr fillMemPage
         lda buttonStateMirror
-        cmp #$1
+        cmp #JOYPAD_RIGHT
         bne lbl_8326
         lda #$1
         sta bType
@@ -460,7 +459,7 @@ lbl_830b
         jmp lbl_8335
 lbl_8326
         lda buttonStateMirror
-        cmp #$2
+        cmp #JOYPAD_LEFT
         bne lbl_8335
         lda #$0
         sta bType
@@ -468,32 +467,32 @@ lbl_8326
         sta waveSoundEffect
 lbl_8335
         lda buttonStateMirror
-        cmp #$4
+        cmp #JOYPAD_DOWN
         bne lbl_8350
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
-        lda $c2
+        lda activeMusic
         cmp #$3
         beq lbl_8369
-        inc $c2
-        ldx $c2
+        inc activeMusic
+        ldx activeMusic
         lda inGameMusics,x
         jsr startMusic
 lbl_8350
         lda buttonStateMirror
-        cmp #$8
+        cmp #JOYPAD_UP
         bne lbl_8369
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
-        lda $c2
+        lda activeMusic
         beq lbl_8369
-        dec $c2
-        ldx $c2
+        dec activeMusic
+        ldx activeMusic
         lda inGameMusics,x
         jsr startMusic
 lbl_8369
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         bne lbl_8377
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
@@ -501,7 +500,7 @@ lbl_8369
         rts
 lbl_8377
         lda buttonStateMirror
-        cmp #$40
+        cmp #JOYPAD_B
         bne lbl_8389
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
@@ -534,7 +533,7 @@ lbl_8389
         sta $a2
 lbl_83ae
         jsr lbl_8c27
-        lda $c2
+        lda activeMusic
         asl
         asl
         asl
@@ -553,7 +552,7 @@ lbl_83ae
         sta $a2
 lbl_83ce
         jsr lbl_8c27
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jmp lbl_830b
 ;--------------------
 gameModeLevelAndHeightMenu subroutine
@@ -580,13 +579,13 @@ gameModeLevelAndHeightMenu subroutine
 lbl_8409        
         jsr lbl_9ff2
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #$0
         sta PPUSCROLL
         lda #$0
         sta PPUSCROLL
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #$0
         sta originalValue
         sta tempSpeed
@@ -598,7 +597,6 @@ lbl_8428
         sbc #$a
         sta levelSelectedMirror
         jmp lbl_8428
-;--------------------
 lbl_8436
         lda #$0
         sta $b7
@@ -618,10 +616,10 @@ lbl_8436
         lda $ad
         sta originalValue
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         bne lbl_8478
         lda heldButtonsMirror
-        cmp #$90
+        cmp #(JOYPAD_START+JOYPAD_A)
         bne lbl_846c
         lda levelSelectedMirror
         clc
@@ -634,16 +632,14 @@ lbl_846c
         sta waveSoundEffect
         inc gameMode
         rts
-;--------------------
 lbl_8478
         lda buttonStateMirror
-        cmp #$40
+        cmp #JOYPAD_B
         bne lbl_8486
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
         dec gameMode
         rts
-;--------------------
 lbl_8486
         ldx #randomNumberHighByte
         ldy #$2
@@ -662,12 +658,11 @@ lbl_8497
         cmp #$a
         bpl lbl_8497
         sta $9a
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jmp lbl_8436
-;--------------------
 lbl_84ae
         lda buttonState
-        cmp #$1
+        cmp #JOYPAD_RIGHT
         bne lbl_84d0
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
@@ -678,7 +673,6 @@ lbl_84ae
         beq lbl_84d0
         inc levelSelected
         jmp lbl_84d0
-;--------------------
 lbl_84c8
         lda bTypeHeight
         cmp #$5
@@ -686,7 +680,7 @@ lbl_84c8
         inc bTypeHeight
 lbl_84d0
         lda buttonState
-        cmp #$2
+        cmp #JOYPAD_LEFT
         bne lbl_84ee
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
@@ -696,14 +690,13 @@ lbl_84d0
         beq lbl_84ee
         dec levelSelected
         jmp lbl_84ee
-;--------------------
 lbl_84e8
         lda bTypeHeight
         beq lbl_84ee
         dec bTypeHeight
 lbl_84ee
         lda buttonState
-        cmp #$4
+        cmp #JOYPAD_DOWN
         bne lbl_8517
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
@@ -716,7 +709,6 @@ lbl_84ee
         adc #$5
         sta levelSelected
         jmp lbl_8517
-;--------------------
 lbl_850b
         lda bTypeHeight
         cmp #$3
@@ -726,7 +718,7 @@ lbl_850b
         inc bTypeHeight
 lbl_8517
         lda buttonState
-        cmp #$8
+        cmp #JOYPAD_UP
         bne lbl_8540
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
@@ -739,7 +731,6 @@ lbl_8517
         sbc #$5
         sta levelSelected
         jmp lbl_8540
-;--------------------
 lbl_8534
         lda bTypeHeight
         cmp #$3
@@ -751,7 +742,7 @@ lbl_8540
         lda bType
         beq lbl_8555
         lda buttonState
-        cmp #$80
+        cmp #JOYPAD_A
         bne lbl_8555
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
@@ -906,9 +897,9 @@ lbl_867f
         jmp lbl_8693
 lbl_8693
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #$1
         sta playStateMirror
         sta $88
@@ -963,7 +954,7 @@ lbl_86e9
         sta $d9
         sta $da
         sta $db
-        sta $ba
+        sta musicSpeed
         sta heldButtons
         sta repeats
         sta demoIndex
@@ -994,9 +985,9 @@ lbl_86e9
 lbl_8761
         lda #$47
         sta $a3
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jsr lbl_87dc
-        ldx $c2
+        ldx activeMusic
         lda inGameMusics,x
         jsr startMusic
         inc playMode
@@ -1129,7 +1120,7 @@ lbl_8824
         tay
         lda #$ef
         sta playfield,y
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         dec $a8
         bne lbl_87e7
 lbl_884a
@@ -1179,12 +1170,12 @@ lbl_8884
         inc $a4
 lbl_889c
         lda buttonStateMirror
-        and #$20
-        beq lbl_88a8
-        lda $df
+        and #JOYPAD_SELECT
+        beq .selectNotPressed
+        lda nextTetriminoHidden
         eor #$1
-        sta $df
-lbl_88a8
+        sta nextTetriminoHidden
+.selectNotPressed
         inc playMode
         rts
 ;--------------------
@@ -1196,33 +1187,33 @@ rotateTetrimino subroutine
         asl
         tax
         lda buttonState
-        and #$80
-        cmp #$80
-        bne lbl_88cf
+        and #JOYPAD_A
+        cmp #JOYPAD_A
+        bne .aNotPressed
         inx
         lda rotationTable,x
         sta pieceOrientation
         jsr isPositionValid
-        bne lbl_88e9
+        bne .restoreOriginalOrientation
         lda #ROTATE_TETRIMINO_SOUND
         sta waveSoundEffect
-        jmp lbl_88ed
-lbl_88cf
+        jmp .return
+.aNotPressed
         lda buttonState
-        and #$40
-        cmp #$40
-        bne lbl_88ed
+        and #JOYPAD_B
+        cmp #JOYPAD_B
+        bne .return
         lda rotationTable,x
         sta pieceOrientation
         jsr isPositionValid
-        bne lbl_88e9
+        bne .restoreOriginalOrientation
         lda #ROTATE_TETRIMINO_SOUND
         sta waveSoundEffect
-        jmp lbl_88ed
-lbl_88e9
+        jmp .return
+.restoreOriginalOrientation
         lda originalValue
         sta pieceOrientation
-lbl_88ed
+.return
         rts
 ;--------------------
 rotationTable
@@ -1252,79 +1243,73 @@ rotationTable
         dc.b $12, $12 ; 11: I vertical
         dc.b $11, $11 ; 12: I horizontal (spawn)
 ;--------------------
-dropTetrimino
+dropTetrimino subroutine
         lda autoRepeatY
-        bpl lbl_8922
-lbl_8918
+        bpl .playing
         lda buttonState
-        and #$4
-        beq lbl_8989
-lbl_891e
-        lda #$0
+        and #JOYPAD_DOWN
+        beq .incrementAutoRepeatY
+        lda #$0				; Player just pressed down, ending startup delay.
         sta autoRepeatY
-lbl_8922
-        bne lbl_8939
+.playing
+        bne .autoRepeating
         lda buttonPressed
-        and #$3
-        bne lbl_8973
+        and #(JOYPAD_RIGHT+JOYPAD_LEFT)
+        bne .lookupDropSpeed
         lda buttonState
-        and #$f
-        cmp #$4
-        bne lbl_8973
+        and #JOYPAD_UP+JOYPAD_DOWN+JOYPAD_RIGHT+JOYPAD_LEFT
+        cmp #JOYPAD_DOWN
+        bne .lookupDropSpeed
         lda #$1
         sta autoRepeatY
-        jmp lbl_8973
-;--------------------
-lbl_8939
+        jmp .lookupDropSpeed
+.autoRepeating
         lda buttonPressed
-        and #$f
-        cmp #$4
-        beq lbl_894a
+        and #JOYPAD_UP+JOYPAD_DOWN+JOYPAD_RIGHT+JOYPAD_LEFT
+        cmp #JOYPAD_DOWN
+        beq .downPressed
         lda #$0
         sta autoRepeatY
         sta holdDownPoints
-        jmp lbl_8973
-;--------------------
-lbl_894a
+        jmp .lookupDropSpeed
+.downPressed
         inc autoRepeatY
         lda autoRepeatY
         cmp #$3
-        bcc lbl_8973
+        bcc .lookupDropSpeed
         lda #$1
         sta autoRepeatY
         inc holdDownPoints
-lbl_8958
+.drop
         lda #$0
         sta fallTimer
         lda pieceY
         sta originalValue
         inc pieceY
         jsr isPositionValid
-        beq lbl_8972
+        beq .return
         lda originalValue
         sta pieceY
         lda #PLAY_STATE_LOCK_TETRIMINO
         sta playState
-        jsr lbl_9caf
-lbl_8972
+        jsr updatePlayfield
+.return
         rts
-;--------------------
-lbl_8973
+.lookupDropSpeed
         lda #1
         ldx level
         cpx #29
-        bcs lbl_897e
+        bcs .noTableLookup
         lda framesPerDropTable,x
-lbl_897e
+.noTableLookup
         sta tempSpeed
         lda fallTimer
         cmp tempSpeed
-        bpl lbl_8958
-        jmp lbl_8972
-;--------------------
-lbl_8989
+        bpl .drop
+        jmp .return
+.incrementAutoRepeatY
         inc autoRepeatY
-        jmp lbl_8972
+        jmp .return
 ;--------------------
 framesPerDropTable
         dc.b $30, $2b, $26, $21, $1c, $17, $12, $0d, $08, $06, $05, $05, $05, $04, $04, $04
@@ -1334,50 +1319,50 @@ shiftTetrimino subroutine
         lda pieceX
         sta originalValue
         lda buttonPressed
-        and #$4
-        bne lbl_8a09
+        and #JOYPAD_DOWN
+        bne .return
         lda buttonState
-        and #$3
-        bne lbl_89d3
+        and #(JOYPAD_RIGHT+JOYPAD_LEFT)
+        bne .resetAutoRepeatX
         lda buttonPressed
-        and #$3
-        beq lbl_8a09
+        and #(JOYPAD_RIGHT+JOYPAD_LEFT)
+        beq .return
         inc autoRepeatX
-        lda autoRepeatX
+        lda autoRepeatX         ; Maximum charge reached?
         cmp #$10
-        bmi lbl_8a09
-        lda #$a
+        bmi .return
+        lda #$a					; Recharge for next shift.
         sta autoRepeatX
-        jmp lbl_89d7
-lbl_89d3
-        lda #$0
+        jmp .buttonHeldDown
+.resetAutoRepeatX
+        lda #$0					; Completely uncharge.
         sta autoRepeatX
-lbl_89d7
+.buttonHeldDown
         lda buttonPressed
-        and #$1
-        beq lbl_89ec
+        and #JOYPAD_RIGHT
+        beq .notPressingRight
         inc pieceX
         jsr isPositionValid
-        bne lbl_8a01
+        bne .restoreX
         lda #SHIFT_TETRIMINO_SOUND
         sta waveSoundEffect
-        jmp lbl_8a09
-lbl_89ec
+        jmp .return
+.notPressingRight
         lda buttonPressed
-        and #$2
-        beq lbl_8a09
+        and #JOYPAD_LEFT
+        beq .return
         dec pieceX
         jsr isPositionValid
-        bne lbl_8a01
+        bne .restoreX
         lda #SHIFT_TETRIMINO_SOUND
         sta waveSoundEffect
-        jmp lbl_8a09
-lbl_8a01
+        jmp .return
+.restoreX
         lda originalValue
         sta pieceX
-        lda #$10
+        lda #$10				; Wall charge
         sta autoRepeatX
-lbl_8a09
+.return
         rts
 ;--------------------
 lbl_8a0a
@@ -1428,29 +1413,29 @@ lbl_8a4b
         asl
         clc
         adc $ab
-        sta $200,y
+        sta objectAttributeMemory,y
         sta originalValue
         inc $b3
         iny
         inx
         lda orientationTable,x
-        sta $200,y
+        sta objectAttributeMemory,y
         inc $b3
         iny
         inx
         lda #$2
-        sta $200,y
+        sta objectAttributeMemory,y
         lda originalValue
         cmp #$2f
         bcs lbl_8a84
         inc $b3
         dey
         lda #$ff
-        sta $200,y
+        sta objectAttributeMemory,y
         iny
         iny
         lda #$0
-        sta $200,y
+        sta objectAttributeMemory,y
         jmp lbl_8a93
 lbl_8a84
         inc $b3
@@ -1461,7 +1446,7 @@ lbl_8a84
         asl
         clc
         adc loopIndex
-        sta $200,y
+        sta objectAttributeMemory,y
 lbl_8a93
         inc $b3
         iny
@@ -1520,15 +1505,15 @@ lbl_8b9d
         asl
         asl
         adc $a1
-        sta $200,x
+        sta objectAttributeMemory,x
         inx
         iny
         lda orientationTable,y
-        sta $200,x
+        sta objectAttributeMemory,x
         inx
         iny
         lda #$2
-        sta $200,x
+        sta objectAttributeMemory,x
         inx
         lda orientationTable,y
         clc
@@ -1536,7 +1521,7 @@ lbl_8b9d
         asl
         asl
         adc $a0
-        sta $200,x
+        sta objectAttributeMemory,x
         inx
         iny
         dec lineIndex
@@ -1544,9 +1529,9 @@ lbl_8b9d
         stx $b3
         rts
 ;--------------------
-lbl_8bce
-        lda $df
-        bne lbl_8be4
+lbl_8bce subroutine
+        lda nextTetriminoHidden
+        bne .return
         lda #$c8
         sta $a0
         lda #$77
@@ -1555,8 +1540,7 @@ lbl_8bce
         lda lbl_8be5,x
         sta $a2
         jmp lbl_8c27
-;--------------------
-lbl_8be4
+.return
         rts
 ;--------------------
 lbl_8be5
@@ -1584,21 +1568,21 @@ lbl_8c3b
         beq lbl_8c6b
         clc
         adc $a1
-        sta $200,x
+        sta objectAttributeMemory,x
         inx
         iny
         lda ($a8),y
-        sta $200,x
+        sta objectAttributeMemory,x
         inx
         iny
         lda ($a8),y
-        sta $200,x
+        sta objectAttributeMemory,x
         inx
         iny
         lda ($a8),y
         clc
         adc $a0
-        sta $200,x
+        sta objectAttributeMemory,x
         inx
         iny
         lda #$4
@@ -1808,7 +1792,7 @@ lbl_95e3
         sta PPUADDR
         lda $a8
         jsr printTwoDigitNumber
-        jsr lbl_9808
+        jsr updateLevelColors
         lda $a3
         and #$fd
         sta $a3
@@ -1987,7 +1971,6 @@ lbl_9789
         adc #$6
         sta $a8
         jmp lbl_97bd
-;--------------------
 lbl_97a6
         lda leftPlayfield
         cmp #$4
@@ -1997,7 +1980,6 @@ lbl_97a6
         sbc #$2
         sta $a8
         jmp lbl_97bd
-;--------------------
 lbl_97b6
         lda $a8
         clc
@@ -2042,21 +2024,21 @@ leftColumns
 rightColumns
         dc.b $05, $06, $07, $08, $09
 ;--------------------
-lbl_9808        
-        lda levelMirror
-lbl_980a 
-        cmp #$a
-        bmi lbl_9814
+updateLevelColors subroutine
+        lda levelMirror         ; Calculate last digit of level.
+.isBelow10
+        cmp #10
+        bmi .copyLevelColors
         sec
-        sbc #$a
-        jmp lbl_980a
-lbl_9814
+        sbc #10
+        jmp .isBelow10
+.copyLevelColors
         asl
         asl
         tax
         lda #$0
         sta $a8
-lbl_981b        
+.nextPaletteRange        
         lda #$3f
         sta PPUADDR
         lda #$8
@@ -2076,7 +2058,7 @@ lbl_981b
         adc #$10
         sta $a8
         cmp #$20
-        bne lbl_981b
+        bne .nextPaletteRange
         rts
 ;--------------------
 levelColors
@@ -2335,8 +2317,8 @@ lbl_99dd
         bne lbl_99dd
         lda #$0
         sta completedLineIndex
-        jsr lbl_9caf
-        jsr lbl_9d17
+        jsr updatePlayfield
+        jsr updateMusicSpeed
         inc playState
 lbl_9a10
         rts
@@ -2386,7 +2368,7 @@ lbl_9a46
         jmp .advancePlayState
 .noEnding
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         bne lbl_9a6a
 .advancePlayState
         lda #$0
@@ -2540,7 +2522,7 @@ garbageLines
         dc.b $00, $00, $01, $02, $04
 ;--------------------
 updateLinesStats subroutine
-        jsr lbl_9d17
+        jsr updateMusicSpeed
         lda completedLines
         bne lbl_9b62
         jmp lbl_9bfe
@@ -2739,7 +2721,7 @@ scoreTable
         dc.b $00, $03 ; 3 lines
         dc.b $00, $12 ; 4 lines
 ;--------------------
-lbl_9caf
+updatePlayfield subroutine
         ldx pieceY
         dex
         dex
@@ -2749,7 +2731,6 @@ lbl_9caf
 lbl_9cb8
         cmp vramRow
         bpl lbl_9cbe
-lbl_9cbc
         sta vramRow
 lbl_9cbe
         rts
@@ -2798,7 +2779,7 @@ lbl_9cf1
         lda #$1
         sta playStateMirror
         sta $88
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #GAME_MODE_LEVEL_AND_HEIGHT_MENU
         sta gameMode
 lbl_9d13
@@ -2808,40 +2789,38 @@ lbl_9d14
         inc playMode
         rts
 ;--------------------
-lbl_9d17
+updateMusicSpeed subroutine
         ldx #$5
         lda playfieldAddresses,x
-lbl_9d1c
         tay
         ldx #$a
-lbl_9d1f
+.nextColumn
         lda ($b8),y
         cmp #$ef
-        bne lbl_9d3c
+        bne .speedUp
         iny
         dex
-        bne lbl_9d1f
-        lda $ba
-        beq lbl_9d50
-        lda #$0
-        sta $ba
-        ldx $c2
+        bne .nextColumn
+        lda musicSpeed
+        beq .return
+        lda #MUSIC_SPEED_MODERATO
+        sta musicSpeed
+        ldx activeMusic
         lda inGameMusics,x
         jsr startMusic
-        jmp lbl_9d50
-;--------------------
-lbl_9d3c
-        lda $ba
-        bne lbl_9d50
-        lda #$ff
-        sta $ba
-        lda $c2
+        jmp .return
+.speedUp
+        lda musicSpeed
+        bne .return
+        lda #MUSIC_SPEED_ALLEGRO
+        sta musicSpeed
+        lda activeMusic
         clc
         adc #$4
         tax
         lda inGameMusics,x
         jsr startMusic
-lbl_9d50
+.return
         rts
 ;--------------------
 lbl_9d51
@@ -2858,7 +2837,7 @@ lbl_9d5b
         beq lbl_9db0
         jsr lbl_ab9d
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         beq exitDemo
         lda repeats
         beq lbl_9d73
@@ -2884,7 +2863,6 @@ lbl_9d73
         cmp #$df
         beq lbl_9da2
         jmp lbl_9d9e
-;--------------------
 lbl_9d9a
         lda #$0
         sta buttonStateMirror
@@ -2970,7 +2948,7 @@ startMusic subroutine
 ;--------------------
 checkSoftReset subroutine
         lda heldButtonsMirror
-        cmp #$f0
+        cmp #(JOYPAD_START+JOYPAD_SELECT+JOYPAD_B+JOYPAD_A)
         beq .softReset
         inc playMode
         rts
@@ -3060,9 +3038,9 @@ lbl_9ea4
         dc.b <ending_screen_color_palette, >ending_screen_color_palette
         jsr lbl_a463
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #RENDER_MODE_ENDING_ANIMATION
         sta renderMode
         lda #ENDINGS_MUSIC
@@ -3134,9 +3112,9 @@ lbl_9f28
         jsr sleep
 lbl_9f45
         jsr lbl_a527
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         bne lbl_9f45
         lda levelMirror
         sta level
@@ -3507,9 +3485,9 @@ lbl_a201
         lda #RENDER_MODE_CONGRATULATIONS_SCREENS
         sta renderMode
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda highScoreTableIndex
         asl
         sta $a8
@@ -3519,7 +3497,7 @@ lbl_a201
         sta highScoreNameStartOffset
         lda #$0
         sta highScoreNameCharacterIndex
-        sta $200
+        sta objectAttributeMemory
         lda highScoreTableIndex
         and #$3
         tax
@@ -3527,7 +3505,7 @@ lbl_a201
         sta $a1
 lbl_a26d
         lda #$0
-        sta $200
+        sta objectAttributeMemory
         ldx highScoreNameCharacterIndex
         lda lbl_a33e,x
         sta $a0
@@ -3541,7 +3519,7 @@ lbl_a26d
 lbl_a287
         jsr lbl_8c27
         lda buttonStateMirror
-        and #$10
+        and #JOYPAD_START
         beq lbl_a298
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
@@ -3549,7 +3527,7 @@ lbl_a287
 ;--------------------
 lbl_a298
         lda buttonStateMirror
-        and #$81
+        and #(JOYPAD_RIGHT+JOYPAD_A)
         beq lbl_a2af
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
@@ -3561,7 +3539,7 @@ lbl_a298
         sta highScoreNameCharacterIndex
 lbl_a2af
         lda buttonStateMirror
-        and #$42
+        and #(JOYPAD_LEFT+JOYPAD_B)
         beq lbl_a2c4
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
@@ -3572,7 +3550,7 @@ lbl_a2af
         sta highScoreNameCharacterIndex
 lbl_a2c4
         lda heldButtonsMirror
-        and #$4
+        and #JOYPAD_DOWN
         beq lbl_a2f2
         lda frameCounterLowByte
         and #$7
@@ -3598,7 +3576,7 @@ lbl_a2ed
         sta highScoreTable,x
 lbl_a2f2
         lda heldButtonsMirror
-        and #$8
+        and #JOYPAD_UP
         beq lbl_a322
         lda frameCounterLowByte
         and #$7
@@ -3631,11 +3609,11 @@ lbl_a322
         sta $d7
         lda #$80
         sta $a3
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jmp lbl_a26d
 ;--------------------
 lbl_a337
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         rts
 ;--------------------
 lbl_a33b
@@ -3646,7 +3624,7 @@ lbl_a33e
 renderCongratulationsScreens subroutine
         lda $a3
         and #$80
-        beq lbl_a37e
+        beq .return
         lda highScoreTableIndex
         and #$3
         asl
@@ -3672,7 +3650,7 @@ renderCongratulationsScreens subroutine
         sta scrollY
         sta PPUSCROLL
         sta $a3
-lbl_a37e
+.return
         rts
 ;--------------------
 lbl_a37f subroutine
@@ -3680,7 +3658,7 @@ lbl_a37f subroutine
         cmp #GAME_MODE_DEMO
         bne .demoNotExited
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         bne .demoNotExited
         lda #GAME_MODE_TITLE_SCREEN
         sta gameMode
@@ -3691,7 +3669,7 @@ lbl_a37f subroutine
         bne .nextPlayMode
 lbl_a398
         lda buttonStateMirror
-        and #$10
+        and #JOYPAD_START
         bne lbl_a3a1
         jmp .nextPlayMode
 lbl_a3a1
@@ -3720,9 +3698,9 @@ lbl_a3c4
         sta $a2
         jsr lbl_8c27
         lda buttonStateMirror
-        cmp #$10
+        cmp #JOYPAD_START
         beq lbl_a3df
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jmp lbl_a3c4
 lbl_a3df
         lda #$1e
@@ -3778,7 +3756,7 @@ lbl_a44d
         lda #$14
         sta legalScreenCounter1
 lbl_a451
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda legalScreenCounter1
         bne lbl_a451
         rts
@@ -3786,7 +3764,7 @@ lbl_a451
 initialLegalScreenWait
         sta legalScreenCounter1
 .waitForTimeOut
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda legalScreenCounter1
         bne .waitForTimeOut
         rts
@@ -4252,7 +4230,7 @@ sleep
         sta legalScreenCounter1
 lbl_a7ff
         jsr lbl_a527
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda legalScreenCounter1
         bne lbl_a7ff
         rts
@@ -4294,9 +4272,9 @@ showBTypeEnding
         dc.b <ending_screen_color_palette, >ending_screen_color_palette
         jsr lbl_a96e
         jsr enableVerticalBlankingNMI
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda #RENDER_MODE_ENDING_ANIMATION
         sta renderMode
         lda #ENDINGS_MUSIC
@@ -4305,11 +4283,11 @@ showBTypeEnding
         jsr sleep
 lbl_a95d
         jsr lbl_a527
-        jsr waitAndClearPage2
+        jsr waitForVerticalBlankAndClearOAM
         lda $c5
         bne lbl_a95d
         lda buttonStateMirror   ; Start pressed.
-        cmp #$10
+        cmp #JOYPAD_START
         bne lbl_a95d
         rts
 ;--------------------
@@ -4414,7 +4392,8 @@ lbl_aa25
         dc.b $54, $54, $50, $48, $a0
 lbl_aa2a
         dc.b $bf, $bf, $bf, $bf, $c7
-waitAndClearPage2
+;--------------------
+waitForVerticalBlankAndClearOAM
         jsr lbl_e000
         lda #$0
         sta verticalBlankingInterval
@@ -4605,7 +4584,7 @@ patchReturnAddress
         ; Generates a new pseudo random value at the memory address contained in register X and with length contained
         ; in register Y.
 
-generateRandomNumber
+generateRandomNumber subroutine
         lda $0,x        ; extract bit 1
         and #$2
         sta $0
@@ -4623,33 +4602,33 @@ lbl_ab57                ; right shift, shift in the XORed value
         bne lbl_ab57
         rts
 ;--------------------
-lbl_ab5e
+initializeOAM subroutine
         lda #$0
         sta OAMADDR
         lda #$2
         sta OAMDMA
         rts
 ;--------------------
-lbl_ab69
-        ldx $fb
-        inx
-        stx JOY1
+readControllerButtons subroutine
+        ldx controllerStrobeValue	; Strobe the bit 0 of the JOYPAD1 register to reload
+        inx							; the button state.
+        stx JOYPAD1
         dex
-        stx JOY1
+        stx JOYPAD1
         ldx #$8
-lbl_ab75
-        lda JOY1
+.nextButton
+        lda JOYPAD1
         lsr
         rol buttonStateMirror
         lsr
         rol $00
-        lda JOY2
+        lda JOYPAD2
         lsr
         rol buttonPressedMirror
         lsr
         rol $01
         dex
-        bne lbl_ab75
+        bne .nextButton
         rts
 ;--------------------
 lbl_ab8b
@@ -4661,16 +4640,16 @@ lbl_ab8b
         sta buttonPressedMirror
         rts
 ;--------------------
-        jsr lbl_ab69
+        jsr readControllerButtons
         beq lbl_abbd
 lbl_ab9d
-        jsr lbl_ab69
+        jsr readControllerButtons
         jsr lbl_ab8b
         lda buttonStateMirror
         sta lineIndex
         lda buttonPressedMirror
         sta loopIndex
-        jsr lbl_ab69
+        jsr readControllerButtons
         jsr lbl_ab8b
         lda buttonStateMirror
         and lineIndex
@@ -4691,25 +4670,25 @@ lbl_abbf
         bpl lbl_abbf
         rts
 ;--------------------
-        jsr lbl_ab69
+        jsr readControllerButtons
 lbl_abd1
         ldy buttonStateMirror
         lda buttonPressedMirror
         pha
-        jsr lbl_ab69
+        jsr readControllerButtons
         pla
         cmp buttonPressedMirror
         bne lbl_abd1
         cpy buttonStateMirror
         bne lbl_abd1
         beq lbl_abbd
-        jsr lbl_ab69
+        jsr readControllerButtons
         jsr lbl_ab8b
 lbl_abea
         ldy buttonStateMirror
         lda buttonPressedMirror
         pha
-        jsr lbl_ab69
+        jsr readControllerButtons
         jsr lbl_ab8b
         pla
         cmp buttonPressedMirror
@@ -4717,7 +4696,7 @@ lbl_abea
         cpy buttonStateMirror
         bne lbl_abea
         beq lbl_abbd
-        jsr lbl_ab69
+        jsr readControllerButtons
         lda $0
         sta heldButtonsMirror
         lda $1
@@ -4742,7 +4721,7 @@ fillVRAM
         lda PPUSTATUS
 
         lda ppuCtrlFlags    ; Disable background
-        and #$fb
+        and #controllerStrobeValue
         sta PPUCTRL
         sta ppuCtrlFlags
 

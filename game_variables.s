@@ -71,6 +71,9 @@ frameCounterHighByte equ $b2
 buttonState equ $b5
 buttonPressed equ $b6
 leftPlayfield equ $b9
+musicSpeed equ $ba
+MUSIC_SPEED_MODERATO equ $00
+MUSIC_SPEED_ALLEGRO equ $ff
 totalGarbage equ $bc
 renderMode equ $bd
 
@@ -84,7 +87,6 @@ numPlayers equ $be
 nextTetrimino equ $bf
 
 gameMode equ $c0
-bType equ $c1
 
 GAME_MODE_LEGAL_SCREEN equ $00
 GAME_MODE_TITLE_SCREEN equ $01
@@ -94,6 +96,8 @@ GAME_MODE_PLAY_HIGH_SCORE_ENDING_PAUSE equ $04
 GAME_MODE_DEMO equ $05
 GAME_MODE_INIT_DEMO equ $06
 
+bType equ $c1
+activeMusic equ $c2
 legalScreenCounter1 equ $c3
 ending equ $c4
 heldButtons equ $ce
@@ -106,14 +110,18 @@ demoIndex equ $d3
 highScoreNameCharacterIndex equ $d4
 highScoreTableIndex equ $d5
 highScoreNameStartOffset equ $d6
+nextTetriminoHidden equ $df
 
 buttonStateMirror equ $f5
 buttonPressedMirror equ $f6
 heldButtonsMirror equ $f7
+controllerStrobeValue equ $fb
 scrollY equ $fc
 scrollX equ $fd
 ppuMaskFlags equ $fe
 ppuCtrlFlags equ $ff
+
+objectAttributeMemory equ $200 ; $200-$2ff
 
 tetriminoStats equ $3ef ; base address used in loops
 tetriminoStatLowByte equ $3f0 ; $3f0-$3fd
