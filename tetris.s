@@ -360,7 +360,7 @@ gameModeTitleScreen subroutine
         jsr updateAudio
         lda #$0
         sta renderMode    ; RENDER_MODE_LEGAL_TITLE_SCREENS
-        sta $d0
+        sta recordingMode
         sta nextTetriminoHidden
         jsr disableBackgroundAndSprites
         jsr disableVerticalBlankingNMI
@@ -996,7 +996,6 @@ lbl_8761
 lbl_8776
         lda #$1
         sta $b7
-lbl_877a
         lda #$4
         sta leftPlayfield
         lda buttonStateMirror
@@ -1101,9 +1100,7 @@ lbl_87fc
         lda loopIndex
         beq lbl_8824
         dec loopIndex
-lbl_8821
         jmp lbl_87fc
-;--------------------
 lbl_8824
         ldx #randomNumberHighByte
         ldy #$2
@@ -1653,7 +1650,6 @@ lbl_94aa
         bne lbl_94aa
         lda #$0
         sta $a8
-lbl_94e8
         rts
 lbl_94e9
         lda #$ff
@@ -2098,7 +2094,6 @@ spawnTetrimino subroutine
         lda numPlayers
         cmp #$1
         beq .skipTwoPlayer
-lbl_989a
         lda $a4
         cmp #$0
         bne lbl_98ae
@@ -2266,7 +2261,6 @@ lockTetrimino subroutine
         sta curtainRow
         jsr updateAudio
         rts
-;--------------------
 lbl_99b8
         lda vramRow
         cmp #$20
@@ -2755,9 +2749,7 @@ lbl_9cd9
         beq lbl_9ce4
         lda #$9
         sta playMode
-lbl_9ce3
         rts
-;--------------------
 lbl_9ce4
         lda #RENDER_MODE_PLAY_AND_DEMO_SCREENS
         sta renderMode
@@ -2782,9 +2774,7 @@ lbl_9cf1
         jsr waitForVerticalBlankAndClearOAM
         lda #GAME_MODE_LEVEL_AND_HEIGHT_MENU
         sta gameMode
-lbl_9d13
         rts
-;--------------------
 lbl_9d14
         inc playMode
         rts
@@ -2828,22 +2818,19 @@ lbl_9d51
         cmp #GAME_MODE_DEMO
         beq lbl_9d5b
         jsr lbl_ab9d
-lbl_9d5a
         rts
-;--------------------
 lbl_9d5b
-        lda $d0
+        lda recordingMode
         cmp #$ff
         beq lbl_9db0
         jsr lbl_ab9d
         lda buttonStateMirror
         cmp #JOYPAD_START
-        beq exitDemo
+        beq .exitDemo
         lda repeats
         beq lbl_9d73
         dec repeats
         jmp lbl_9d9a
-;--------------------
 lbl_9d73
         ldx #$0
         lda (demoButtonsLowByte,x)
@@ -2871,9 +2858,7 @@ lbl_9d9e
         sta heldButtonsMirror
 lbl_9da2
         rts
-;--------------------
-exitDemo subroutine
-
+.exitDemo
         lda #>demoButtons
         sta demoButtonsHighByte
         lda #<demoButtons
@@ -2881,13 +2866,12 @@ exitDemo subroutine
         lda #GAME_MODE_TITLE_SCREEN
         sta gameMode
         rts
-;--------------------
 lbl_9db0
         jsr lbl_ab9d
         lda gameMode
         cmp #GAME_MODE_DEMO
         bne lbl_9de7
-        lda $d0
+        lda recordingMode
         cmp #$ff
         bne lbl_9de7
         lda heldButtonsMirror
@@ -2907,11 +2891,9 @@ lbl_9db0
         sta heldButtons
         lda #$0
         sta repeats
-lbl_9de3
         rts
 lbl_9de4
         inc repeats
-lbl_9de6
         rts
 lbl_9de7
         rts
@@ -3205,7 +3187,6 @@ lbl_9ff2
         cmp #$1
         beq lbl_9ffb
         jmp lbl_a085
-;--------------------
 lbl_9ffb
         jsr copyToVRAM
         dc.b <highscore_table_background, >highscore_table_background
@@ -3262,7 +3243,6 @@ lbl_a031
         jsr printTwoDigitNumber
         iny
         lda highScoresAType,y
-lbl_a062
         jsr printTwoDigitNumber
         lda #$ff
         sta PPUDATA
@@ -3277,9 +3257,7 @@ lbl_a062
         beq lbl_a085
         cmp #$7
         beq lbl_a085
-lbl_a082
         jmp lbl_a00c
-;--------------------
 lbl_a085
         rts
 ;--------------------
@@ -3335,10 +3313,8 @@ lbl_a124
         cmp #$7
         beq lbl_a133
         jmp lbl_a0fa
-;--------------------
 lbl_a133
         rts
-;--------------------
 lbl_a134
         lda highScoreTableIndex
         and #$3
@@ -3385,7 +3361,6 @@ lbl_a16a
         lda levelMirror
         sta highScoreLevelsAType,x
         jmp lbl_a201
-;--------------------
 lbl_a192
         sta $a8
         lda bType
@@ -3423,7 +3398,6 @@ lbl_a1c1
         txa
         clc
         adc #$c
-lbl_a1ca
         tax
 lbl_a1cb
         lda highScoresAType,x
@@ -3443,7 +3417,6 @@ lbl_a1e0
         txa
         clc
         adc #$4
-lbl_a1e9
         tax
 lbl_a1ea
         lda highScoreLevelsAType,x
@@ -3524,7 +3497,6 @@ lbl_a287
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
         jmp lbl_a337
-;--------------------
 lbl_a298
         lda buttonStateMirror
         and #(JOYPAD_RIGHT+JOYPAD_A)
@@ -3568,7 +3540,6 @@ lbl_a2c4
         lda $a8
         bpl lbl_a2ed
         clc
-lbl_a2e9
         adc #$2c
         sta $a8
 lbl_a2ed
@@ -3611,7 +3582,6 @@ lbl_a322
         sta $a3
         jsr waitForVerticalBlankAndClearOAM
         jmp lbl_a26d
-;--------------------
 lbl_a337
         jsr waitForVerticalBlankAndClearOAM
         rts
@@ -3667,7 +3637,6 @@ lbl_a37f subroutine
         lda renderMode
         cmp #RENDER_MODE_PLAY_AND_DEMO_SCREENS
         bne .nextPlayMode
-lbl_a398
         lda buttonStateMirror
         and #JOYPAD_START
         bne lbl_a3a1
@@ -3795,9 +3764,7 @@ lbl_a463
         sta $ca
         lda lbl_a73d+3
         sta $cb
-lbl_a499
         rts
-;--------------------
 lbl_a49a
         ldx level
         lda lbl_a767,x
@@ -3944,13 +3911,11 @@ lbl_a583
         lsr
         lsr
         cmp #$a
-lbl_a58e
         bne lbl_a599
         lda #$0
         sta ending
         inc $c5
         jmp lbl_a583
-;--------------------
 lbl_a599
         tax
         lda lbl_a80e,x
@@ -4036,7 +4001,6 @@ lbl_a609
         jsr lbl_8c27
         jsr lbl_a6bc
         rts
-;--------------------
 lbl_a625
         jsr lbl_a690
         inc $cd
@@ -4082,7 +4046,6 @@ lbl_a675
         beq lbl_a682
         inc $cc
         jmp lbl_a62e
-;--------------------
 lbl_a682
         ldx level
         lda lbl_a753,x
@@ -4243,7 +4206,6 @@ lbl_a818
         dc.b $29, $29, $29, $2a, $2a, $2a, $2a, $2a, $29, $29, $21, $a5, $ff, $ff, $ff, $fe
         dc.b $21, $c5, $ff, $ff, $ff, $fe, $21, $e5, $ff, $ff, $ff, $fd, $23, $1a, $ff, $fe
         dc.b $23, $39, $ff
-lbl_a83b
         dc.b $ff, $ff, $fe, $23, $59, $ff, $ff, $ff, $fe, $23, $79, $ff, $ff, $ff, $fd, $23
         dc.b $15, $ff, $ff, $ff, $fe, $23, $35, $ff, $ff, $ff, $fe, $23, $55, $ff, $ff, $ff
         dc.b $fe, $23, $75, $ff, $ff, $ff, $fd, $21, $88, $ff, $ff, $ff, $fe, $21, $a8, $ff
@@ -4259,7 +4221,8 @@ lbl_a83b
         dc.b $f4, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fe, $23, $14, $ff, $ff, $ff, $ff
         dc.b $ff, $ff, $ff, $ff, $fe, $23, $34, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fe
         dc.b $22, $ca, $46, $47, $fe, $22, $ea, $56, $57, $fd, $fc
-showBTypeEnding
+;--------------------
+showBTypeEnding subroutine
         jsr disableBackgroundAndSprites
         jsr disableVerticalBlankingNMI
         lda #$2
@@ -4338,7 +4301,6 @@ lbl_a9b1
         sta $a0
         lda lbl_aa11,x
         sta $a2
-lbl_a9c7
         jsr lbl_8c27
         lda ending
         asl
@@ -4376,7 +4338,6 @@ lbl_a9fc
         dec $c5
 lbl_aa0b
         jmp lbl_aa10
-;--------------------
 lbl_aa0e
         inc $c6
 lbl_aa10
@@ -4488,22 +4449,18 @@ lbl_aab5
         php
         bcc lbl_aac2
         ora #$2
-lbl_aac1
         iny
 lbl_aac2
         plp
         clc
         bne lbl_aac7
-lbl_aac6
         sec
 lbl_aac7
         ror
         lsr
-lbl_aac9
         tax
 lbl_aaca
         bcs lbl_aacd
-lbl_aacc
         iny
 lbl_aacd
         lda ($0),y
@@ -4530,7 +4487,6 @@ lbl_aaf2
         ldy #$0
         lda ($0),y
         bpl lbl_aafc
-lbl_aafb
         rts
 lbl_aafc
         cmp #$60
@@ -4593,7 +4549,6 @@ generateRandomNumber subroutine
         eor $0          ; XOR bits 1 and 9 and set/clear carry accordingly
         clc
         beq lbl_ab57
-lbl_ab56
         sec
 lbl_ab57                ; right shift, shift in the XORed value
         ror $00,x
@@ -4642,6 +4597,7 @@ lbl_ab8b
 ;--------------------
         jsr readControllerButtons
         beq lbl_abbd
+;--------------------
 lbl_ab9d
         jsr readControllerButtons
         jsr lbl_ab8b
@@ -4671,6 +4627,7 @@ lbl_abbf
         rts
 ;--------------------
         jsr readControllerButtons
+;--------------------
 lbl_abd1
         ldy buttonStateMirror
         lda buttonPressedMirror
