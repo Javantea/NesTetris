@@ -3319,23 +3319,23 @@ lbl_a134
         lda highScoreTableIndex
         and #$3
         cmp #$2
-        bpl lbl_a160
+        bpl .stopShiftingDown
         lda #$6
-        jsr lbl_a192
+        jsr shiftHighScoreNameDown
         lda #$3
-        jsr lbl_a1c1
+        jsr shiftHighScoreDown
         lda #$1
-        jsr lbl_a1e0
+        jsr shiftHighScoreLevelDown
         lda highScoreTableIndex
         and #$3
-        bne lbl_a160
+        bne .stopShiftingDown
         lda #$0
-        jsr lbl_a192
+        jsr shiftHighScoreNameDown
         lda #$0
-        jsr lbl_a1c1
+        jsr shiftHighScoreDown
         lda #$0
-        jsr lbl_a1e0
-lbl_a160
+        jsr shiftHighScoreLevelDown
+.stopShiftingDown
         ldx highScoreTableIndex
         lda highScoreTableNameOffsets,x
         tax
@@ -3362,15 +3362,15 @@ lbl_a16a
         sta highScoreLevelsAType,x
         jmp enterHighScoreName
 ;--------------------
-lbl_a192
+shiftHighScoreNameDown subroutine
         sta $a8
         lda aType
-        beq lbl_a19f
+        beq .aType
         lda #$18
         clc
         adc $a8
         sta $a8
-lbl_a19f
+.aType
         lda #$5
         sta lineIndex
 lbl_a1a3
@@ -3392,7 +3392,7 @@ lbl_a1a3
         bne lbl_a1a3
         rts
 ;--------------------
-lbl_a1c1
+shiftHighScoreDown subroutine
         tax
         lda aType
         beq lbl_a1cb
@@ -3411,7 +3411,7 @@ lbl_a1cb
         sta highScoresAType+3,x
         rts
 ;--------------------
-lbl_a1e0
+shiftHighScoreLevelDown subroutine
         tax
         lda aType
         beq lbl_a1ea
@@ -3870,9 +3870,9 @@ advanceBTypeLevel9Animation subroutine
         dc.b <lbl_a5d9, >lbl_a5d9
         dc.b <lbl_a5c1, >lbl_a5c1
         dc.b <lbl_a5a9, >lbl_a5a9
-        dc.b <lbl_a54c, >lbl_a54c
+        dc.b <advanceBTypeLevel9Height5Animation, >advanceBTypeLevel9Height5Animation
 ;--------------------
-lbl_a54c
+advanceBTypeLevel9Height5Animation
         lda #200
         sta $a0
         lda #$47
