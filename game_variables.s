@@ -63,6 +63,9 @@ bTypeHeightMirror equ $79
 playMode equ $a7
 lineIndex equ $a9
 loopIndex equ $aa
+bTypeLevelBonus equ $ab
+bTypeHeightBonus equ $ac
+levelOrHeightSelected equ $ad
 originalValue equ $ae
 tempSpeed equ $af
 
@@ -96,7 +99,7 @@ GAME_MODE_PLAY_HIGH_SCORE_ENDING_PAUSE equ $04
 GAME_MODE_DEMO equ $05
 GAME_MODE_INIT_DEMO equ $06
 
-bType equ $c1
+aType equ $c1 ; 0 = A TYPE, 1 = B TYPE
 activeMusic equ $c2
 legalScreenCounter1 equ $c3
 ending equ $c4
@@ -110,6 +113,7 @@ demoIndex equ $d3
 highScoreNameCharacterIndex equ $d4
 highScoreTableIndex equ $d5
 highScoreNameStartOffset equ $d6
+totalScore equ $dc ; $dc-$de
 nextTetriminoHidden equ $df
 
 buttonStateMirror equ $f5

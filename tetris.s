@@ -64,7 +64,7 @@ lbl_801b
         lda #$1
         sta verticalBlankingInterval
 
-        jsr lbl_9d51
+        jsr updateControllerVariables
 
         pla
         tay
@@ -165,7 +165,7 @@ lbl_80a3
         ; Initialize sound.
 
         jsr initAudio
-        jsr updateAudio
+        jsr resetAudio
 
         lda #$c0
         sta $100
@@ -242,23 +242,23 @@ advanceGameMode subroutine
         dc.b <gameModePlay, >gameModePlay                                 ; GAME_MODE_DEMO
         dc.b <gameModeInitDemo, >gameModeInitDemo                         ; GAME_MODE_INIT_DEMO
 ;--------------------
-lbl_8174
-        jsr lbl_8776
+advanceGame subroutine
+        jsr recoverGameVariables
         jsr advancePlayState
-        jsr lbl_8a0a
-        jsr lbl_87ae
-        jsr lbl_8bce
+        jsr showCurrentPiece
+        jsr backupGameVariables
+        jsr showNextTetrimino
         inc playMode
         rts
 ;--------------------
-lbl_8186
+advanceGame2 subroutine
         lda numPlayers
         cmp #2
         bne .no2players
-        jsr lbl_8792
+        jsr recoverGameVariables2
         jsr advancePlayState2
-        jsr lbl_8a0a
-        jsr lbl_87c8
+        jsr showCurrentPiece
+        jsr backupGameVariables2
 .no2players
         inc playMode
         rts
@@ -267,14 +267,14 @@ advancePlayMode subroutine
         lda playMode
         jsr switch
         dc.b <initializePlayBackground, >initializePlayBackground
-        dc.b <initializePlayMode, >initializePlayMode
-        dc.b <lbl_8884, >lbl_8884
-        dc.b <lbl_9cbf, >lbl_9cbf
-        dc.b <lbl_8174, >lbl_8174
-        dc.b <lbl_8186, >lbl_8186
+        dc.b <initializeGame, >initializeGame
+        dc.b <checkSelectPressed, >checkSelectPressed
+        dc.b <showHighScore, >showHighScore
+        dc.b <advanceGame, >advanceGame
+        dc.b <advanceGame2, >advanceGame2
         dc.b <checkSoftReset, >checkSoftReset
-        dc.b <lbl_a37f, >lbl_a37f
-        dc.b <lbl_9e27, >lbl_9e27
+        dc.b <checkStartPressed, >checkStartPressed
+        dc.b <resetPlayMode, >resetPlayMode
 ;--------------------
 advancePlayState subroutine
         lda playState
@@ -302,7 +302,7 @@ advancePlayState2 subroutine
         lda playState
         jsr switch
         dc.b <unassignOrientationId, >unassignOrientationId    ; PLAY_STATE_UNASSIGN_ORIENTATION_ID
-        dc.b <lbl_81f6, >lbl_81f6                              ; PLAY_STATE_TETRIMINO_ACTIVE
+        dc.b <tetriminoActive2, >tetriminoActive2              ; PLAY_STATE_TETRIMINO_ACTIVE
         dc.b <lockTetrimino, >lockTetrimino                    ; PLAY_STATE_LOCK_TETRIMINO
         dc.b <checkCompletedRows, >checkCompletedRows          ; PLAY_STATE_CHECK_COMPLETED_ROWS
         dc.b <returnPlayState, >returnPlayState                ; PLAY_STATE_LINE_CLEAR_ANIMATION
@@ -314,14 +314,14 @@ advancePlayState2 subroutine
         dc.b <updateGameOverCurtain, >updateGameOverCurtain    ; PLAY_STATE_GAME_OVER_CURTAIN
         dc.b <incrementPlayState, >incrementPlayState          ; PLAY_STATE_INCREMENT_PLAY_STATE
 ;--------------------
-lbl_81f6
+tetriminoActive2
         jsr shiftTetrimino
         jsr rotateTetrimino
         jsr dropTetrimino
         rts
 ;--------------------
 gameModeLegalScreen    subroutine
-        jsr updateAudio
+        jsr resetAudio
         lda #RENDER_MODE_LEGAL_TITLE_SCREENS
         sta renderMode
         jsr disableBackgroundAndSprites
@@ -357,7 +357,7 @@ gameModeLegalScreen    subroutine
         rts
 ;--------------------
 gameModeTitleScreen subroutine
-        jsr updateAudio
+        jsr resetAudio
         lda #$0
         sta renderMode    ; RENDER_MODE_LEGAL_TITLE_SCREENS
         sta recordingMode
@@ -416,7 +416,7 @@ renderLegalTitleScreens
         lda #$0
         sta levelMirror
         lda #$0
-        sta bType
+        sta aType
         lda #GAME_MODE_PLAY_HIGH_SCORE_ENDING_PAUSE
         lda gameMode
         rts
@@ -453,7 +453,7 @@ lbl_830b
         cmp #JOYPAD_RIGHT
         bne lbl_8326
         lda #$1
-        sta bType
+        sta aType
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
         jmp lbl_8335
@@ -462,7 +462,7 @@ lbl_8326
         cmp #JOYPAD_LEFT
         bne lbl_8335
         lda #$0
-        sta bType
+        sta aType
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
 lbl_8335
@@ -510,7 +510,7 @@ lbl_8377
         rts
 lbl_8389
         ldy #$0
-        lda bType
+        lda aType
         asl
         sta $a8
         asl
@@ -532,7 +532,7 @@ lbl_8389
         lda #$2
         sta $a2
 lbl_83ae
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         lda activeMusic
         asl
         asl
@@ -551,7 +551,7 @@ lbl_83ae
         lda #$2
         sta $a2
 lbl_83ce
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         jsr waitForVerticalBlankAndClearOAM
         jmp lbl_830b
 ;--------------------
@@ -559,7 +559,7 @@ gameModeLevelAndHeightMenu subroutine
         inc MMC1_LOAD       ; Clear MMC1 shift register
         lda #$10
         jsr setMmc1Control
-        jsr updateAudio
+        jsr resetAudio
         lda #RENDER_MODE_MENU_SCREENS
         sta renderMode
         jsr disableBackgroundAndSprites
@@ -572,12 +572,12 @@ gameModeLevelAndHeightMenu subroutine
         dc.b <menu_screen_color_palette, >menu_screen_color_palette
         jsr copyToVRAM
         dc.b <level_select_screen_background, >level_select_screen_background
-        lda bType
+        lda aType
         bne lbl_8409
         jsr copyToVRAM
         dc.b <a_type_menu_color_palette_background, >a_type_menu_color_palette_background
 lbl_8409        
-        jsr lbl_9ff2
+        jsr copyHighScoreTableToVRAM
         jsr enableVerticalBlankingNMI
         jsr waitForVerticalBlankAndClearOAM
         lda #$0
@@ -605,15 +605,15 @@ lbl_8436
         lda bTypeHeightMirror
         sta bTypeHeight
         lda originalValue
-        sta $ad
+        sta levelOrHeightSelected
         lda buttonStateMirror
         sta buttonState
-        jsr lbl_84ae
+        jsr handleLevelAndHeightInput
         lda levelSelected
         sta levelSelectedMirror
         lda bTypeHeight
         sta bTypeHeightMirror
-        lda $ad
+        lda levelOrHeightSelected
         sta originalValue
         lda buttonStateMirror
         cmp #JOYPAD_START
@@ -660,13 +660,14 @@ lbl_8497
         sta $9a
         jsr waitForVerticalBlankAndClearOAM
         jmp lbl_8436
-lbl_84ae
+;--------------------
+handleLevelAndHeightInput subroutine
         lda buttonState
         cmp #JOYPAD_RIGHT
         bne lbl_84d0
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
-        lda $ad
+        lda levelOrHeightSelected
         bne lbl_84c8
         lda levelSelected
         cmp #$9
@@ -684,7 +685,7 @@ lbl_84d0
         bne lbl_84ee
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
-        lda $ad
+        lda levelOrHeightSelected
         bne lbl_84e8
         lda levelSelected
         beq lbl_84ee
@@ -700,7 +701,7 @@ lbl_84ee
         bne lbl_8517
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
-        lda $ad
+        lda levelOrHeightSelected
         bne lbl_850b
         lda levelSelected
         cmp #$5
@@ -722,7 +723,7 @@ lbl_8517
         bne lbl_8540
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
-        lda $ad
+        lda levelOrHeightSelected
         bne lbl_8534
         lda levelSelected
         cmp #$5
@@ -739,18 +740,18 @@ lbl_8534
         dec bTypeHeight
         dec bTypeHeight
 lbl_8540
-        lda bType
+        lda aType
         beq lbl_8555
         lda buttonState
         cmp #JOYPAD_A
         bne lbl_8555
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
-        lda $ad
+        lda levelOrHeightSelected
         eor #$1
-        sta $ad
+        sta levelOrHeightSelected
 lbl_8555
-        lda $ad
+        lda levelOrHeightSelected
         bne lbl_855f
         lda frameCounterLowByte
         and #$3
@@ -772,11 +773,11 @@ lbl_855f
         adc #$50
         sta $a1
 lbl_857e
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
 lbl_8581
-        lda bType
+        lda aType
         beq lbl_85b1
-        lda $ad
+        lda levelOrHeightSelected
         beq lbl_858f
         lda frameCounterLowByte
         and #$3
@@ -798,7 +799,7 @@ lbl_858f
         adc #$50
         sta $a1
 lbl_85ae
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
 lbl_85b1
         rts
 ;--------------------
@@ -841,7 +842,7 @@ initializePlayBackground subroutine
         sta PPUADDR
         lda #$83
         sta PPUADDR
-        lda bType
+        lda aType
         bne lbl_863c
         lda #$a                    ; Draw A in x-TYPE box
         sta PPUDATA
@@ -916,7 +917,7 @@ heightBoxGraphics
         dc.b $23, $37, $3b, $ff, $ff, $ff, $ff, $ff, $ff, $3c, $fe
         dc.b $23, $57, $3d, $3e, $3e, $3e, $3e, $3e, $3e, $3f, $fd
 ;--------------------
-initializePlayMode
+initializeGame subroutine
         lda #$ef
         ldx #$4
         ldy #$4
@@ -977,7 +978,7 @@ lbl_86e9
         jsr getNextTetrimino
         sta nextTetrimino
         sta $a6
-        lda bType
+        lda aType
         beq lbl_8761
         lda #$25
         sta linesLowByteMirror
@@ -986,14 +987,14 @@ lbl_8761
         lda #$47
         sta $a3
         jsr waitForVerticalBlankAndClearOAM
-        jsr lbl_87dc
+        jsr generateInitialGarbage
         ldx activeMusic
         lda inGameMusics,x
         jsr startMusic
         inc playMode
         rts
 ;--------------------
-lbl_8776
+recoverGameVariables subroutine
         lda #$1
         sta $b7
         lda #$4
@@ -1003,15 +1004,15 @@ lbl_8776
         lda heldButtonsMirror
         sta buttonPressed
         ldx #$1f
-lbl_8788
+.nextVariable
         lda pieceXMirror,x
         sta pieceX,x
         dex
         cpx #$ff
-        bne lbl_8788
+        bne .nextVariable
         rts
 ;--------------------
-lbl_8792
+recoverGameVariables2 subroutine
         lda #$2
         sta $b7
         lda #$5
@@ -1021,51 +1022,50 @@ lbl_8792
         lda $f8
         sta buttonPressed
         ldx #$1f
-lbl_87a4
+.nextVariable
         lda $80,x
         sta pieceX,x
         dex
         cpx #$ff
-        bne lbl_87a4
+        bne .nextVariable
         rts
 ;--------------------
-lbl_87ae
+backupGameVariables subroutine
         ldx #$1f
-lbl_87b0
+.nextVariable
         lda pieceX,x
         sta pieceXMirror,x
         dex
         cpx #$ff
-        bne lbl_87b0
+        bne .nextVariable
         lda numPlayers
         cmp #$1
-        beq lbl_87c7
+        beq .noTwoPlayer
         ldx $bb
         lda totalGarbage
         sta $bb
         stx totalGarbage
-lbl_87c7
+.noTwoPlayer
         rts
 ;--------------------
-lbl_87c8
+backupGameVariables2 subroutine
         ldx #$1f
-lbl_87ca
+.nextVariable
         lda pieceX,x
         sta $80,x
         dex
         cpx #$ff
-        bne lbl_87ca
+        bne .nextVariable
         ldx $bb
         lda totalGarbage
         sta $bb
         stx totalGarbage
         rts
 ;--------------------
-lbl_87dc
-        lda bType
+generateInitialGarbage subroutine
+        lda aType
         bne lbl_87e3
         jmp lbl_8875
-;--------------------
 lbl_87e3
         lda #$c
         sta $a8
@@ -1153,7 +1153,7 @@ lbl_8876
 lbl_887c
         dc.b $ef, $7b, $ef, $7c, $7d, $7d, $ef, $ef
 ;--------------------
-lbl_8884        
+checkSelectPressed subroutine        
         lda #$3
         jsr switchCharBank0
         lda #$3
@@ -1362,7 +1362,7 @@ shiftTetrimino subroutine
 .return
         rts
 ;--------------------
-lbl_8a0a
+showCurrentPiece subroutine
         lda pieceX
         asl
         asl
@@ -1526,7 +1526,7 @@ lbl_8b9d
         stx $b3
         rts
 ;--------------------
-lbl_8bce subroutine
+showNextTetrimino subroutine
         lda nextTetriminoHidden
         bne .return
         lda #$c8
@@ -1536,7 +1536,7 @@ lbl_8bce subroutine
         ldx nextTetrimino
         lda lbl_8be5,x
         sta $a2
-        jmp lbl_8c27
+        jmp copyObjectAttributeData
 .return
         rts
 ;--------------------
@@ -1547,22 +1547,22 @@ lbl_8be5
         dc.b $02, $03, $04, $05, $06, $07, $08, $09, $0a, $0b, $0c, $0d, $0e, $0f, $10, $11
         dc.b $12, $13
 ;--------------------
-lbl_8c27
+copyObjectAttributeData subroutine
         clc
         lda $a2
         rol
         tax
-        lda lbl_8c6c,x
+        lda objectAtributeData,x
         sta $a8
         inx
-        lda lbl_8c6c,x
+        lda objectAtributeData,x
         sta lineIndex
         ldx $b3
         ldy #$0
-lbl_8c3b
+.nextSprite
         lda ($a8),y
         cmp #$ff
-        beq lbl_8c6b
+        beq .return
         clc
         adc $a1
         sta objectAttributeMemory,x
@@ -1586,11 +1586,11 @@ lbl_8c3b
         clc
         adc $b3
         sta $b3
-        jmp lbl_8c3b
-lbl_8c6b
+        jmp .nextSprite
+.return
         rts
 ;--------------------
-lbl_8c6c
+objectAtributeData
         incbin data.bin
 ;--------------------
 isPositionValid subroutine
@@ -1674,7 +1674,7 @@ renderPlayAndDemoScreens subroutine
         sta completedRowIndices+3
         lda playStateMirror
         sta playState
-        jsr lbl_977f
+        jsr updateLineClearingAnimation
         lda clearColumnIndex
         sta clearColumnIndexMirror
         lda playState
@@ -1714,7 +1714,7 @@ lbl_953a
         sta completedRowIndices+3
         lda $88
         sta playState
-        jsr lbl_977f
+        jsr updateLineClearingAnimation
         lda clearColumnIndex
         sta $92
         lda playState
@@ -1945,7 +1945,7 @@ lbl_9769
 lbl_977e
         rts
 ;--------------------
-lbl_977f
+updateLineClearingAnimation subroutine
         lda frameCounterLowByte
         and #$3
         bne lbl_97fd
@@ -2069,7 +2069,7 @@ levelColors
         dc.b $0f, $30, $16, $12
         dc.b $0f, $30, $27, $16
 ;--------------------
-lbl_9874
+doNothing subroutine
         rts
         inc vramRowMirror
         lda vramRowMirror
@@ -2259,7 +2259,7 @@ lockTetrimino subroutine
         sta playState
         lda #$f0
         sta curtainRow
-        jsr updateAudio
+        jsr resetAudio
         rts
 lbl_99b8
         lda vramRow
@@ -2538,7 +2538,7 @@ lbl_9b78
         lda $a3
         ora #$1
         sta $a3
-        lda bType
+        lda aType
         beq lbl_9ba6
         lda completedLines
         sta $a8
@@ -2729,7 +2729,7 @@ lbl_9cb8
 lbl_9cbe
         rts
 ;--------------------
-lbl_9cbf
+showHighScore
         lda #$5
         sta lineIndex
         lda playStateMirror
@@ -2737,12 +2737,12 @@ lbl_9cbf
         beq lbl_9cd9
         lda numPlayers
         cmp #$1
-        beq lbl_9d14
+        beq .increasePlayMode
         lda #$4
         sta lineIndex
         lda $88
         cmp #$0
-        bne lbl_9d14
+        bne .increasePlayMode
 lbl_9cd9
         lda numPlayers
         cmp #$1
@@ -2756,7 +2756,7 @@ lbl_9ce4
         lda numPlayers
         cmp #$1
         bne lbl_9cf1
-        jsr lbl_a0ee
+        jsr checkHighScore
 lbl_9cf1
         lda #$1
         sta playStateMirror
@@ -2775,7 +2775,7 @@ lbl_9cf1
         lda #GAME_MODE_LEVEL_AND_HEIGHT_MENU
         sta gameMode
         rts
-lbl_9d14
+.increasePlayMode
         inc playMode
         rts
 ;--------------------
@@ -2813,17 +2813,17 @@ updateMusicSpeed subroutine
 .return
         rts
 ;--------------------
-lbl_9d51
+updateControllerVariables subroutine
         lda gameMode
         cmp #GAME_MODE_DEMO
-        beq lbl_9d5b
-        jsr lbl_ab9d
+        beq .inDemoMode
+        jsr pollController
         rts
-lbl_9d5b
+.inDemoMode
         lda recordingMode
         cmp #$ff
         beq lbl_9db0
-        jsr lbl_ab9d
+        jsr pollController
         lda buttonStateMirror
         cmp #JOYPAD_START
         beq .exitDemo
@@ -2867,7 +2867,7 @@ lbl_9da2
         sta gameMode
         rts
 lbl_9db0
-        jsr lbl_ab9d
+        jsr pollController
         lda gameMode
         cmp #GAME_MODE_DEMO
         bne lbl_9de7
@@ -2910,7 +2910,7 @@ advanceDemoButtons subroutine
 ;--------------------
 gameModeInitDemo subroutine
         lda #$0
-        sta bType
+        sta aType
         sta levelSelectedMirror
         sta playMode
         sta playStateMirror
@@ -2935,15 +2935,15 @@ checkSoftReset subroutine
         inc playMode
         rts
 .softReset
-        jsr updateAudio
+        jsr resetAudio
         lda #GAME_MODE_LEGAL_SCREEN
         sta gameMode
         rts
 ;--------------------
-lbl_9e27
+resetPlayMode subroutine
         lda #$2
         sta playMode
-        jsr lbl_9874
+        jsr doNothing
         rts
 ;--------------------
 unassignOrientationId subroutine
@@ -2964,30 +2964,30 @@ showEndingAnimation subroutine
         sta $a2
         lda #RENDER_MODE_ENDING_ANIMATION
         sta renderMode
-        lda bType
-        bne .showATypeEnding
-        jmp showBTypeEnding
-.showATypeEnding
+        lda aType
+        bne .showBTypeEnding
+        jmp showATypeEnding
+.showBTypeEnding
         ldx levelMirror
         lda levelToBinaryCodedDecimal,x
         and #$f
         sta level
         lda #$0
-        sta $de
-        sta $dd
-        sta $dc
+        sta totalScore+2
+        sta totalScore+1
+        sta totalScore
         lda level
         asl
         asl
         asl
         asl
-        sta $ab
+        sta bTypeLevelBonus
         lda bTypeHeightMirror
         asl
         asl
         asl
         asl
-        sta $ac
+        sta bTypeHeightBonus
         jsr disableBackgroundAndSprites
         jsr disableVerticalBlankingNMI
         lda level
@@ -3018,7 +3018,7 @@ lbl_9e96
 lbl_9ea4        
         jsr copyToVRAM
         dc.b <ending_screen_color_palette, >ending_screen_color_palette
-        jsr lbl_a463
+        jsr chooseEndingByLevelAndHeight
         jsr enableVerticalBlankingNMI
         jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
@@ -3028,13 +3028,13 @@ lbl_9ea4
         lda #ENDINGS_MUSIC
         jsr startMusic
         lda #$80
-        jsr sleep
+        jsr advanceAnimationMultipleFrames
         lda scoreMirror
-        sta $dc
+        sta totalScore
         lda scoreMirror+1
-        sta $dd
+        sta totalScore+1
         lda scoreMirror+2
-        sta $de
+        sta totalScore+2
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
         lda #$0
@@ -3042,102 +3042,102 @@ lbl_9ea4
         sta scoreMirror+1
         sta scoreMirror+2
         lda #$40
-        jsr sleep
-        lda $ab
+        jsr advanceAnimationMultipleFrames
+        lda bTypeLevelBonus
         beq lbl_9f12
 lbl_9ee8
-        dec $ab
-        lda $ab
+        dec bTypeLevelBonus
+        lda bTypeLevelBonus
         and #$f
         cmp #$f
         bne lbl_9efa
-        lda $ab
+        lda bTypeLevelBonus
         and #$f0
         ora #$9
-        sta $ab
+        sta bTypeLevelBonus
 lbl_9efa
-        lda $ab
-        jsr lbl_9f62
+        lda bTypeLevelBonus
+        jsr addBonusPoint
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
         lda #$2
-        jsr sleep
-        lda $ab
+        jsr advanceAnimationMultipleFrames
+        lda bTypeLevelBonus
         bne lbl_9ee8
         lda #$40
-        jsr sleep
+        jsr advanceAnimationMultipleFrames
 lbl_9f12
-        lda $ac
-        beq lbl_9f45
+        lda bTypeHeightBonus
+        beq .waitForStartPressed
 lbl_9f16
-        dec $ac
-        lda $ac
+        dec bTypeHeightBonus
+        lda bTypeHeightBonus
         and #$f
         cmp #$f
         bne lbl_9f28
-        lda $ac
+        lda bTypeHeightBonus
         and #$f0
         ora #$9
-        sta $ac
+        sta bTypeHeightBonus
 lbl_9f28
-        lda $ac
-        jsr lbl_9f62
+        lda bTypeHeightBonus
+        jsr addBonusPoint
         lda #MENU_OPTION_SELECT_SOUND
         sta waveSoundEffect
         lda #$2
-        jsr sleep
-        lda $ac
+        jsr advanceAnimationMultipleFrames
+        lda bTypeHeightBonus
         bne lbl_9f16
         lda #MENU_SCREEN_SELECT_SOUND
         sta waveSoundEffect
         lda #$40
-        jsr sleep
-lbl_9f45
-        jsr lbl_a527
+        jsr advanceAnimationMultipleFrames
+.waitForStartPressed
+        jsr advanceAnimationSingleFrame
         jsr waitForVerticalBlankAndClearOAM
         lda buttonStateMirror
         cmp #JOYPAD_START
-        bne lbl_9f45
+        bne .waitForStartPressed
         lda levelMirror
         sta level
-        lda $dc
+        lda totalScore
         sta score
-        lda $dd
+        lda totalScore+1
         sta score+1
-        lda $de
+        lda totalScore+2
         sta score+2
         rts
 ;--------------------
-lbl_9f62
+addBonusPoint subroutine
         lda #$1
         clc
-        adc $dd
-        sta $dd
+        adc totalScore+1
+        sta totalScore+1
         and #$f
         cmp #$a
         bcc lbl_9f76
-        lda $dd
+        lda totalScore+1
         clc
         adc #$6
-        sta $dd
+        sta totalScore+1
 lbl_9f76
         and #$f0
         cmp #$a0
         bcc lbl_9f85
-        lda $dd
+        lda totalScore+1
         clc
         adc #$60
-        sta $dd
-        inc $de
+        sta totalScore+1
+        inc totalScore+2
 lbl_9f85
-        lda $de
+        lda totalScore+2
         and #$f
         cmp #$a
         bcc lbl_9f94
-        lda $de
+        lda totalScore+2
         clc
         adc #$6
-        sta $de
+        sta totalScore+2
 lbl_9f94
         rts
 ;--------------------
@@ -3152,29 +3152,29 @@ renderEndingAnimation subroutine
         jsr printTwoDigitNumber
         lda scoreMirror
         jsr printTwoDigitNumber
-        lda bType
+        lda aType
         beq lbl_9fe9
         lda #$20
         sta PPUADDR
         lda #$b0
         sta PPUADDR
-        lda $ab
+        lda bTypeLevelBonus
         jsr printTwoDigitNumber
         lda #$20
         sta PPUADDR
         lda #$d0
         sta PPUADDR
-        lda $ac
+        lda bTypeHeightBonus
         jsr printTwoDigitNumber
         lda #$21
         sta PPUADDR
         lda #$2e
         sta PPUADDR
-        lda $de
+        lda totalScore+2
         jsr printTwoDigitNumber
-        lda $dd
+        lda totalScore+1
         jsr printTwoDigitNumber
-        lda $dc
+        lda totalScore
         jsr printTwoDigitNumber
 lbl_9fe9
         ldy #$0
@@ -3182,21 +3182,21 @@ lbl_9fe9
         sty PPUSCROLL
         rts
 ;--------------------
-lbl_9ff2
+copyHighScoreTableToVRAM subroutine
         lda numPlayers
         cmp #$1
-        beq lbl_9ffb
-        jmp lbl_a085
-lbl_9ffb
+        beq .onePlayerMode
+        jmp .return
+.onePlayerMode
         jsr copyToVRAM
         dc.b <highscore_table_background, >highscore_table_background
         lda #$0
         sta lineIndex
-        lda bType
-        beq lbl_a00c
+        lda aType
+        beq .nextEntry
         lda #$4
         sta lineIndex
-lbl_a00c
+.nextEntry
         lda lineIndex
         and #$3
         asl
@@ -3218,7 +3218,7 @@ lbl_a00c
         adc $a8
         tay
         ldx #$6
-lbl_a031
+.nextCharacter
         lda highScoreTable,y
         sty $a8
         tay
@@ -3227,7 +3227,7 @@ lbl_a031
         sta PPUDATA
         iny
         dex
-        bne lbl_a031
+        bne .nextCharacter
         lda #$ff
         sta PPUDATA
         lda lineIndex
@@ -3254,11 +3254,11 @@ lbl_a031
         inc lineIndex
         lda lineIndex
         cmp #$3
-        beq lbl_a085
+        beq .return
         cmp #$7
-        beq lbl_a085
-        jmp lbl_a00c
-lbl_a085
+        beq .return
+        jmp .nextEntry
+.return
         rts
 ;--------------------
 highScoreVramAddresses
@@ -3273,10 +3273,10 @@ binaryToBinaryCodedDecimal
         dc.b $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47
         dc.b $48, $49
 ;--------------------
-lbl_a0ee
+checkHighScore subroutine
         lda #$00
         sta $d5
-        lda bType
+        lda aType
         beq lbl_a0fa
         lda #$4
         sta highScoreTableIndex
@@ -3360,10 +3360,11 @@ lbl_a16a
         ldx highScoreTableIndex
         lda levelMirror
         sta highScoreLevelsAType,x
-        jmp lbl_a201
+        jmp enterHighScoreName
+;--------------------
 lbl_a192
         sta $a8
-        lda bType
+        lda aType
         beq lbl_a19f
         lda #$18
         clc
@@ -3393,7 +3394,7 @@ lbl_a1a3
 ;--------------------
 lbl_a1c1
         tax
-        lda bType
+        lda aType
         beq lbl_a1cb
         txa
         clc
@@ -3412,7 +3413,7 @@ lbl_a1cb
 ;--------------------
 lbl_a1e0
         tax
-        lda bType
+        lda aType
         beq lbl_a1ea
         txa
         clc
@@ -3428,7 +3429,7 @@ highScoreTableNameOffsets
 highScoreTableScoreOffsets
         dc.b $00, $03, $06, $09, $0c, $0f, $12, $15
 ;--------------------
-lbl_a201
+enterHighScoreName
         inc MMC1_LOAD       ; Clear MMC1 shift register
         lda #$10
         jsr setMmc1Control
@@ -3452,9 +3453,9 @@ lbl_a201
         sta PPUADDR
         lda #$a
         clc
-        adc bType
+        adc aType
         sta PPUDATA
-        jsr lbl_9ff2
+        jsr copyHighScoreTableToVRAM
         lda #RENDER_MODE_CONGRATULATIONS_SCREENS
         sta renderMode
         jsr enableVerticalBlankingNMI
@@ -3490,7 +3491,7 @@ lbl_a26d
         lda #$2
         sta $a2
 lbl_a287
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         lda buttonStateMirror
         and #JOYPAD_START
         beq lbl_a298
@@ -3623,7 +3624,7 @@ renderCongratulationsScreens subroutine
 .return
         rts
 ;--------------------
-lbl_a37f subroutine
+checkStartPressed subroutine
         lda gameMode
         cmp #GAME_MODE_DEMO
         bne .demoNotExited
@@ -3665,7 +3666,7 @@ lbl_a3c4
         sta $a1
         lda #$5
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         lda buttonStateMirror
         cmp #JOYPAD_START
         beq lbl_a3df
@@ -3684,7 +3685,7 @@ lbl_a3df
         rts
 ;--------------------
 checkBTypeGoal subroutine
-        lda bType
+        lda aType
         beq .goalNotAchieved
         lda linesLowByte
         bne .goalNotAchieved
@@ -3703,7 +3704,7 @@ checkBTypeGoal subroutine
 .endMessage
         lda #$0
         sta vramRowMirror
-        jsr lbl_a44d
+        jsr shortSleep
         lda #RENDER_MODE_LEGAL_TITLE_SCREENS
         sta renderMode
         lda #$80
@@ -3721,13 +3722,13 @@ successMessageGraphics
         dc.b $38, $39, $39, $39, $39, $39, $39, $39, $39, $3a, $3b, $1c, $1e, $0c, $0c, $0e
         dc.b $1c, $1c, $28, $3c, $3d, $3e, $3e, $3e, $3e, $3e, $3e, $3e, $3e, $3f, $80
 ;--------------------
-lbl_a44d
-        lda #$14
+shortSleep subroutine
+        lda #20
         sta legalScreenCounter1
-lbl_a451
+.nextFrame
         jsr waitForVerticalBlankAndClearOAM
         lda legalScreenCounter1
-        bne lbl_a451
+        bne .nextFrame
         rts
 ;--------------------
 initialLegalScreenWait
@@ -3738,7 +3739,7 @@ initialLegalScreenWait
         bne .waitForTimeOut
         rts
 ;--------------------
-lbl_a463
+chooseEndingByLevelAndHeight subroutine
         lda #$0
         sta ending
         sta $c5
@@ -3747,12 +3748,12 @@ lbl_a463
         sta $a2
         lda level
         cmp #$9
-        bne lbl_a49a
+        bne .notLevel9
         lda bTypeHeightMirror
         clc
         adc #$1
         sta ending
-        jsr lbl_a4b1
+        jsr chooseEndingByHeight
         lda #$0
         sta ending
         sta $c7
@@ -3765,7 +3766,7 @@ lbl_a463
         lda lbl_a73d+3
         sta $cb
         rts
-lbl_a49a
+.notLevel9
         ldx level
         lda lbl_a767,x
         sta $c7
@@ -3778,7 +3779,7 @@ lbl_a49a
         sta $c6
         rts
 ;--------------------
-lbl_a4b1
+chooseEndingByHeight subroutine
         lda ending
         jsr switch
         dc.b <lbl_a4c4, >lbl_a4c4
@@ -3793,75 +3794,75 @@ lbl_a4c4
         sta $15
         lda #$22
         sta $14
-        jsr lbl_a507
+        jsr copyEndingGraphicsToVRAM
 lbl_a4cf
         lda #$a8
         sta $15
         lda #$34
         sta $14
-        jsr lbl_a507
+        jsr copyEndingGraphicsToVRAM
 lbl_a4da
         lda #$a8
         sta $15
         lda #$4a
         sta $14
-        jsr lbl_a507
+        jsr copyEndingGraphicsToVRAM
 lbl_a4e5
         lda #$a8
         sta $15
         lda #$62
         sta $14
-        jsr lbl_a507
+        jsr copyEndingGraphicsToVRAM
 lbl_a4f0
         lda #$a8
         sta $15
         lda #$7a
         sta $14
-        jsr lbl_a507
+        jsr copyEndingGraphicsToVRAM
 lbl_a4fb
         lda #$a8
         sta $15
         lda #$96
         sta $14
-        jsr lbl_a507
+        jsr copyEndingGraphicsToVRAM
 lbl_a506
         rts
 ;--------------------
-lbl_a507
+copyEndingGraphicsToVRAM subroutine
         ldy #$0
-lbl_a509
+.nextAddress
         lda ($14),y
         sta PPUADDR
         iny
         lda ($14),y
         sta PPUADDR
         iny
-lbl_a515
+.nextData
         lda ($14),y
         iny
         cmp #$fe
-        beq lbl_a509
+        beq .nextAddress
         cmp #$fd
-        beq lbl_a526
+        beq .return
         sta PPUDATA
-        jmp lbl_a515
-lbl_a526
+        jmp .nextData
+.return
         rts
 ;--------------------
-lbl_a527
-        lda bType
-        bne lbl_a52e
-        jmp lbl_a9b1
-lbl_a52e
+advanceAnimationSingleFrame
+        lda aType
+        bne .bType
+        jmp advanceATypeAnimation
+.bType
         lda level
         cmp #$9
-        beq lbl_a537
-        jmp lbl_a625
-lbl_a537
-        jsr lbl_a53b
+        beq .advanceBTypeLevel9Animation
+        jmp advanceBTypeLowerLevelAnimation
+.advanceBTypeLevel9Animation
+        jsr advanceBTypeLevel9Animation
         rts
 ;--------------------
-lbl_a53b
+advanceBTypeLevel9Animation subroutine
         lda bTypeHeightMirror
         jsr switch
         dc.b <lbl_a609, >lbl_a609
@@ -3884,7 +3885,7 @@ lbl_a54c
         clc
         adc #$21
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         lda #$a0
         sta $a0
         lda #$27
@@ -3902,7 +3903,7 @@ lbl_a54c
         lda #$28
         sta $a2
 lbl_a580
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
 lbl_a583
         lda #$c0
         sta $a0
@@ -3922,7 +3923,7 @@ lbl_a599
         sta $a1
         lda lbl_a818,x
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         inc ending
 lbl_a5a9
         lda #$30
@@ -3938,7 +3939,7 @@ lbl_a5a9
         clc
         adc #$1f
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
 lbl_a5c1
         lda #$40
         sta $a0
@@ -3953,7 +3954,7 @@ lbl_a5c1
         clc
         adc #$1d
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
 lbl_a5d9
         lda #$a8
         sta $a0
@@ -3968,7 +3969,7 @@ lbl_a5d9
         clc
         adc #$1a
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
 lbl_a5f1
         lda #$c8
         sta $a0
@@ -3983,7 +3984,7 @@ lbl_a5f1
         clc
         adc #$18
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
 lbl_a609
         lda #$28
         sta $a0
@@ -3998,10 +3999,10 @@ lbl_a609
         clc
         adc #$16
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         jsr lbl_a6bc
         rts
-lbl_a625
+advanceBTypeLowerLevelAnimation
         jsr lbl_a690
         inc $cd
         lda #$0
@@ -4018,7 +4019,7 @@ lbl_a62e
         jsr lbl_a6ae
         lda lbl_a7b7,x
         sta $a1
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         ldx level
         lda lbl_a753,x
         cmp $cd
@@ -4127,7 +4128,7 @@ lbl_a6f7
         sta $a0
         lda lbl_a741,x
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         ldx $cc
         lda $c8,x
         sta $a8
@@ -4144,7 +4145,7 @@ lbl_a6f7
         clc
         adc #$51
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
 lbl_a72c
         inc $cc
         lda $cc
@@ -4187,15 +4188,15 @@ lbl_a7b7
 lbl_a7f3
         dc.b $2c, $2e, $54, $32, $34, $36, $4b, $38, $3a, $4b
 ;--------------------
-		; Sleeps for the amount of frames specified in register A.
+		; Advance the animation for the amount of frames specified in register A.
 
-sleep
+advanceAnimationMultipleFrames subroutine
         sta legalScreenCounter1
-lbl_a7ff
-        jsr lbl_a527
+.nextFrame
+        jsr advanceAnimationSingleFrame
         jsr waitForVerticalBlankAndClearOAM
         lda legalScreenCounter1
-        bne lbl_a7ff
+        bne .nextFrame
         rts
 ;--------------------
 lbl_a80a
@@ -4222,7 +4223,7 @@ lbl_a818
         dc.b $ff, $ff, $ff, $ff, $fe, $23, $34, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fe
         dc.b $22, $ca, $46, $47, $fe, $22, $ea, $56, $57, $fd, $fc
 ;--------------------
-showBTypeEnding subroutine
+showATypeEnding subroutine
         jsr disableBackgroundAndSprites
         jsr disableVerticalBlankingNMI
         lda #$2
@@ -4233,7 +4234,7 @@ showBTypeEnding subroutine
         dc.b <type_a_ending_screen_background, >type_a_ending_screen_background
         jsr copyToVRAM
         dc.b <ending_screen_color_palette, >ending_screen_color_palette
-        jsr lbl_a96e
+        jsr chooseBTypeEnding
         jsr enableVerticalBlankingNMI
         jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
@@ -4243,9 +4244,9 @@ showBTypeEnding subroutine
         lda #ENDINGS_MUSIC
         jsr startMusic
         lda #$80
-        jsr sleep
+        jsr advanceAnimationMultipleFrames
 lbl_a95d
-        jsr lbl_a527
+        jsr advanceAnimationSingleFrame
         jsr waitForVerticalBlankAndClearOAM
         lda $c5
         bne lbl_a95d
@@ -4254,7 +4255,7 @@ lbl_a95d
         bne lbl_a95d
         rts
 ;--------------------
-lbl_a96e
+chooseBTypeEnding subroutine
         lda #$0
         sta ending
         lda scoreMirror+2
@@ -4281,7 +4282,7 @@ lbl_a96e
         sta $15
         lda #$cc
         sta $14
-        jsr lbl_a507
+        jsr copyEndingGraphicsToVRAM
 lbl_a9a5
         ldx ending
         lda lbl_aa2a,x
@@ -4290,7 +4291,7 @@ lbl_a9a5
         sta $c6
         rts
 ;--------------------
-lbl_a9b1
+advanceATypeAnimation
         lda $c5
         cmp #$0
         beq lbl_aa10
@@ -4301,7 +4302,7 @@ lbl_a9b1
         sta $a0
         lda lbl_aa11,x
         sta $a2
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         lda ending
         asl
         sta $a8
@@ -4318,7 +4319,7 @@ lbl_a9b1
         clc
         adc $a0
         sta $a0
-        jsr lbl_8c27
+        jsr copyObjectAttributeData
         lda $c6
         cmp #$f0
         bne lbl_aa0e
@@ -4355,7 +4356,7 @@ lbl_aa2a
         dc.b $bf, $bf, $bf, $bf, $c7
 ;--------------------
 waitForVerticalBlankAndClearOAM
-        jsr lbl_e000
+        jsr advanceAudio
         lda #$0
         sta verticalBlankingInterval
         nop
@@ -4369,7 +4370,7 @@ lbl_aa37
         rts
 ;--------------------
 waitForVerticalBlankingInterval
-        jsr lbl_e000
+        jsr advanceAudio
         lda #$0
         sta verticalBlankingInterval
         nop
@@ -4586,7 +4587,7 @@ readControllerButtons subroutine
         bne .nextButton
         rts
 ;--------------------
-lbl_ab8b
+updateButtonState
         lda $0
         ora buttonStateMirror
         sta buttonStateMirror
@@ -4598,15 +4599,15 @@ lbl_ab8b
         jsr readControllerButtons
         beq lbl_abbd
 ;--------------------
-lbl_ab9d
+pollController subroutine
         jsr readControllerButtons
-        jsr lbl_ab8b
+        jsr updateButtonState
         lda buttonStateMirror
         sta lineIndex
         lda buttonPressedMirror
         sta loopIndex
         jsr readControllerButtons
-        jsr lbl_ab8b
+        jsr updateButtonState
         lda buttonStateMirror
         and lineIndex
         sta buttonStateMirror
@@ -4640,13 +4641,13 @@ lbl_abd1
         bne lbl_abd1
         beq lbl_abbd
         jsr readControllerButtons
-        jsr lbl_ab8b
+        jsr updateButtonState
 lbl_abea
         ldy buttonStateMirror
         lda buttonPressedMirror
         pha
         jsr readControllerButtons
-        jsr lbl_ab8b
+        jsr updateButtonState
         pla
         cmp buttonPressedMirror
         bne lbl_abea
@@ -5105,9 +5106,9 @@ demoPieceSpawns
 
         ; Sound routines
 
-lbl_e000
+advanceAudio
         jmp $e216
-updateAudio
+resetAudio
         jmp $e244
 initAudio
         jmp $e1d8
