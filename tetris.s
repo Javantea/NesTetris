@@ -1552,10 +1552,10 @@ copyObjectAttributeData subroutine
         lda $a2
         rol
         tax
-        lda objectAtributeData,x
+        lda objectAttributeData,x
         sta $a8
         inx
-        lda objectAtributeData,x
+        lda objectAttributeData,x
         sta lineIndex
         ldx $b3
         ldy #$0
@@ -1590,8 +1590,7 @@ copyObjectAttributeData subroutine
 .return
         rts
 ;--------------------
-objectAtributeData
-        incbin data.bin
+		include object_attribute_data.s
 ;--------------------
 isPositionValid subroutine
         lda pieceY
