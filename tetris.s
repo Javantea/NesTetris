@@ -33,7 +33,7 @@ nmiHandler
         pha
 
         lda #$0
-        sta $b3
+        sta objectAttributeMemoryIndex
         jsr render
         dec legalScreenCounter1
         lda legalScreenCounter1
@@ -521,16 +521,16 @@ lbl_8389
         asl
         clc
         adc #$3f
-        sta $a0
+        sta spriteX
         lda #$3f
-        sta $a1
+        sta spriteY
         lda #$1
-        sta $a2
+        sta objectAttributeEntryIndex
         lda frameCounterLowByte
         and #$3
         bne lbl_83ae
         lda #$2
-        sta $a2
+        sta objectAttributeEntryIndex
 lbl_83ae
         jsr copyObjectAttributeData
         lda activeMusic
@@ -540,16 +540,16 @@ lbl_83ae
         asl
         clc
         adc #$8f
-        sta $a1
+        sta spriteY
         lda #$53
-        sta $a2
+        sta objectAttributeEntryIndex
         lda #$67
-        sta $a0
+        sta spriteX
         lda frameCounterLowByte
         and #$3
         bne lbl_83ce
         lda #$2
-        sta $a2
+        sta objectAttributeEntryIndex
 lbl_83ce
         jsr copyObjectAttributeData
         jsr waitForVerticalBlankAndClearOAM
@@ -758,20 +758,20 @@ lbl_8555
         beq lbl_8581
 lbl_855f
         ldx levelSelected
-        lda lbl_85b2,x
-        sta $a1
+        lda levelSelectSpriteY,x
+        sta spriteY
         lda #$0
-        sta $a2
+        sta objectAttributeEntryIndex
         ldx levelSelected
-        lda lbl_85bc,x
-        sta $a0
+        lda levelSelectSpriteX,x
+        sta spriteX
         lda $b7
         cmp #$1
         bne lbl_857e
         clc
-        lda $a1
+        lda spriteY
         adc #$50
-        sta $a1
+        sta spriteY
 lbl_857e
         jsr copyObjectAttributeData
 lbl_8581
@@ -784,32 +784,32 @@ lbl_8581
         beq lbl_85b1
 lbl_858f
         ldx bTypeHeight
-        lda lbl_85c6,x
-        sta $a1
+        lda heightSelectSpriteY,x
+        sta spriteY
         lda #$0
-        sta $a2
+        sta objectAttributeEntryIndex
         ldx bTypeHeight
-        lda lbl_85cc,x
-        sta $a0
+        lda heightSelectSpriteX,x
+        sta spriteX
         lda $b7
         cmp #$1
         bne lbl_85ae
         clc
-        lda $a1
+        lda spriteY
         adc #$50
-        sta $a1
+        sta spriteY
 lbl_85ae
         jsr copyObjectAttributeData
 lbl_85b1
         rts
 ;--------------------
-lbl_85b2
+levelSelectSpriteY
         dc.b $53, $53, $53, $53, $53, $63, $63, $63, $63, $63
-lbl_85bc
+levelSelectSpriteX
         dc.b $34, $44, $54, $64, $74, $34, $44, $54, $64, $74
-lbl_85c6
+heightSelectSpriteY
         dc.b $53, $53, $53, $63, $63, $63
-lbl_85cc
+heightSelectSpriteX
         dc.b $9c, $ac, $bc, $9c, $ac, $bc
 inGameMusics
         dc.b MUSIC_1_MUSIC, MUSIC_2_MUSIC, MUSIC_3_MUSIC, NO_MUSIC
@@ -965,7 +965,7 @@ lbl_86e9
         sta demoButtonsHighByte
         lda #RENDER_MODE_PLAY_AND_DEMO_SCREENS
         sta renderMode
-        lda #$a0
+        lda #160
         sta autoRepeatYMirror
         sta $8e
         jsr getNextTetrimino
@@ -1088,7 +1088,7 @@ lbl_87fc
         lda randomNumberHighByte
         and #$7
         tay
-        lda lbl_887c,y
+        lda garbageTiles,y
         sta $ab
         ldx lineIndex
         lda playfieldAddresses,x
@@ -1128,7 +1128,7 @@ lbl_884c
         dex
         bne lbl_884c
         ldx bTypeHeightMirror
-        lda lbl_8876,x
+        lda garbageHeight,x
         tay
         lda #$ef
 lbl_885d
@@ -1137,7 +1137,7 @@ lbl_885d
         cpy #$ff
         bne lbl_885d
         ldx $99
-        lda lbl_8876,x
+        lda garbageHeight,x
         tay
         lda #$ef
 lbl_886d
@@ -1148,9 +1148,9 @@ lbl_886d
 lbl_8875
         rts
 ;--------------------
-lbl_8876
+garbageHeight
         dc.b $c8, $aa, $96, $78, $64, $50
-lbl_887c
+garbageTiles
         dc.b $ef, $7b, $ef, $7c, $7d, $7d, $ef, $ef
 ;--------------------
 checkSelectPressed subroutine        
@@ -1159,7 +1159,7 @@ checkSelectPressed subroutine
         lda #$3
         jsr switchCharBank1
         lda #$0
-        sta $b3
+        sta objectAttributeMemoryIndex
         inc fallTimerMirror
         inc $85
         lda $a4
@@ -1400,7 +1400,7 @@ lbl_8a2c
         rol
         adc $a8
         tax
-        ldy $b3
+        ldy objectAttributeMemoryIndex
         lda #$4
         sta lineIndex
 lbl_8a4b
@@ -1412,12 +1412,12 @@ lbl_8a4b
         adc $ab
         sta objectAttributeMemory,y
         sta originalValue
-        inc $b3
+        inc objectAttributeMemoryIndex
         iny
         inx
         lda orientationTable,x
         sta objectAttributeMemory,y
-        inc $b3
+        inc objectAttributeMemoryIndex
         iny
         inx
         lda #$2
@@ -1425,7 +1425,7 @@ lbl_8a4b
         lda originalValue
         cmp #$2f
         bcs lbl_8a84
-        inc $b3
+        inc objectAttributeMemoryIndex
         dey
         lda #$ff
         sta objectAttributeMemory,y
@@ -1435,7 +1435,7 @@ lbl_8a4b
         sta objectAttributeMemory,y
         jmp lbl_8a93
 lbl_8a84
-        inc $b3
+        inc objectAttributeMemoryIndex
         iny
         lda orientationTable,x
         asl
@@ -1445,7 +1445,7 @@ lbl_8a84
         adc loopIndex
         sta objectAttributeMemory,y
 lbl_8a93
-        inc $b3
+        inc objectAttributeMemoryIndex
         iny
         inx
         dec lineIndex
@@ -1455,7 +1455,7 @@ lbl_8a93
         ; Represents the coordinates of the various Tetrimino orientations.
 
 orientationTable
-        dc.b $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01, $ff, $7b, $00    ; 00: T up
+        dc.b $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01, $ff, $7b, $00 ; 00: T up
         dc.b $ff, $7b, $00, $00, $7b, $00, $00, $7b, $01, $01, $7b, $00 ; 01: T right
         dc.b $00, $7b, $ff, $00, $7b, $00, $00, $7b, $01, $01, $7b, $00 ; 02: T down (spawn)
         dc.b $ff, $7b, $00, $00, $7b, $ff, $00, $7b, $00, $01, $7b, $00 ; 03: T left
@@ -1492,7 +1492,7 @@ lbl_8b8c
         clc
         adc $a8
         tay
-        ldx $b3
+        ldx objectAttributeMemoryIndex
         lda #$4
         sta lineIndex
 lbl_8b9d
@@ -1501,7 +1501,7 @@ lbl_8b9d
         asl
         asl
         asl
-        adc $a1
+        adc spriteY
         sta objectAttributeMemory,x
         inx
         iny
@@ -1517,75 +1517,76 @@ lbl_8b9d
         asl
         asl
         asl
-        adc $a0
+        adc spriteX
         sta objectAttributeMemory,x
         inx
         iny
         dec lineIndex
         bne lbl_8b9d
-        stx $b3
+        stx objectAttributeMemoryIndex
         rts
 ;--------------------
 showNextTetrimino subroutine
         lda nextTetriminoHidden
         bne .return
         lda #$c8
-        sta $a0
+        sta spriteX
         lda #$77
-        sta $a1
+        sta spriteY
         ldx nextTetrimino
-        lda lbl_8be5,x
-        sta $a2
+        lda tetriminoSpriteIndex,x
+        sta objectAttributeEntryIndex
         jmp copyObjectAttributeData
 .return
         rts
 ;--------------------
-lbl_8be5
+tetriminoSpriteIndex
         dc.b $00, $00, $06, $00, $00, $00, $00, $09, $08, $00, $0b, $07, $00, $00, $0a, $00
-        dc.b $00, $00, $0c, $00, $00, $0f, $00, $00, $00, $00, $12, $11, $00, $14, $10, $00
-        dc.b $00, $13, $00, $00, $00, $15, $00, $ff, $fe, $fd, $fc, $fd, $fe, $ff, $00, $01
-        dc.b $02, $03, $04, $05, $06, $07, $08, $09, $0a, $0b, $0c, $0d, $0e, $0f, $10, $11
-        dc.b $12, $13
+        dc.b $00, $00, $0c
+        dc.b $00, $00, $0f, $00, $00, $00, $00, $12, $11, $00, $14, $10, $00, $00, $13, $00
+        dc.b $00, $00, $15
+        dc.b $00, $ff, $fe, $fd, $fc, $fd, $fe, $ff, $00, $01, $02, $03, $04, $05, $06, $07
+        dc.b $08, $09, $0a, $0b, $0c, $0d, $0e, $0f, $10, $11, $12, $13
 ;--------------------
 copyObjectAttributeData subroutine
         clc
-        lda $a2
+        lda objectAttributeEntryIndex
         rol
         tax
         lda objectAttributeData,x
-        sta $a8
+        sta objectAttributeEntryBase
         inx
         lda objectAttributeData,x
-        sta lineIndex
-        ldx $b3
-        ldy #$0
+        sta objectAttributeEntryBase+1
+        ldx objectAttributeMemoryIndex
+        ldy #0
 .nextSprite
-        lda ($a8),y
+        lda (objectAttributeEntryBase),y
         cmp #$ff
         beq .return
         clc
-        adc $a1
+        adc spriteY
         sta objectAttributeMemory,x
         inx
         iny
-        lda ($a8),y
+        lda (objectAttributeEntryBase),y
         sta objectAttributeMemory,x
         inx
         iny
-        lda ($a8),y
+        lda (objectAttributeEntryBase),y
         sta objectAttributeMemory,x
         inx
         iny
-        lda ($a8),y
+        lda (objectAttributeEntryBase),y
         clc
-        adc $a0
+        adc spriteX
         sta objectAttributeMemory,x
         inx
         iny
-        lda #$4
+        lda #4
         clc
-        adc $b3
-        sta $b3
+        adc objectAttributeMemoryIndex
+        sta objectAttributeMemoryIndex
         jmp .nextSprite
 .return
         rts
@@ -3474,21 +3475,21 @@ enterHighScoreName
         lda highScoreTableIndex
         and #$3
         tax
-        lda lbl_a33b,x
-        sta $a1
+        lda highScoreNameSpriteY,x
+        sta spriteY
 lbl_a26d
         lda #$0
         sta objectAttributeMemory
         ldx highScoreNameCharacterIndex
-        lda lbl_a33e,x
-        sta $a0
+        lda highScoreNameSpriteX,x
+        sta spriteX
         lda #$e
-        sta $a2
+        sta objectAttributeEntryIndex
         lda frameCounterLowByte
         and #$3
         bne lbl_a287
         lda #$2
-        sta $a2
+        sta objectAttributeEntryIndex
 lbl_a287
         jsr copyObjectAttributeData
         lda buttonStateMirror
@@ -3586,9 +3587,9 @@ lbl_a337
         jsr waitForVerticalBlankAndClearOAM
         rts
 ;--------------------
-lbl_a33b
+highScoreNameSpriteY
         dc.b $9f, $af, $bf
-lbl_a33e
+highScoreNameSpriteX
         dc.b $48, $50, $58, $60, $68, $70
 ;--------------------
 renderCongratulationsScreens subroutine
@@ -3660,11 +3661,11 @@ lbl_a3aa
         jsr fillMemPage
 lbl_a3c4
         lda #linesLowByteMirror
-        sta $a0
+        sta spriteX
         lda #$77
-        sta $a1
+        sta spriteY
         lda #$5
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
         lda buttonStateMirror
         cmp #JOYPAD_START
@@ -3864,18 +3865,18 @@ advanceAnimationSingleFrame
 advanceBTypeLevel9Animation subroutine
         lda bTypeHeightMirror
         jsr switch
-        dc.b <lbl_a609, >lbl_a609
-        dc.b <lbl_a5f1, >lbl_a5f1
-        dc.b <lbl_a5d9, >lbl_a5d9
-        dc.b <lbl_a5c1, >lbl_a5c1
-        dc.b <lbl_a5a9, >lbl_a5a9
+        dc.b <advanceBTypeLevel9Height0Animation, >advanceBTypeLevel9Height0Animation
+        dc.b <advanceBTypeLevel9Height1Animation, >advanceBTypeLevel9Height1Animation
+        dc.b <advanceBTypeLevel9Height2Animation, >advanceBTypeLevel9Height2Animation
+        dc.b <advanceBTypeLevel9Height3Animation, >advanceBTypeLevel9Height3Animation
+        dc.b <advanceBTypeLevel9Height4Animation, >advanceBTypeLevel9Height4Animation
         dc.b <advanceBTypeLevel9Height5Animation, >advanceBTypeLevel9Height5Animation
 ;--------------------
 advanceBTypeLevel9Height5Animation
         lda #200
-        sta $a0
+        sta spriteX
         lda #$47
-        sta $a1
+        sta spriteY
         lda frameCounterLowByte
         and #$8
         lsr
@@ -3883,12 +3884,12 @@ advanceBTypeLevel9Height5Animation
         lsr
         clc
         adc #$21
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
         lda #$a0
-        sta $a0
+        sta spriteX
         lda #$27
-        sta $a2
+        sta objectAttributeEntryIndex
         lda frameCounterLowByte
         and #$18
         lsr
@@ -3896,16 +3897,16 @@ advanceBTypeLevel9Height5Animation
         lsr
         tax
         lda lbl_a80a,x
-        sta $a1
+        sta spriteY
         cmp #$97
         beq lbl_a580
         lda #$28
-        sta $a2
+        sta objectAttributeEntryIndex
 lbl_a580
         jsr copyObjectAttributeData
 lbl_a583
         lda #$c0
-        sta $a0
+        sta spriteX
         lda ending
         lsr
         lsr
@@ -3919,16 +3920,16 @@ lbl_a583
 lbl_a599
         tax
         lda lbl_a80e,x
-        sta $a1
+        sta spriteY
         lda lbl_a818,x
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
         inc ending
-lbl_a5a9
+advanceBTypeLevel9Height4Animation
         lda #$30
-        sta $a0
+        sta spriteX
         lda #$a7
-        sta $a1
+        sta spriteY
         lda frameCounterLowByte
         and #$10
         lsr
@@ -3937,13 +3938,13 @@ lbl_a5a9
         lsr
         clc
         adc #$1f
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
-lbl_a5c1
+advanceBTypeLevel9Height3Animation
         lda #$40
-        sta $a0
+        sta spriteX
         lda #$77
-        sta $a1
+        sta spriteY
         lda frameCounterLowByte
         and #$10
         lsr
@@ -3952,13 +3953,13 @@ lbl_a5c1
         lsr
         clc
         adc #$1d
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
-lbl_a5d9
+advanceBTypeLevel9Height2Animation
         lda #$a8
-        sta $a0
+        sta spriteX
         lda #$d7
-        sta $a1
+        sta spriteY
         lda frameCounterLowByte
         and #$10
         lsr
@@ -3967,13 +3968,13 @@ lbl_a5d9
         lsr
         clc
         adc #$1a
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
-lbl_a5f1
+advanceBTypeLevel9Height1Animation
         lda #$c8
-        sta $a0
+        sta spriteX
         lda #$d7
-        sta $a1
+        sta spriteY
         lda frameCounterLowByte
         and #$10
         lsr
@@ -3982,13 +3983,13 @@ lbl_a5f1
         lsr
         clc
         adc #$18
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
-lbl_a609
+advanceBTypeLevel9Height0Animation
         lda #$28
-        sta $a0
+        sta spriteX
         lda #$77
-        sta $a1
+        sta spriteY
         lda frameCounterLowByte
         and #$10
         lsr
@@ -3997,7 +3998,7 @@ lbl_a609
         lsr
         clc
         adc #$16
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
         jsr lbl_a6bc
         rts
@@ -4014,10 +4015,10 @@ lbl_a62e
         lda $c6,x
         cmp $a8
         beq lbl_a675
-        sta $a0
+        sta spriteX
         jsr lbl_a6ae
         lda lbl_a7b7,x
-        sta $a1
+        sta spriteY
         jsr copyObjectAttributeData
         ldx level
         lda lbl_a753,x
@@ -4026,13 +4027,13 @@ lbl_a62e
         ldx level
         lda lbl_a771,x
         clc
-        adc $a0
-        sta $a0
+        adc spriteX
+        sta spriteX
         ldx $cc
         sta $c6,x
         jsr lbl_a6ae
         lda lbl_a77b,x
-        cmp $a0
+        cmp spriteX
         bne lbl_a675
         ldx level
         lda lbl_a75d,x
@@ -4068,10 +4069,10 @@ lbl_a690
         lda #$0
         sta ending
 lbl_a6a5
-        lda lbl_a7f3,x
+        lda typeBLowerLevelSpriteIndex,x
         clc
         adc $c5
-        sta $a2
+        sta objectAttributeEntryIndex
         rts
 ;--------------------
 lbl_a6ae
@@ -4122,11 +4123,11 @@ lbl_a6d9
 lbl_a6f7
         lda $a8
         sta $c8,x
-        sta $a1
-        lda lbl_a739,x
-        sta $a0
-        lda lbl_a741,x
-        sta $a2
+        sta spriteY
+        lda cathedralDomeSpriteX,x
+        sta spriteX
+        lda cathedralDomeSpriteIndex,x
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
         ldx $cc
         lda $c8,x
@@ -4134,16 +4135,16 @@ lbl_a6f7
         lda lbl_a73d,x
         cmp $a8
         beq lbl_a72c
-        lda lbl_a745,x
+        lda cathedralDomeBurnerSpriteOffsetX,x
         clc
-        adc $a0
-        sta $a0
+        adc spriteX
+        sta spriteX
         lda frameCounterLowByte
         and #$2
         lsr
         clc
         adc #$51
-        sta $a2
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
 lbl_a72c
         inc $cc
@@ -4154,17 +4155,16 @@ lbl_a72c
 ;--------------------
 lbl_a735
         dc.b $05, $07, $09, $0b
-lbl_a739
+cathedralDomeSpriteX
         dc.b $60, $90, $70, $7e
 lbl_a73d
         dc.b $bc, $b8, $bc, $b3
-lbl_a741
+cathedralDomeSpriteIndex
         dc.b $4d, $50, $4e, $4f
-lbl_a745
+cathedralDomeBurnerSpriteOffsetX
         dc.b $00, $00, $00, $02
 lbl_a749
-        dc.b $02, $04, $06, $03
-        dc.b $10, $03, $05, $06, $02, $05
+        dc.b $02, $04, $06, $03, $10, $03, $05, $06, $02, $05
 lbl_a753
         dc.b $03, $01, $01, $01, $02, $05, $01, $02, $01, $01
 lbl_a75d
@@ -4174,17 +4174,16 @@ lbl_a767
 lbl_a771
         dc.b $01, $01, $ff, $fc, $01, $ff, $02, $02, $fe, $02
 lbl_a77b
-        dc.b $3a, $24, $0a, $4a, $3a, $ff, $22, $44, $12, $32, $4a, $ff, $ae, $6e, $8e
-        dc.b $6e, $1e, $02
-        dc.b $42, $42, $42, $42, $42, $02, $22, $0a, $1a, $04, $0a, $ff, $ee
-        dc.b $de, $fc, $fc, $f6, $02, $80, $80, $80, $80, $80, $ff, $e8, $e8, $e8, $e8, $48
-        dc.b $ff, $80, $ae, $9e, $90, $80, $02, $80, $80, $80, $80, $80, $ff
+        dc.b $3a, $24, $0a, $4a, $3a, $ff, $22, $44, $12, $32, $4a, $ff, $ae, $6e, $8e, $6e
+        dc.b $1e, $02, $42, $42, $42, $42, $42, $02, $22, $0a, $1a, $04, $0a, $ff, $ee, $de
+        dc.b $fc, $fc, $f6, $02, $80, $80, $80, $80, $80, $ff, $e8, $e8, $e8, $e8, $48, $ff
+        dc.b $80, $ae, $9e, $90, $80, $02, $80, $80, $80, $80, $80, $ff
 lbl_a7b7
-       dc.b $98, $a8, $c0, $a8, $90, $b0, $b0, $b8, $a0, $b8, $a8, $a0, $c8, $c8, $c8, $c8
-       dc.b $c8, $c8, $30, $20, $40, $28, $a0, $80, $a8, $88, $68, $a8, $48, $78, $58, $68
-       dc.b $18, $48, $78, $38, $c8, $c8, $c8, $c8, $c8, $c8, $90, $58, $70, $a8, $40, $38
-       dc.b $68, $88, $78, $18, $48, $a8, $c8, $c8, $c8, $c8, $c8, $c8
-lbl_a7f3
+        dc.b $98, $a8, $c0, $a8, $90, $b0, $b0, $b8, $a0, $b8, $a8, $a0, $c8, $c8, $c8, $c8
+        dc.b $c8, $c8, $30, $20, $40, $28, $a0, $80, $a8, $88, $68, $a8, $48, $78, $58, $68
+        dc.b $18, $48, $78, $38, $c8, $c8, $c8, $c8, $c8, $c8, $90, $58, $70, $a8, $40, $38
+        dc.b $68, $88, $78, $18, $48, $a8, $c8, $c8, $c8, $c8, $c8, $c8
+typeBLowerLevelSpriteIndex
         dc.b $2c, $2e, $54, $32, $34, $36, $4b, $38, $3a, $4b
 ;--------------------
 		; Advance the animation for the amount of frames specified in register A.
@@ -4203,7 +4202,8 @@ lbl_a80a
 lbl_a80e
         dc.b $97, $8f, $87, $87, $8f, $97, $8f, $87, $87, $8f
 lbl_a818
-        dc.b $29, $29, $29, $2a, $2a, $2a, $2a, $2a, $29, $29, $21, $a5, $ff, $ff, $ff, $fe
+        dc.b $29, $29, $29, $2a, $2a, $2a, $2a, $2a, $29, $29
+        dc.b $21, $a5, $ff, $ff, $ff, $fe
         dc.b $21, $c5, $ff, $ff, $ff, $fe, $21, $e5, $ff, $ff, $ff, $fd, $23, $1a, $ff, $fe
         dc.b $23, $39, $ff
         dc.b $ff, $ff, $fe, $23, $59, $ff, $ff, $ff, $fe, $23, $79, $ff, $ff, $ff, $fd, $23
@@ -4233,7 +4233,7 @@ showATypeEnding subroutine
         dc.b <type_a_ending_screen_background, >type_a_ending_screen_background
         jsr copyToVRAM
         dc.b <ending_screen_color_palette, >ending_screen_color_palette
-        jsr chooseBTypeEnding
+        jsr chooseATypeEnding
         jsr enableVerticalBlankingNMI
         jsr waitForVerticalBlankAndClearOAM
         jsr enableBackgroundAndSprites
@@ -4254,7 +4254,7 @@ lbl_a95d
         bne lbl_a95d
         rts
 ;--------------------
-chooseBTypeEnding subroutine
+chooseATypeEnding subroutine
         lda #$0
         sta ending
         lda scoreMirror+2
@@ -4284,7 +4284,7 @@ chooseBTypeEnding subroutine
         jsr copyEndingGraphicsToVRAM
 lbl_a9a5
         ldx ending
-        lda lbl_aa2a,x
+        lda rocketSpriteY,x
         sta $c5
         lda #$0
         sta $c6
@@ -4293,14 +4293,14 @@ lbl_a9a5
 advanceATypeAnimation
         lda $c5
         cmp #$0
-        beq lbl_aa10
-        sta $a1
+        beq .return
+        sta spriteY
         lda #$58
         ldx ending
-        lda lbl_aa25,x
-        sta $a0
-        lda lbl_aa11,x
-        sta $a2
+        lda rocketSpriteX,x
+        sta spriteX
+        lda rocketSpriteId,x
+        sta objectAttributeEntryIndex
         jsr copyObjectAttributeData
         lda ending
         asl
@@ -4311,13 +4311,13 @@ advanceATypeAnimation
         clc
         adc $a8
         tax
-        lda lbl_aa16,x
-        sta $a2
+        lda rocketBurnerSpriteId,x
+        sta objectAttributeEntryIndex
         ldx ending
-        lda lbl_aa20,x
+        lda rocketBurnerSpriteOffsetX,x
         clc
-        adc $a0
-        sta $a0
+        adc spriteX
+        sta spriteX
         jsr copyObjectAttributeData
         lda $c6
         cmp #$f0
@@ -4337,21 +4337,21 @@ lbl_a9fc
         bcs lbl_aa0b
         dec $c5
 lbl_aa0b
-        jmp lbl_aa10
+        jmp .return
 lbl_aa0e
         inc $c6
-lbl_aa10
+.return
         rts
 ;--------------------
-lbl_aa11
+rocketSpriteId
         dc.b $3e, $41, $44, $47, $4a
-lbl_aa16
+rocketBurnerSpriteId
         dc.b $3f, $40, $42, $43, $45, $46, $48, $49, $23, $24
-lbl_aa20
+rocketBurnerSpriteOffsetX
         dc.b $00, $00, $00, $00, $00
-lbl_aa25
+rocketSpriteX
         dc.b $54, $54, $50, $48, $a0
-lbl_aa2a
+rocketSpriteY
         dc.b $bf, $bf, $bf, $bf, $c7
 ;--------------------
 waitForVerticalBlankAndClearOAM

@@ -60,7 +60,11 @@ completedLineIndexMirror equ $77
 curtainRowMirror equ $78
 bTypeHeightMirror equ $79
 
+spriteX equ $a0
+spriteY equ $a1
+objectAttributeEntryIndex equ $a2
 playMode equ $a7
+objectAttributeEntryBase equ $a8
 lineIndex equ $a9
 loopIndex equ $aa
 bTypeLevelBonus equ $ab
@@ -71,6 +75,7 @@ tempSpeed equ $af
 
 frameCounterLowByte equ $b1
 frameCounterHighByte equ $b2
+objectAttributeMemoryIndex equ $b3
 buttonState equ $b5
 buttonPressed equ $b6
 leftPlayfield equ $b9
