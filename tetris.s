@@ -2,6 +2,7 @@
 
         include mmc1_registers.s
         include ppu_registers.s
+        include apu_registers.s
         include control_port_registers.s
         include game_variables.s
 
@@ -3274,7 +3275,7 @@ binaryToBinaryCodedDecimal
         dc.b $48, $49
 ;--------------------
 checkHighScore subroutine
-        lda #$00
+        lda #$0
         sta $d5
         lda aType
         beq lbl_a0fa
@@ -5105,15 +5106,1665 @@ demoPieceSpawns
 
         ; Sound routines
 
+;--------------------
 advanceAudio
-        jmp $e216
+        jmp lbl_e216
+;--------------------
 resetAudio
-        jmp $e244
+        jmp lbl_e244
+;--------------------
 initAudio
-        jmp $e1d8
+        jmp lbl_e1d8
+;--------------------
+lbl_e009
+        dc.b $dd, $e2, $f8, $e2, $cc, $e2, $e4, $e2, $ff, $e2, $e4, $e2, $ca, $e3, $73, $e4
+        dc.b $90, $e3, $03, $e4, $d1, $e3, $ec, $e4, $84, $e3, $7f, $e3, $2e, $e4, $1a, $e4
+        dc.b $b3, $e3, $81, $e4, $9c, $e3, $0e, $e4, $dd, $e3, $d1, $e4, $9c, $e3, $4f, $e3
+        dc.b $3b, $e4, $25, $e4, $6e, $e5, $34, $e5, $51, $e5, $3b, $e5, $44, $e2, $13, $e5
+        dc.b $0b, $e5
+;--------------------
+lbl_e04b
+        lda #$0
+        beq lbl_e059
+lbl_e04f
+        lda #$8
+        bne lbl_e059
+lbl_e053
+        lda #$c
+        bne lbl_e059
+lbl_e057
+        lda #$4
+lbl_e059
+        sta $e0
+        lda #$40
+        sta $e1
+        sty $e2
+        lda #$e1
+        sta $e3
+        ldy #$0
+lbl_e067
+        lda ($e2),y
+        sta ($e0),y
+        iny
+        tya
+        cmp #$4
+        bne lbl_e067
+        rts
+;--------------------
+lbl_e072
+        sta $ef
+        pha
+        ldy #$e0
+        sty $e1
+        ldy #$0
+lbl_e07b
+        dec $ef
+        beq lbl_e092
+        iny
+        iny
+        tya
+        cmp #$22
+        bne lbl_e07b
+        lda #$91
+        sta $e2
+        lda #$e0
+        sta $e3
+lbl_e08e
+        pla
+        sta $ef
+        rts
+;--------------------
+lbl_e092
+        lda ($e0),y
+        sta $e2
+        iny
+        lda ($e0),y
+        sta $e3
+        jmp lbl_e08e
+        lda $eb
+        and #$2
+        sta $6ff
+        lda $ec
+        and #$2
+        eor $6ff
+        clc
+        beq lbl_e0b0
+        sec
+lbl_e0b0
+        ror $eb
+        ror $ec
+        rts
+;--------------------
+lbl_e0b5
+        ldx $ed
+        inc $6da,x
+        lda $6da,x
+        cmp $6d5,x
+        bne lbl_e0c7
+        lda #$0
+        sta $6da,x
+lbl_e0c7
+        rts
+;--------------------
+lbl_e0c8
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $03, $7f, $0f, $c0, $1f, $7f, $0f, $c0
+        dc.b $08, $7f, $0e, $c0, $9d, $7f, $7a, $28, $9d, $7f, $40, $28, $9e, $7f, $c0, $28
+        dc.b $b2, $7f, $c0, $08, $de, $7f, $a8, $18, $9f, $84, $ff, $0b, $db, $7f, $40, $28
+        dc.b $d2, $7f, $40, $28, $d9, $7f
+lbl_e12e
+        dc.b $84, $28, $9e, $9d, $c0, $08, $9c, $9a, $a0, $09
+        dc.b $9e, $7f, $69, $08, $96, $7f, $36, $20, $82, $7f, $30, $f8, $98, $7f, $80, $38
+        dc.b $30, $7f
+lbl_e14a
+        dc.b $70
+lbl_e14b
+        dc.b $08, $03, $7f, $3d, $18
+lbl_e150
+        dc.b $14, $93, $94, $d3, $7a, $de, $ff, $ef
+        dc.b $fd, $df, $fe, $ef, $ef, $fd, $ef, $fe, $df, $ff, $ee, $ee, $ff, $ef, $ff, $ff
+        dc.b $ff, $ef, $ef, $ff, $fd, $df, $df, $ef, $fe, $df, $ef, $ff, $bf, $ff, $ee, $ef
+        dc.b $ef, $ef, $df, $fb, $bb, $aa, $aa, $99, $98, $87, $76, $66, $55, $44, $44, $44
+        dc.b $44, $43, $33, $33, $22, $22, $22, $22, $21, $11, $11, $11
+;--------------------
+lbl_e194
+        ldx #$2
+        lda #$45
+        ldy #$45
+        bne lbl_e1bf
+lbl_e19c
+        ldx #$3
+        lda #$3d
+        ldy #$41
+        bne lbl_e1bf
+        ldx #$4
+        lda #$45
+        ldy #$45
+        bne lbl_e1bf
+lbl_e1ac
+        lda $6fc
+        bne lbl_e1d7
+        ldx #$1
+        lda #$15
+        ldy #$29
+        bne lbl_e1bf
+lbl_e1b9
+        ldx #$0
+        lda #$9
+        ldy #$f
+lbl_e1bf
+        sta $e0
+        stx $ed
+        lda $6f0,x
+        beq lbl_e1ce
+lbl_e1c8
+        jsr lbl_e072
+lbl_e1cb
+        jmp ($e2)
+lbl_e1ce
+        lda $6f8,x
+        beq lbl_e1d7
+        sty $e0
+        bne lbl_e1c8
+lbl_e1d7
+        rts
+;--------------------
+lbl_e1d8
+        lda #$f
+        sta APU_STATUS
+        lda #$55
+        sta $eb
+        jsr lbl_e244
+        rts
+;--------------------
+lbl_e1e5
+        inc $682
+        jsr lbl_e271
+        sta $683
+        rts
+;--------------------
+lbl_e1ef
+        lda $682
+        beq lbl_e1e5
+        lda $683
+        cmp #$12
+        beq lbl_e215
+        and #$3
+        cmp #$3
+        bne lbl_e212
+        inc $68b
+        ldy #$10
+        lda $68b
+        and #$1
+        bne lbl_e20f
+        ldy #$c
+lbl_e20f
+        jsr lbl_e04b
+lbl_e212
+        inc $683
+lbl_e215
+        rts
+;--------------------
+lbl_e216
+        lda #$c0
+        sta APU_FRAME_COUNTER
+        lda $68d
+        cmp #$5
+        beq lbl_e1ef
+        lda #$0
+        sta $682
+        sta $68b
+        jsr lbl_e194
+        jsr lbl_e1b9
+        jsr lbl_e19c
+        jsr lbl_e1ac
+        jsr lbl_e583
+        lda #$0
+        ldx #$6
+lbl_e23d
+        sta $6ef,x
+        dex
+        bne lbl_e23d
+        rts
+;--------------------
+lbl_e244
+        jsr lbl_e253
+lbl_e247
+        jsr lbl_e271
+        lda #$0
+        sta DMC_DIRECT_LOAD
+        sta $69c
+        rts
+;--------------------
+lbl_e253
+        lda #$0
+        sta $6c8
+        sta $6c9
+        sta $6ca
+        sta $68c
+        sta $68a
+        tay
+lbl_e265
+        lda #$0
+        sta $6f8,y
+        iny
+        tya
+        cmp #$6
+        bne lbl_e265
+        rts
+;--------------------
+lbl_e271
+        lda #$0
+        sta DMC_DIRECT_LOAD
+        lda #$10
+        sta PULSE_1_DUTY
+        sta PULSE_2_DUTY
+        sta NOISE_DUTY
+        lda #$0
+        sta TRIANGLE_DUTY
+        rts
+;--------------------
+lbl_e287
+        ldx $ed
+        sta $6d5,x
+        txa
+        sta $6c7,x
+        tya
+        beq lbl_e2b5
+        txa
+        beq lbl_e2b2
+        cmp #$1
+        beq lbl_e2a3
+        cmp #$2
+        beq lbl_e2a8
+        cmp #$3
+        beq lbl_e2ad
+        rts
+;--------------------
+lbl_e2a3
+        jsr lbl_e04b
+        beq lbl_e2b5
+lbl_e2a8
+        jsr lbl_e057
+        beq lbl_e2b5
+lbl_e2ad
+        jsr lbl_e04f
+        beq lbl_e2b5
+lbl_e2b2
+        jsr lbl_e053
+lbl_e2b5
+        lda $ef
+        sta $6f8,x
+        lda #$0
+        sta $6da,x
+        sta $6df,x
+        sta $6e3,x
+        sta $6e7,x
+        sta $68a
+        rts
+;--------------------
+lbl_e2cc
+        lda #$20
+        ldy #$8
+        jmp lbl_e287
+lbl_e2d3
+        sta NOISE_TIMER_LOW
+        rts
+;--------------------
+lbl_e2d7
+        jsr lbl_e31a
+        jmp lbl_e2d3
+        lda #$10
+        ldy #$0
+        jmp lbl_e287
+        jsr lbl_e0b5
+        bne lbl_e2f3
+lbl_e2e9
+        lda #$0
+        sta $6f8
+        lda #$10
+        sta NOISE_DUTY
+lbl_e2f3
+        rts
+;--------------------
+lbl_e2f4
+        lda #$2
+        sta $ef
+        lda #$40
+        ldy #$4
+        jmp lbl_e287
+        jsr lbl_e0b5
+        bne lbl_e307
+        jmp lbl_e2e9
+lbl_e307
+        ldx #$54
+        jsr lbl_e2d7
+        ldx #$74
+        jsr lbl_e31a
+        ora #$10
+        sta NOISE_DUTY
+        inc $6df
+        rts
+;--------------------
+lbl_e31a
+        stx $e0
+        ldy #$e1
+        sty $e1
+        ldx $6df
+        txa
+        lsr
+        tay
+        lda ($e0),y
+        sta $e4
+        txa
+        and #$1
+        beq lbl_e334
+        lda $e4
+        and #$f
+        rts
+;--------------------
+lbl_e334
+        lda $e4
+        lsr
+        lsr
+        lsr
+        lsr
+        rts
+;--------------------
+lbl_e33b
+        lda $6f9
+        cmp #$4
+        beq lbl_e34e
+        cmp #$6
+        beq lbl_e34e
+        cmp #$9
+        beq lbl_e34e
+        cmp #$a
+        beq lbl_e34e
+lbl_e34e
+        rts
+;--------------------
+lbl_e34f
+        lda $6e4
+        beq lbl_e361
+        inc $6e0
+        lda $6e0
+        cmp #$16
+        bne lbl_e3b1
+        jmp lbl_e3a1
+lbl_e361
+        lda $6e0
+        and #$3
+        tay
+        lda lbl_e150,y
+        sta PULSE_1_DUTY
+        inc $6e0
+        lda $6e0
+        cmp #$8
+        bne lbl_e3b1
+        inc $6e4
+        ldy #$40
+        jmp lbl_e04b
+        ldy #$3c
+        jmp lbl_e287
+        jsr lbl_e33b
+        beq lbl_e3b1
+        lda #$f
+        ldy #$20
+        jmp lbl_e287
+        jsr lbl_e33b
+        beq lbl_e3b1
+        lda #$2
+        ldy #$44
+        jmp lbl_e287
+        jsr lbl_e0b5
+        bne lbl_e3b1
+lbl_e3a1
+        lda #$10
+        sta PULSE_1_DUTY
+        lda #$0
+        sta $6c8
+        sta $6f9
+        inc $68a
+lbl_e3b1
+        rts
+;--------------------
+lbl_e3b2
+        rts
+;--------------------
+lbl_e3b3
+        jsr lbl_e0b5
+        bne lbl_e3b2
+        inc $6e0
+        lda $6e0
+        cmp #$2
+        bne lbl_e3c5
+        jmp lbl_e3a1
+lbl_e3c5
+        ldy #$28
+        jmp lbl_e04b
+        lda #$3
+        ldy #$24
+        bne lbl_e417
+lbl_e3d0
+        rts
+;--------------------
+lbl_e3d1
+        jsr lbl_e33b
+        beq lbl_e3d0
+        lda #$4
+        ldy #$14
+        jsr lbl_e417
+        jsr lbl_e0b5
+        bne lbl_e3d0
+        lda $6e0
+        inc $6e0
+        beq lbl_e3fe
+        cmp #$1
+        beq lbl_e3f9
+        cmp #$2
+        beq lbl_e3fe
+        cmp #$3
+        bne lbl_e3d0
+        jmp lbl_e3a1
+lbl_e3f9
+        ldy #$14
+        jmp lbl_e04b
+lbl_e3fe
+        ldy #$18
+        jmp lbl_e04b
+        lda #$5
+        ldy #$30
+        jsr lbl_e417
+        lda #$10
+        bne lbl_e437
+        jsr lbl_e0b5
+        bne lbl_e43a
+        ldy #$30
+        bne lbl_e442
+;--------------------
+lbl_e417
+        jmp lbl_e287
+        lda #$5
+        ldy #$34
+        jsr lbl_e417
+        lda #$8
+        bne lbl_e437
+        jsr lbl_e0b5
+        bne lbl_e43a
+        ldy #$34
+        bne lbl_e442
+lbl_e42e
+        lda #$4
+        ldy #$38
+        jsr lbl_e417
+        lda #$0
+lbl_e437
+        sta $6e4
+lbl_e43a
+        rts
+;--------------------
+lbl_e43b
+        jsr lbl_e0b5
+        bne lbl_e43a
+        ldy #$38
+lbl_e442
+        jsr lbl_e04b
+        clc
+        lda $6e4
+        adc $6e0
+        tay
+        lda lbl_e4b9,y
+        sta PULSE_1_TIMER_LOW
+        ldy $6e0
+        lda lbl_e4b0,y
+        sta PULSE_1_DUTY
+        bne lbl_e46f
+        lda $6f9
+        cmp #$4
+        bne lbl_e46c
+lbl_e465
+        lda #$9
+lbl_e467
+        sta $ef
+        jmp lbl_e42e
+lbl_e46c
+        jmp lbl_e3a1
+lbl_e46f
+        inc $6e0
+lbl_e472
+        rts
+;--------------------
+lbl_e473
+        lda #$3
+        ldy #$2c
+        jsr lbl_e287
+        lda lbl_e12e
+        sta $6e0
+        rts
+;--------------------
+lbl_e481
+        jsr lbl_e0b5
+        bne lbl_e472
+        inc $6e4
+        lda $6e4
+        cmp #$4
+        bne lbl_e493
+        jmp lbl_e3a1
+lbl_e493
+        lda $6e0
+        lsr
+        lsr
+        lsr
+        lsr
+        sta $6e8
+        lda $6e0
+        clc
+        sbc $6e8
+        sta $6e0
+        sta PULSE_1_TIMER_LOW
+        lda #$28
+        sta PULSE_1_TIMER_HIGH
+        rts
+;--------------------
+lbl_e4b0
+		dc.b $9e, $9b, $99, $96, $94, $93, $92, $91, $00
+lbl_e4b9
+		dc.b $46, $37, $46, $37, $46, $37, $46
+        dc.b $37, $70, $80, $90, $a0, $b0, $c0, $d0, $e0, $c0, $89, $b8, $68, $a0, $50, $90
+        dc.b $40, $20, $b5, $e0, $d0, $d9, $ac, $e0, $06, $ee, $e0, $06, $b9, $f3, $e4, $f0
+        dc.b $08, $8d, $02, $40, $a9, $28, $4c, $ac, $e4, $4c, $a1, $e3, $a9, $06, $a0, $1c
+        dc.b $4c, $87, $e2, $69, $a8, $69, $a8, $8d, $53, $8d, $53, $8d, $00, $a9, $10, $8d
+        dc.b $04, $40
+;--------------------
+lbl_e502
+        lda #$0
+        sta $6c9
+        sta $6fa
+        rts
+;--------------------
+lbl_e50b
+        lda #$3f
+        ldy #$60
+        ldx #$f
+lbl_e511
+        bne lbl_e51b
+        lda #$3f
+        ldy #$60
+        ldx #$e
+        bne lbl_e51b
+lbl_e51b
+        sta DMC_SAMPLE_LENGTH
+        sty DMC_SAMPLE_ADDRESS
+        stx DMC_FREQUENCY
+        lda #$f
+        sta APU_STATUS
+        lda #$0
+        sta DMC_DIRECT_LOAD
+lbl_e52e
+        lda #$1f
+        sta APU_STATUS
+        rts
+;--------------------
+lbl_e534
+        lda #$2
+        ldy #$4c
+        jmp lbl_e287
+        jsr lbl_e0b5
+        bne lbl_e550
+lbl_e540
+        lda #$0
+        sta TRIANGLE_DUTY
+        sta $6ca
+        sta $6fb
+        lda #$18
+        sta TRIANGLE_TIMER_HIGH
+lbl_e550
+        rts
+;--------------------
+lbl_e551
+        jsr lbl_e0b5
+        bne lbl_e550
+        ldy $6e2
+        inc $6e2
+        lda lbl_e57c,y
+        beq lbl_e540
+        sta TRIANGLE_TIMER_LOW
+        sta $6e6
+        lda lbl_e14b
+        sta TRIANGLE_TIMER_HIGH
+        rts
+;--------------------
+lbl_e56e
+        lda #$6
+        ldy #$48
+        jsr lbl_e287
+        lda lbl_e14a
+        sta $6e6
+        rts
+;--------------------
+lbl_e57c
+		dc.b $72, $74, $77, $00
+;--------------------
+lbl_e580
+        jmp lbl_e244
+lbl_e583
+        lda $6f5
+        tay
+        cmp #$ff
+        beq lbl_e580
+        cmp #$0
+        beq lbl_e5a5
+        sta $ef
+        sta $6cc
+        dec $6cc
+        lda #$7f
+        sta $6c0
+        sta $6c1
+        jsr lbl_e6d7
+lbl_e5a2
+        jmp lbl_e840
+lbl_e5a5
+        lda $6fd
+        bne lbl_e5a2
+        rts
+;--------------------
+lbl_e5ab
+		dc.b $00, $10, $01, $18, $00, $01, $38, $00, $03, $40, $00, $06, $58, $00, $0a, $38
+        dc.b $02, $04, $40, $13, $05, $40, $14, $0a, $40, $14, $08, $40, $12, $0e, $08, $16
+        dc.b $0e, $28, $16, $0b, $18
+;--------------------
+lbl_e5d0
+        lda $6fd
+        cmp #$1
+        beq lbl_e5f9
+        txa
+        cmp #$3
+        beq lbl_e5f9
+        lda $69a,x
+        and #$e0
+        beq lbl_e5f9
+        sta $e0
+        lda $6c3,x
+        cmp #$2
+        beq lbl_e5f6
+        ldy $ee
+        lda $680,y
+        sta $e1
+        jsr lbl_e637
+lbl_e5f6
+        inc $6d1,x
+lbl_e5f9
+        rts
+;--------------------
+lbl_e5fa
+        lda $e2
+        cmp #$31
+        bne lbl_e602
+        lda #$27
+lbl_e602
+        tay
+        lda lbl_e689,y
+        pha
+        lda $6c3,x
+        cmp #$46
+        bne lbl_e613
+        pla
+        lda #$0
+        beq lbl_e671
+lbl_e613
+        pla
+        jmp lbl_e671
+lbl_e617
+        lda $e2
+        tay
+        cmp #$10
+        bcs lbl_e624
+        lda lbl_e6c0,y
+        jmp lbl_e677
+lbl_e624
+        lda #$f6
+        bne lbl_e677
+lbl_e628
+        lda $6c3,x
+        cmp #$4c
+        bcc lbl_e633
+        lda #$fe
+        bne lbl_e677
+lbl_e633
+        lda #$fe
+        bne lbl_e677
+lbl_e637
+        lda $6d1,x
+        sta $e2
+        lda $e0
+        cmp #$20
+        beq lbl_e656
+        cmp #$a0
+        beq lbl_e665
+        cmp #$60
+        beq lbl_e628
+        cmp #$40
+        beq lbl_e617
+        cmp #$80
+        beq lbl_e5fa
+        cmp #$c0
+        beq lbl_e5fa
+lbl_e656
+        lda $e2
+        cmp #$a
+        bne lbl_e65e
+        lda #$0
+lbl_e65e
+        tay
+        lda lbl_e6b6,y
+        jmp lbl_e671
+lbl_e665
+        lda $e2
+        cmp #$2b
+        bne lbl_e66d
+        lda #$21
+lbl_e66d
+        tay
+        lda lbl_e695,y
+lbl_e671
+        pha
+        tya
+        sta $6d1,x
+        pla
+lbl_e677
+        pha
+        lda $6c8,x
+        bne lbl_e687
+        pla
+        clc
+        adc $e1
+        ldy $ee
+        sta PULSE_1_TIMER_LOW,y
+        rts
+lbl_e687
+        pla
+        rts
+;--------------------
+lbl_e689
+		dc.b $09, $08, $07, $06, $05, $04, $03, $02, $02, $01, $01, $00
+lbl_e695
+		dc.b $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00
+        dc.b $ff, $00, $00, $00, $00, $01, $01, $00, $00, $00, $ff, $ff, $00
+lbl_e6b6
+        dc.b  $00, $01, $01, $02, $01, $00, $ff, $ff, $fe, $ff
+lbl_e6c0
+        dc.b $00, $ff, $fe, $fd, $fc, $fb, $fa, $f9, $f8, $f7, $f6, $f5, $f6, $f7, $f6, $f5
+;--------------------
+lbl_e6d0
+        lda #$ff
+        sta $6a0,x
+        bne lbl_e72a
+lbl_e6d7
+        jsr lbl_e247
+        lda $ef
+        sta $6fd
+        lda $6cc
+        tay
+        lda lbl_ec23,y
+        tay
+        ldx #$0
+lbl_e6e9
+        lda lbl_ec2d,y
+        sta $690,x
+        iny
+        inx
+        txa
+        cmp #$a
+        bne lbl_e6e9
+        lda #$1
+        sta $6b4
+        sta $6b5
+        sta $6b6
+        sta $6b7
+        lda #$0
+        sta $ea
+        ldy #$8
+lbl_e70a
+        sta $6a7,y
+        dey
+        bne lbl_e70a
+        tax
+lbl_e711
+        lda $692,x
+        sta $e6
+        lda $693,x
+        cmp #$ff
+        beq lbl_e6d0
+        sta $e7
+        ldy $6a8
+        lda ($e6),y
+        sta $6a0,x
+        iny
+        lda ($e6),y
+lbl_e72a
+        sta $6a1,x
+        inx
+        inx
+        txa
+        cmp #$8
+        bne lbl_e711
+        rts
+;--------------------
+lbl_e735
+        lda $68a
+        beq lbl_e765
+        cmp #$1
+        beq lbl_e74f
+        lda #$7f
+        sta PULSE_2_SWEEP
+        lda $684
+        sta PULSE_2_TIMER_LOW
+        lda $685
+        sta PULSE_2_TIMER_HIGH
+lbl_e74f
+        lda #$7f
+        sta PULSE_1_SWEEP
+        lda $680
+        sta PULSE_1_TIMER_LOW
+        lda $681
+        sta PULSE_1_TIMER_HIGH
+        lda #$0
+        sta $68a
+lbl_e765
+        rts
+;--------------------
+lbl_e766
+        txa
+        cmp #$2
+        bcs lbl_e765
+        lda $69a,x
+        and #$1f
+        beq lbl_e7cb
+        sta $e1
+        lda $6c3,x
+        cmp #$2
+        beq lbl_e7d5
+        ldy #$0
+lbl_e77d
+        dec $e1
+        beq lbl_e785
+        iny
+        iny
+        bne lbl_e77d
+lbl_e785
+        lda lbl_ea4a,y
+        sta $e2
+        lda lbl_ea4a+1,y
+        sta $e3
+        lda $6cd,x
+        lsr
+        tay
+        lda ($e2),y
+        sta $e4
+        cmp #$ff
+        beq lbl_e7cc
+        cmp #$f0
+        beq lbl_e7d1
+        lda $6cd,x
+        and #$1
+        bne lbl_e7af
+        lsr $e4
+        lsr $e4
+        lsr $e4
+        lsr $e4
+lbl_e7af
+        lda $e4
+        and #$f
+        sta $e0
+        lda $69d,x
+        and #$f0
+        ora $e0
+        tay
+lbl_e7bd
+        inc $6cd,x
+lbl_e7c0
+        lda $6c8,x
+        bne lbl_e7cb
+        tya
+        ldy $ee
+        sta PULSE_1_DUTY,y
+lbl_e7cb
+        rts
+;--------------------
+lbl_e7cc
+        ldy $69d,x
+        bne lbl_e7c0
+lbl_e7d1
+        ldy #$10
+        bne lbl_e7c0
+lbl_e7d5
+        ldy #$10
+        bne lbl_e7bd
+lbl_e7d9
+        iny
+        lda ($e6),y
+        sta $692,x
+        iny
+        lda ($e6),y
+        sta $693,x
+        lda $692,x
+        sta $e6
+        lda $693,x
+        sta $e7
+        txa
+        lsr
+        tax
+        lda #$0
+        tay
+        sta $6a8,x
+        jmp lbl_e818
+lbl_e7fb
+        jsr lbl_e244
+lbl_e7fe
+        rts
+;--------------------
+lbl_e7ff
+        txa
+        asl
+        tax
+        lda $692,x
+        sta $e6
+        lda $693,x
+        sta $e7
+        txa
+        lsr
+        tax
+        inc $6a8,x
+        inc $6a8,x
+        ldy $6a8,x
+lbl_e818
+        txa
+        asl
+        tax
+        lda ($e6),y
+        sta $6a0,x
+        iny
+        lda ($e6),y
+        sta $6a1,x
+        cmp #$0
+        beq lbl_e7fb
+        cmp #$ff
+        beq lbl_e7d9
+        txa
+        lsr
+        tax
+        lda #$0
+        sta $6ac,x
+        lda #$1
+        sta $6b4,x
+        bne lbl_e85a
+lbl_e83d
+        jmp lbl_e7ff
+lbl_e840
+        jsr lbl_e735
+        lda #$0
+        tax
+        sta $ee
+        beq lbl_e85a
+lbl_e84a
+        txa
+        lsr
+        tax
+lbl_e84d
+        inx
+        txa
+        cmp #$4
+        beq lbl_e7fe
+        lda $ee
+        clc
+        adc #$4
+        sta $ee
+lbl_e85a
+        txa
+        asl
+        tax
+        lda $6a0,x
+        sta $e6
+        lda $6a1,x
+        sta $e7
+        lda $6a1,x
+        cmp #$ff
+        beq lbl_e84a
+        txa
+        lsr
+        tax
+        dec $6b4,x
+        bne lbl_e8bf
+        lda #$0
+        sta $6cd,x
+        sta $6d1,x
+lbl_e87e
+        jsr lbl_ea41
+        beq lbl_e83d
+        cmp #$9f
+        beq lbl_e8ce
+        cmp #$9e
+        beq lbl_e8e6
+        cmp #$9c
+        beq lbl_e8ef
+        tay
+        cmp #$ff
+        beq lbl_e89d
+        and #$c0
+        cmp #$c0
+        beq lbl_e8ad
+        jmp lbl_e8f8
+lbl_e89d
+        lda $6bc,x
+        beq lbl_e8bc
+        dec $6bc,x
+        lda $6b0,x
+        sta $6ac,x
+        bne lbl_e8bc
+lbl_e8ad
+        tya
+        and #$3f
+        sta $6bc,x
+        dec $6bc,x
+        lda $6ac,x
+        sta $6b0,x
+lbl_e8bc
+        jmp lbl_e87e
+lbl_e8bf
+        jsr lbl_e766
+        jsr lbl_e5d0
+        jmp lbl_e84d
+lbl_e8c8
+        jmp lbl_e9dc
+lbl_e8cb
+        jmp lbl_e9b2
+lbl_e8ce
+        jsr lbl_ea41
+        sta $69a,x
+        jsr lbl_ea41
+        sta $69d,x
+        jmp lbl_e87e
+        jsr lbl_ea41
+        jsr lbl_ea41
+        jmp lbl_e87e
+lbl_e8e6
+        jsr lbl_ea41
+        sta $691
+        jmp lbl_e87e
+lbl_e8ef
+        jsr lbl_ea41
+        sta $690
+        jmp lbl_e87e
+lbl_e8f8
+        tya
+        and #$b0
+        cmp #$b0
+        bne lbl_e917
+        tya
+        and #$f
+        clc
+        adc $691
+        tay
+        lda lbl_ebaf,y
+        sta $6b8,x
+        tay
+        txa
+        cmp #$2
+        beq lbl_e8cb
+lbl_e913
+        jsr lbl_ea41
+        tay
+lbl_e917
+        tya
+        sta $6c3,x
+        txa
+        cmp #$3
+        beq lbl_e8c8
+        pha
+        ldx $ee
+        lda lbl_eb13+1,y
+        beq lbl_e94c
+        lda $690
+        bpl lbl_e938
+        and #$7f
+        sta $e3
+        tya
+        clc
+        sbc $e3
+        jmp lbl_e93d
+lbl_e938
+        tya
+        clc
+        adc $690
+lbl_e93d
+        tay
+        lda lbl_eb13+1,y
+        sta $680,x
+        lda lbl_eb13,y
+        ora #$8
+        sta $681,x
+lbl_e94c
+        tay
+        pla
+        tax
+        tya
+        bne lbl_e961
+        lda #$0
+        sta $e0
+        txa
+        cmp #$2
+        beq lbl_e966
+        lda #$10
+        sta $e0
+        bne lbl_e966
+lbl_e961
+        lda $69d,x
+        sta $e0
+lbl_e966
+        txa
+        dec $6c8,x
+        cmp $6c8,x
+        beq lbl_e9ac
+        inc $6c8,x
+        ldy $ee
+        txa
+        cmp #$2
+        beq lbl_e98c
+        lda $69a,x
+        and #$1f
+        beq lbl_e98c
+        lda $e0
+        cmp #$10
+        beq lbl_e98e
+        and #$f0
+        ora #$0
+        bne lbl_e98e
+lbl_e98c
+        lda $e0
+lbl_e98e
+        sta PULSE_1_DUTY,y
+        lda $6c0,x
+        sta PULSE_1_SWEEP,y
+        lda $680,y
+        sta PULSE_1_TIMER_LOW,y
+        lda $681,y
+        sta PULSE_1_TIMER_HIGH,y
+lbl_e9a3
+        lda $6b8,x
+        sta $6b4,x
+        jmp lbl_e84d
+lbl_e9ac
+        inc $6c8,x
+        jmp lbl_e9a3
+lbl_e9b2
+        lda $69c
+        and #$1f
+        bne lbl_e9d6
+        lda $69c
+        and #$c0
+        bne lbl_e9c3
+lbl_e9c0
+        tya
+        bne lbl_e9cb
+lbl_e9c3
+        cmp #$c0
+        beq lbl_e9c0
+        lda #$ff
+        bne lbl_e9d6
+lbl_e9cb
+        clc
+        adc #$ff
+        asl
+        asl
+        cmp #$3c
+        bcc lbl_e9d6
+        lda #$3c
+lbl_e9d6
+        sta $69f
+        jmp lbl_e913
+lbl_e9dc
+        tya
+        pha
+        jsr lbl_ea03
+        pla
+        and #$3f
+        tay
+        jsr lbl_e9eb
+        jmp lbl_e9a3
+lbl_e9eb
+        lda $6f8
+        bne lbl_ea02
+        lda lbl_e5ab,y
+        sta NOISE_DUTY
+        lda lbl_e5ab+1,y
+        sta NOISE_TIMER_LOW
+        lda lbl_e5ab+2,y
+        sta NOISE_TIMER_HIGH
+lbl_ea02
+        rts
+lbl_ea03
+        tya
+        and #$c0
+        cmp #$40
+        beq lbl_ea0f
+        cmp #$80
+        beq lbl_ea19
+        rts
+lbl_ea0f
+        lda #$e
+        sta $e1
+        lda #$7
+        ldy #$0
+        beq lbl_ea21
+lbl_ea19
+        lda #$e
+        sta $e1
+        lda #$f
+        ldy #$2
+lbl_ea21
+        sta DMC_SAMPLE_LENGTH
+        sty DMC_SAMPLE_ADDRESS
+        lda $6f7
+        bne lbl_ea40
+        lda $e1
+        sta DMC_FREQUENCY
+        lda #$f
+        sta APU_STATUS
+        lda #$0
+        sta DMC_DIRECT_LOAD
+        lda #$1f
+        sta APU_STATUS
+lbl_ea40
+        rts
+;--------------------
+lbl_ea41
+        ldy $6ac,x
+        inc $6ac,x
+        lda ($e6),y
+        rts
+;--------------------
+lbl_ea4a
+        dc.b $76, $ea, $82, $ea, $8b, $ea, $91, $ea, $9a, $ea, $a2, $ea, $a5, $ea, $a8, $ea
+        dc.b $ac, $ea, $ba, $ea, $c7, $ea, $d4, $ea, $de, $ea, $e8, $ea, $f2, $ea, $f7, $ea
+        dc.b $fc, $ea, $01, $eb, $05, $eb, $0a, $eb, $0d, $eb, $10, $eb
+lbl_ea76
+        dc.b $46, $89, $87, $76, $66, $55, $44, $33, $22, $21, $11, $f0
+lbl_ea82
+        dc.b $86, $55, $44, $44, $31, $11, $11, $11, $f0
+lbl_ea8b
+        dc.b $54, $43, $33, $22, $11, $f0
+lbl_ea91
+        dc.b $23, $45, $77, $66, $55, $44, $44, $44, $ff
+lbl_ea9a
+        dc.b $32, $22, $22, $22, $22, $22, $22, $ff
+lbl_eaa2
+        dc.b $99, $81, $ff
+lbl_eaa5
+        dc.b $58, $71, $ff
+lbl_eaa8
+        dc.b $e7, $99, $81, $ff
+lbl_eaac
+        dc.b $a8, $66, $55, $54, $43, $43, $32, $22, $22, $21, $11, $11, $11, $f0
+lbl_eaba
+        dc.b $97, $65, $44, $33, $33, $33, $22, $22, $11, $11, $11, $11, $f0
+lbl_eac7
+        dc.b $65, $44, $44, $33, $22, $22, $11, $11, $11, $11, $11, $11, $f0
+lbl_ead4
+        dc.b $44, $33, $22, $22, $11, $11, $11, $11, $11, $f0
+lbl_eade
+        dc.b $22, $22, $11, $11, $11, $11, $11, $11, $11, $f0
+lbl_eae8
+        dc.b $97, $65, $32, $43, $21, $11, $32, $21, $11, $ff
+lbl_eaf2
+        dc.b $d8, $76, $54, $32, $ff
+lbl_eaf7
+        dc.b $b8, $76, $53, $21, $ff
+lbl_eafc
+        dc.b $85, $43, $21, $11, $ff
+lbl_eb01
+        dc.b $53, $22, $11, $ff
+lbl_eb05
+        dc.b $eb, $97, $53, $21, $ff
+lbl_eb0a
+        dc.b $a9, $91, $f0
+lbl_eb0d
+        dc.b $85, $51, $f0
+lbl_eb10
+        dc.b $63, $31, $f0
+lbl_eb13
+        dc.b $07, $f0, $00, $00, $06, $ae, $06
+        dc.b $4e, $05, $f3, $05, $9e, $05, $4d, $05, $01, $04, $b9, $04, $75, $04, $35, $03
+        dc.b $f8, $03, $bf, $03, $89, $03, $57, $03, $27, $02, $f9, $02, $cf, $02, $a6, $02
+        dc.b $80, $02, $5c, $02, $3a, $02, $1a, $01, $fc, $01, $df, $01, $c4, $01, $ab, $01
+        dc.b $93, $01, $7c, $01, $67, $01, $52, $01, $3f, $01, $2d, $01, $1c, $01, $0c, $00
+        dc.b $fd, $00, $ee, $00, $e1, $00, $d4, $00, $c8, $00, $bd, $00, $b2, $00, $a8, $00
+        dc.b $9f, $00, $96, $00, $8d, $00, $85, $00, $7e, $00, $76, $00, $70, $00, $69, $00
+        dc.b $63, $00, $5e, $00, $58, $00, $53, $00, $4f, $00, $4a, $00, $46, $00, $42, $00
+        dc.b $3e, $00, $3a, $00, $37, $00, $34, $00, $31, $00, $2e, $00, $2b, $00, $29, $00
+        dc.b $27, $00, $01, $00, $24, $00, $22, $00, $20, $00, $1e, $00, $1c, $00, $1a, $00
+        dc.b $0a, $00, $10, $00, $19
+lbl_ebaf
+        dc.b $03, $06, $0c, $18, $30, $12, $24, $09, $08, $04, $02
+        dc.b $01, $04, $08, $10, $20, $40, $18, $30, $0c, $0a, $05, $02, $01, $05, $0a, $14
+        dc.b $28, $50, $1e, $3c, $0f, $0d, $06, $02, $01, $06, $0c, $18, $30, $60, $24, $48
+        dc.b $12, $10, $08, $03, $01, $04, $02, $00, $90, $07, $0e, $1c, $38, $70, $2a, $54
+        dc.b $15, $12, $09, $03, $01, $02, $08, $10, $20, $40, $80, $30, $60, $18, $15, $0a
+        dc.b $04, $01, $02, $c0, $09, $12, $24, $48, $90, $36, $6c, $1b, $18, $0a, $14, $28
+        dc.b $50, $a0, $3c, $78, $1e, $1a, $0d, $05, $01, $02, $17, $0b, $16, $2c, $58, $b0
+        dc.b $42, $84, $21, $1d, $0e, $05, $01, $02, $17
+lbl_ec23
+        dc.b $00, $0a, $14, $1e, $28, $32, $3c, $46, $50, $5a
+lbl_ec2d
+        dc.b $0a, $24, $f1, $ec, $f5, $ec, $f7, $ec, $f9, $ec, $83, $00, $91
+        dc.b $ec, $95, $ec, $97, $ec, $99, $ec, $81, $24, $bf, $ee, $c9, $ee, $d3, $ee, $dd
+        dc.b $ee, $83, $24, $c2, $f5, $d0, $f5, $de, $f5, $ec, $f5, $81, $24, $b1, $f2, $b9
+        dc.b $f2, $bf, $f2, $ff, $ff, $81, $00, $bf, $ee, $c9, $ee, $d3, $ee, $dd, $ee, $83
+        dc.b $0c, $c2, $f5, $d0, $f5, $de, $f5, $ec, $f5, $81, $0c, $b1, $f2, $b9, $f2, $bf
+        dc.b $f2, $ff, $ff, $00, $18, $a4, $f3, $aa, $f3, $b0, $f3, $b6, $f3, $8f, $24, $9e
+        dc.b $f8, $aa, $f8, $b6, $f8, $c2, $f8, $9b, $ec, $00, $00, $c7, $ec, $b1, $ec, $dd
+        dc.b $ec, $9f, $a4, $b3, $b1, $50, $02, $50, $b5, $54, $b1, $5a, $58, $50, $b5, $54
+        dc.b $b1, $5a, $5e, $60, $b4, $62, $00, $9f, $a0, $00, $b1, $4a, $02, $4a, $b5, $4e
+        dc.b $b1, $50, $50, $46, $b5, $4e, $b1, $50, $54, $56, $b4, $5c, $00, $9f, $a4, $b3
+        dc.b $b1, $42, $02, $42, $b5, $46, $b1, $4a, $46, $40, $b5, $46, $b1, $4a, $4c, $50
+        dc.b $b4, $54, $00, $b1, $04, $01, $04, $b5, $04, $b1, $04, $04, $04, $b5, $04, $b1
+        dc.b $04, $04, $04, $e0, $b0, $04, $ff, $ff, $ec, $00, $00, $6f, $ed, $e2, $ed, $6f
+        dc.b $ee, $ff, $ff, $f9, $ec, $9f, $14, $b1, $b9, $02, $02, $42, $b2, $5a, $42, $46
+        dc.b $4a, $4c, $50, $54, $b3, $56, $b8, $56, $56, $56, $b4, $54, $b9, $02, $02, $b2
+        dc.b $5e, $b9, $02, $b2, $46, $4a, $b2, $4c, $4a, $4c, $4e, $b9, $50, $02, $9f, $15
+        dc.b $b1, $b9, $70, $b6, $02, $b2, $40, $b8, $02, $28, $02, $b2, $02, $9f, $14, $b1
+        dc.b $b9, $02, $02, $42, $b2, $5a, $42, $46, $4a, $4c, $50, $54, $b3, $54, $b8, $54
+        dc.b $54, $54, $b4, $4c, $b9, $02, $02, $b2, $56, $b9, $02, $b2, $54, $4c, $b2, $54
+        dc.b $50, $46, $4a, $b1, $02, $b5, $2e, $b8, $2a, $b9, $28, $b8, $26, $b9, $24, $b2
+        dc.b $02, $04, $b3, $02, $00, $9f, $15, $b1, $b9, $02, $02, $3c, $b2, $54, $3c, $3c
+        dc.b $44, $44, $4a, $4e, $b3, $4e, $b8, $4e, $46, $4e, $b4, $4e, $b9, $02, $02, $b2
+        dc.b $56, $b9, $02, $b2, $3e, $4a, $b2, $46, $44, $46, $48, $b9, $3e, $02, $9f, $15
+        dc.b $b1, $b9, $72, $b2, $02, $5a, $02, $b9, $42, $02, $02, $02, $02, $2a, $b3, $02
+        dc.b $9f, $15, $b1, $b9, $02, $02, $3c, $b2, $54, $3c, $3c, $44, $44, $4a, $4e, $b3
+        dc.b $4c, $b8, $4c, $4c, $4c, $b4, $46, $b9, $02, $02, $b2, $46, $b9, $02, $b2, $42
+        dc.b $3c, $b2, $42, $3e, $3e, $38, $b1, $02, $b5, $34, $b8, $34, $b9, $34, $b8, $34
+        dc.b $b9, $34, $b2, $02, $1c, $b3, $02, $00, $9f, $00, $00, $b1, $34, $02, $b8, $34
+        dc.b $b9, $2a, $b1, $34, $02, $36, $02, $38, $02, $3c, $02, $3e, $02, $40, $02, $42
+        dc.b $02, $b2, $02, $b8, $42, $42, $42, $b8, $46, $b9, $46, $b1, $42, $02, $b8, $3e
+        dc.b $b9, $2e, $b1, $3c, $02, $38, $02, $38, $02, $b8, $38, $b9, $38, $b1, $3c, $02
+        dc.b $3e, $02, $3c, $02, $3e, $02, $40, $02, $42, $02, $b6, $02, $b4, $02, $b1, $34
+        dc.b $02, $34, $02, $34, $02, $36, $02, $38, $02, $3c, $02, $3e, $02, $3e, $02, $b3
+        dc.b $40, $b8, $40, $40, $40, $b1, $40, $b5, $3e, $b8, $3c, $b9, $38, $b1, $34, $02
+        dc.b $38, $02, $38, $02, $3c, $02, $3e, $02, $42, $02, $42, $02, $42, $02, $42, $02
+        dc.b $9f, $00, $00, $b1, $02, $b5, $3e, $b8, $3c, $b9, $3a, $b8, $38, $b9, $34, $b2
+        dc.b $02, $1c, $02, $02, $00, $c6, $b9, $04, $01, $04, $b2, $07, $b9, $04, $04, $04
+        dc.b $b2, $07, $ff, $c4, $b9, $04, $01, $04, $07, $01, $04, $ff, $c2, $b9, $04, $01
+        dc.b $04, $b2, $07, $b9, $04, $01, $04, $07, $01, $04, $ff, $b2, $07, $01, $b8, $07
+        dc.b $07, $07, $c3, $b9, $04, $01, $04, $07, $01, $04, $b9, $01, $04, $04, $07, $01
+        dc.b $04, $ff, $b1, $01, $ba, $07, $cb, $04, $ff, $c2, $b8, $07, $b9, $07, $ff, $b2
+        dc.b $01, $0a, $01, $01, $00, $e3, $ee, $f0, $f0, $de, $f1, $ff, $ff, $bf, $ee, $b1
+        dc.b $ef, $47, $f1, $f7, $f1, $ff, $ff, $c9, $ee, $4f, $f0, $96, $f1, $42, $f2, $ff
+        dc.b $ff, $d3, $ee, $58, $f2, $ff, $ff, $dd, $ee, $9f, $0a, $f1, $b2, $20, $38, $20
+        dc.b $38, $9f, $0d, $f1, $b2, $20, $38, $20, $38, $9f, $0a, $f1, $b2, $20, $b1, $46
+        dc.b $3e, $b2, $46, $42, $3c, $3e, $b1, $40, $40, $b2, $40, $b1, $42, $42, $b2, $42
+        dc.b $b1, $3c, $3c, $b2, $3c, $b1, $3e, $3e, $42, $42, $b2, $3e, $9f, $0a, $f1, $b0
+        dc.b $56, $9f, $0b, $f1, $b0, $54, $9f, $0c, $f1, $b0, $50, $9f, $0d, $f1, $b0, $4c
+        dc.b $9f, $0d, $f1, $b2, $4a, $38, $50, $4e, $4e, $50, $9f, $09, $f1, $b1, $50, $50
+        dc.b $b2, $50, $b1, $4c, $4c, $b2, $4c, $b1, $4a, $4a, $b2, $4a, $b1, $46, $46, $4a
+        dc.b $4a, $b2, $46, $9f, $0d, $f1, $b0, $44, $9f, $0c, $f1, $b0, $46, $9f, $0b, $f1
+        dc.b $b0, $4a, $9f, $0a, $f1, $b0, $4e, $9f, $09, $f1, $b2, $50, $b1, $46, $3e, $b2
+        dc.b $46, $42, $3c, $3e, $b1, $40, $40, $b2, $40, $b1, $42, $42, $b2, $42, $b1, $3c
+        dc.b $3c, $b2, $3c, $b1, $3e, $3e, $42, $42, $b2, $3e, $b0, $50, $4c, $4a, $46, $b2
+        dc.b $44, $b1, $44, $44, $b2, $44, $b0, $46, $4a, $46, $42, $b2, $40, $b1, $40, $40
+        dc.b $b2, $40, $b0, $42, $46, $42, $3e, $b2, $3c, $b1, $3c, $3c, $b2, $3c, $3e, $02
+        dc.b $3c, $9f, $09, $f1, $3e, $02, $00, $9f, $0a, $f1, $b2, $20, $3e, $20, $3e, $9f
+        dc.b $0b, $f1, $b2, $20, $3e, $20, $3e, $9f, $09, $f1, $b2, $02, $b1, $56, $50, $b2
+        dc.b $56, $54, $4e, $50, $b1, $4c, $4c, $b2, $4c, $b1, $4a, $4a, $b2, $4a, $b1, $48
+        dc.b $48, $b2, $48, $b1, $46, $50, $48, $50, $b2, $46, $02, $9f, $0c, $f1, $02, $b1
+        dc.b $50, $4a, $b2, $50, $b1, $54, $46, $b2, $54, $50, $9f, $09, $f1, $b1, $56, $56
+        dc.b $b2, $56, $b1, $54, $54, $b2, $54, $b1, $50, $50, $b2, $50, $b1, $4e, $54, $50
+        dc.b $54, $b3, $4e, $9f, $09, $f1, $b2, $02, $b1, $56, $50, $b2, $56, $54, $4e, $50
+        dc.b $b1, $4c, $4c, $b2, $4c, $b1, $4a, $4a, $b2, $4a, $b1, $48, $48, $b2, $48, $b1
+        dc.b $46, $50, $48, $50, $b2, $46, $02, $b2, $02, $b1, $50, $4a, $b2, $50, $4e, $02
+        dc.b $b1, $4c, $46, $b2, $4c, $4a, $02, $b1, $48, $42, $b2, $48, $46, $02, $46, $9f
+        dc.b $09, $f1, $50, $02, $00, $9f, $00, $00, $c4, $b2, $20, $b1, $46, $02, $ff, $b2
+        dc.b $38, $b1, $50, $02, $b2, $38, $b1, $4a, $02, $b2, $38, $b1, $44, $02, $b2, $38
+        dc.b $b1, $50, $02, $b2, $38, $b1, $50, $02, $b2, $38, $b1, $50, $02, $c3, $38, $02
+        dc.b $ff, $b0, $56, $54, $50, $4c, $b2, $44, $b1, $4a, $02, $b2, $42, $b1, $5e, $02
+        dc.b $b2, $3e, $b1, $5e, $02, $b2, $3c, $b1, $62, $02, $b2, $3c, $b1, $5e, $02, $b2
+        dc.b $3c, $b1, $5c, $02, $c3, $b1, $46, $02, $ff, $b2, $02, $b2, $38, $b1, $50, $02
+        dc.b $b2, $38, $b1, $62, $02, $b2, $38, $b1, $5c, $02, $b2, $38, $b1, $5e, $02, $b2
+        dc.b $38, $b1, $50, $02, $b2, $38, $b1, $60, $02, $c3, $38, $02, $ff, $b0, $50, $4c
+        dc.b $4a, $46, $b2, $3c, $b1, $62, $02, $b2, $62, $b1, $46, $02, $b2, $38, $b1, $5e
+        dc.b $02, $b2, $46, $b1, $2a, $02, $b2, $34, $b1, $42, $02, $b2, $42, $b1, $46, $02
+        dc.b $b2, $02, $46, $38, $02, $00, $c2, $b1, $46, $46, $4a, $4a, $4e, $4e, $50, $50
+        dc.b $50, $50, $4a, $4a, $b2, $4e, $76, $b9, $38, $3e, $46, $38, $3e, $46, $38, $3e
+        dc.b $46, $38, $3e, $46, $34, $3c, $42, $34, $3c, $42, $b1, $42, $02, $64, $02, $ff
+        dc.b $9f, $0c, $f1, $b1, $5e, $5e, $62, $62, $b2, $66, $b1, $46, $02, $9f, $0b, $f1
+        dc.b $b1, $68, $68, $6c, $6c, $b2, $6e, $b1, $46, $02, $9f, $09, $f1, $b1, $6c, $6c
+        dc.b $6e, $6e, $b2, $72, $b1, $46, $02, $b1, $6e, $6e, $72, $72, $00, $c2, $b1, $4e
+        dc.b $4e, $50, $50, $54, $54, $56, $56, $5a, $5a, $50, $50, $b2, $54, $02, $9f, $09
+        dc.b $f1, $02, $b1, $4e, $02, $b3, $50, $b2, $02, $b1, $4a, $02, $b3, $4c, $ff, $9f
+        dc.b $0c, $f1, $b1, $66, $66, $68, $68, $b2, $6c, $b1, $46, $02, $9f, $0b, $f1, $b1
+        dc.b $5e, $62, $66, $66, $b2, $68, $b1, $46, $02, $9f, $09, $f1, $b1, $5e, $66, $68
+        dc.b $68, $b2, $6c, $b1, $46, $02, $b1, $5e, $68, $6c, $6c, $00, $c2, $b1, $46, $46
+        dc.b $46, $46, $5e, $5e, $5e, $5e, $62, $62, $62, $62, $5e, $02, $46, $02, $b2, $38
+        dc.b $38, $b1, $38, $02, $38, $02, $b3, $34, $b1, $34, $02, $4c, $02, $ff, $c4, $b1
+        dc.b $46, $ff, $b2, $46, $b0, $5c, $5e, $02, $02, $c4, $b1, $5e, $ff, $b2, $5e, $b0
+        dc.b $5c, $5e, $02, $02, $c4, $b1, $5e, $ff, $b2, $5e, $b0, $5c, $5e, $02, $02, $c4
+        dc.b $b1, $76, $ff, $00, $9f, $0e, $f1, $b2, $6e, $4e, $4c, $4e, $4c, $56, $54, $56
+        dc.b $54, $62, $5e, $62, $5e, $62, $5a, $62, $5a, $76, $b2, $2e, $00, $9f, $0f, $f1
+        dc.b $b2, $76, $b0, $02, $54, $5a, $60, $02, $54, $5a, $5e, $02, $54, $5a, $60, $02
+        dc.b $54, $5a, $5e, $02, $5a, $62, $68, $02, $5a, $62, $66, $02, $66, $72, $78, $02
+        dc.b $5a, $62, $66, $02, $5a, $62, $66, $02, $66, $72, $76, $02, $66, $72, $78, $02
+        dc.b $66, $72, $76, $02, $6c, $72, $80, $02, $6c, $72, $7e, $02, $6c, $72, $80, $02
+        dc.b $6c, $72, $7e, $b2, $76, $b2, $2e, $00, $b2, $76, $02, $02, $02, $02, $02, $02
+        dc.b $02, $02, $6c, $66, $6c, $66, $6c, $5e, $6c, $5e, $76, $b2, $02, $00, $c4, $b2
+        dc.b $01, $04, $ff, $c6, $01, $04, $ff, $01, $07, $07, $01, $c6, $01, $04, $ff, $01
+        dc.b $07, $07, $01, $c6, $01, $04, $ff, $01, $07, $07, $01, $c2, $01, $07, $07, $01
+        dc.b $ff, $01, $04, $01, $04, $01, $07, $07, $01, $c2, $b4, $04, $ff, $c2, $b2, $01
+        dc.b $04, $04, $04, $ff, $c2, $b4, $04, $ff, $c2, $b2, $01, $04, $04, $04, $ff, $c3
+        dc.b $b1, $04, $04, $04, $04, $b2, $04, $01, $ff, $b1, $04, $04, $04, $04, $b2, $04
+        dc.b $c4, $b4, $01, $ff, $b3, $01, $00, $cb, $f2, $d4, $f2, $ff, $ff, $b3, $f2, $d1
+        dc.b $f2, $ff, $ff, $b9, $f2, $4d, $f3, $ff, $ff, $bf, $f2, $a0, $f3, $ff, $ff, $c5
+        dc.b $f2, $9f, $a5, $b1, $b8, $02, $00, $9f, $a4, $b3, $b1, $02, $42, $48, $42, $4c
+        dc.b $42, $56, $42, $54, $42, $50, $42, $54, $42, $4c, $42, $02, $42, $02, $42, $48
+        dc.b $42, $4c, $42, $02, $3e, $48, $3e, $4c, $3e, $50, $3e, $52, $3e, $50, $3e, $4c
+        dc.b $3e, $48, $3e, $50, $3e, $02, $3e, $48, $3e, $50, $3e, $b1, $02, $42, $48, $42
+        dc.b $4c, $42, $56, $42, $54, $42, $50, $42, $54, $42, $4c, $42, $02, $42, $02, $42
+        dc.b $48, $42, $4c, $42, $b1, $02, $42, $48, $42, $50, $42, $56, $42, $54, $42, $50
+        dc.b $42, $46, $42, $50, $42, $4c, $42, $02, $42, $b2, $42, $02, $b1, $5a, $42, $48
+        dc.b $4c, $50, $56, $b3, $5a, $b2, $02, $b1, $42, $5a, $60, $5e, $5a, $56, $b3, $5a
+        dc.b $b2, $42, $00, $9f, $00, $00, $b5, $4c, $b1, $4c, $b2, $34, $b5, $42, $b1, $42
+        dc.b $b2, $42, $4c, $42, $4c, $42, $4c, $42, $b5, $48, $b1, $48, $b2, $48, $b5, $3e
+        dc.b $b1, $3e, $b2, $3e, $48, $3e, $48, $3e, $48, $3e, $b3, $4c, $b2, $42, $4c, $42
+        dc.b $4c, $42, $4c, $42, $4c, $42, $4c, $b5, $48, $b1, $48, $b2, $48, $b5, $3e, $b1
+        dc.b $3e, $b2, $3e, $48, $3e, $48, $3e, $48, $3e, $4c, $42, $4c, $48, $3e, $48, $4c
+        dc.b $42, $4c, $48, $3e, $48, $00, $b2, $04, $04, $00, $bc, $f3, $ff, $ff, $a4, $f3
+        dc.b $58, $f4, $ff, $ff, $aa, $f3, $30, $f5, $ff, $ff, $b0, $f3, $7f, $f5, $ff, $ff
+        dc.b $b6, $f3, $9f, $07, $b1, $b2, $42, $40, $3e, $c2, $b1, $1c, $02, $b2, $3c, $b1
+        dc.b $12, $02, $b2, $3c, $b1, $1c, $02, $b2, $3c, $b1, $12, $02, $b2, $3c, $b1, $20
+        dc.b $02, $b2, $3e, $b1, $1e, $02, $b2, $3e, $b1, $1c, $02, $b2, $3e, $b1, $1e, $02
+        dc.b $b2, $3e, $b1, $20, $02, $b2, $3e, $b1, $16, $02, $b2, $3e, $b1, $12, $02, $b2
+        dc.b $38, $b1, $12, $02, $b2, $38, $b1, $1c, $02, $b2, $3c, $b1, $12, $02, $b2, $3c
+        dc.b $b1, $1c, $02, $b6, $02, $ff, $b1, $20, $02, $b2, $46, $b1, $1e, $02, $b2, $46
+        dc.b $b1, $1c, $02, $b2, $46, $b1, $16, $02, $b2, $46, $b1, $1c, $02, $b2, $3c, $b1
+        dc.b $12, $02, $b2, $3c, $b1, $1c, $02, $b2, $3c, $b1, $12, $02, $b2, $3c, $b1, $20
+        dc.b $02, $b2, $46, $b1, $16, $02, $b2, $46, $b1, $20, $02, $b2, $46, $b1, $16, $02
+        dc.b $b2, $46, $c2, $b8, $4c, $4c, $4c, $bb, $02, $ff, $b1, $38, $02, $00, $9f, $a6
+        dc.b $b1, $b2, $42, $46, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02, $b7
+        dc.b $4a, $b0, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b2, $4a, $48, $b4, $46, $b1
+        dc.b $02, $b0, $02, $3c, $b7, $38, $b0, $34, $b1, $02, $b0, $02, $46, $b7, $4a, $b0
+        dc.b $4c, $b2, $4c, $4c, $b1, $4c, $4c, $b0, $02, $4c, $50, $52, $b2, $54, $50, $4a
+        dc.b $46, $b4, $42, $b2, $02, $3c, $3e, $b7, $40, $b0, $42, $b1, $4a, $02, $b7, $4a
+        dc.b $b0, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02, $b7, $4a, $b0, $48
+        dc.b $b2, $4a, $48, $b4, $46, $b1, $02, $b0, $02, $3c, $b7, $38, $b0, $34, $b1, $02
+        dc.b $b0, $02, $46, $b7, $4a, $b0, $4c, $b2, $4c, $4c, $b8, $4c, $4c, $4c, $bb, $02
+        dc.b $b2, $54, $50, $46, $4a, $b4, $4c, $b2, $02, $4c, $4a, $48, $b1, $46, $b5, $3c
+        dc.b $b2, $38, $34, $b7, $46, $b0, $3c, $b7, $38, $b5, $34, $b0, $02, $46, $48, $b1
+        dc.b $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02
+        dc.b $b7, $4a, $b0, $48, $b2, $4a, $b9, $4a, $4c, $4e, $ba, $02, $b2, $50, $4c, $46
+        dc.b $b3, $3e, $b2, $46, $4c, $50, $b8, $52, $52, $52, $bb, $02, $b8, $52, $50, $4c
+        dc.b $bb, $02, $b1, $50, $02, $00, $9f, $0f, $00, $c3, $b2, $02, $ff, $c2, $b2, $34
+        dc.b $5a, $2a, $5a, $34, $5a, $2a, $5a, $38, $5e, $36, $5e, $34, $5e, $36, $5e, $38
+        dc.b $5e, $2e, $5e, $2a, $56, $2a, $56, $34, $5a, $2a, $5a, $b4, $34, $ff, $9f, $10
+        dc.b $00, $b2, $38, $56, $36, $56, $34, $56, $2e, $56, $34, $5a, $2a, $5a, $34, $5a
+        dc.b $2a, $5a, $38, $56, $2e, $56, $38, $56, $2e, $56, $c2, $b8, $2a, $2a, $2a, $bb
+        dc.b $02, $ff, $b2, $42, $00, $b2, $01, $01, $01, $c7, $b2, $04, $b7, $04, $b0, $04
+        dc.b $b2, $07, $b7, $04, $b0, $04, $ff, $b4, $04, $c7, $b2, $04, $b7, $04, $b0, $04
+        dc.b $b2, $07, $b7, $04, $b0, $04, $ff, $b4, $04, $c6, $b7, $04, $b0, $04, $b2, $07
+        dc.b $b7, $04, $b0, $04, $b2, $07, $ff, $c2, $b9, $04, $04, $04, $ba, $01, $b9, $07
+        dc.b $04, $04, $ba, $01, $ff, $b2, $07, $00, $f8, $f5, $6a, $f6, $86, $f6, $86, $f6
+        dc.b $f2, $f6, $ff, $ff, $c2, $f5, $f2, $f5, $67, $f6, $ac, $f6, $ac, $f6, $95, $f7
+        dc.b $ff, $ff, $d0, $f5, $06, $f6, $78, $f6, $d2, $f6, $d2, $f6, $33, $f8, $ff, $ff
+        dc.b $de, $f5, $14, $f6, $ff, $ff, $ec, $f5, $9f, $10, $31, $b4, $02, $00, $9f, $10
+        dc.b $31, $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00, $9f, $00, $00, $c2
+        dc.b $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00, $c4, $b1, $04, $b0, $04, $04
+        dc.b $b1, $04, $04, $ff, $cf, $b1, $04, $b0, $04, $04, $b1, $04, $04, $ff, $b1, $04
+        dc.b $b0, $04, $04, $b1, $07, $01, $cc, $b1, $04, $b0, $04, $04, $b1, $04, $04, $ff
+        dc.b $c4, $b1, $04, $b0, $04, $04, $b1, $04, $04, $ff, $c2, $b1, $04, $b0, $04, $04
+        dc.b $b1, $04, $04, $01, $b0, $04, $04, $b1, $04, $04, $ff, $c3, $b1, $04, $b0, $04
+        dc.b $04, $b1, $04, $04, $ff, $b1, $04, $b0, $04, $04, $b2, $07, $00, $b4, $02, $00
+        dc.b $9f, $12, $31, $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00, $9f, $00
+        dc.b $00, $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00, $9f, $11, $31, $b1
+        dc.b $3c, $4a, $54, $52, $54, $b0, $4a, $4a, $b1, $4c, $46, $4a, $b0, $42, $42, $b1
+        dc.b $46, $40, $42, $b0, $3c, $3c, $b1, $40, $3a, $3c, $32, $34, $3a, $3c, $32, $34
+        dc.b $40, $00, $9f, $10, $31, $b1, $32, $42, $42, $46, $42, $b0, $40, $42, $b1, $46
+        dc.b $40, $42, $b0, $3a, $3c, $b1, $40, $3a, $3c, $b0, $30, $32, $b1, $3a, $32, $32
+        dc.b $2a, $2e, $2e, $32, $2a, $2e, $3a, $00, $9f, $00, $00, $c2, $b1, $3c, $b0, $3c
+        dc.b $3c, $b1, $32, $32, $ff, $c2, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $c2, $3c
+        dc.b $b0, $3c, $3c, $b1, $3a, $32, $ff, $00, $9f, $11, $31, $b1, $3c, $02, $b3, $02
+        dc.b $b1, $40, $3a, $3c, $02, $b3, $02, $b2, $40, $9f, $10, $31, $c2, $b1, $42, $b0
+        dc.b $42, $42, $b1, $46, $40, $ff, $b1, $42, $02, $b3, $02, $b2, $46, $9f, $11, $31
+        dc.b $c2, $b1, $4a, $b0, $4a, $4a, $b1, $4c, $46, $ff, $4a, $02, $b3, $02, $b2, $4e
+        dc.b $9f, $10, $31, $b1, $50, $b0, $50, $50, $b1, $50, $50, $54, $50, $50, $4e, $50
+        dc.b $b0, $50, $50, $b1, $50, $50, $54, $50, $50, $4e, $9f, $11, $31, $b1, $50, $b0
+        dc.b $50, $50, $b1, $50, $50, $4e, $b0, $4e, $4e, $b1, $4e, $4e, $4c, $b0, $4c, $4c
+        dc.b $b1, $4c, $46, $40, $42, $46, $38, $9f, $10, $31, $b1, $46, $9f, $11, $31, $b0
+        dc.b $42, $42, $b1, $38, $b2, $42, $b0, $38, $3c, $b1, $38, $32, $b0, $46, $02, $b0
+        dc.b $42, $42, $b1, $38, $b2, $42, $b0, $38, $3c, $b1, $38, $30, $9f, $10, $31, $b1
+        dc.b $38, $02, $b6, $02, $02, $9f, $13, $31, $b2, $3a, $00, $9f, $10, $31, $b1, $32
+        dc.b $02, $b3, $02, $b1, $32, $32, $32, $02, $b3, $02, $b2, $38, $9f, $11, $31, $b4
+        dc.b $02, $b6, $02, $b2, $40, $c2, $b1, $42, $b0, $42, $42, $b1, $46, $40, $ff, $b1
+        dc.b $38, $02, $b3, $02, $9f, $13, $31, $b2, $3c, $9f, $10, $31, $b1, $40, $b0, $42
+        dc.b $46, $b1, $40, $46, $4a, $4a, $4a, $3c, $40, $b0, $42, $46, $b1, $40, $46, $48
+        dc.b $48, $48, $3c, $40, $b0, $42, $46, $b1, $40, $46, $9f, $11, $31, $3c, $b0, $40
+        dc.b $42, $b1, $3c, $42, $9f, $12, $31, $3c, $b0, $40, $42, $b1, $40, $40, $2e, $3c
+        dc.b $40, $28, $9f, $13, $31, $b1, $32, $9f, $10, $31, $b0, $32, $32, $b1, $32, $b2
+        dc.b $32, $b0, $32, $36, $b1, $32, $2a, $9f, $11, $31, $b0, $30, $02, $30, $30, $b1
+        dc.b $30, $b2, $30, $b0, $30, $34, $b1, $30, $2a, $9f, $13, $31, $b1, $28, $02, $b6
+        dc.b $02, $02, $9f, $13, $31, $b2, $2e, $00, $00, $9f, $00, $00, $b1, $3c, $b0, $3c
+        dc.b $3c, $b1, $34, $2e, $3c, $b0, $3c, $3c, $b1, $3a, $32, $3c, $b0, $3c, $3c, $b1
+        dc.b $34, $2e, $3c, $b0, $3c, $3c, $b1, $2e, $20, $c7, $2a, $b0, $42, $2a, $b1, $20
+        dc.b $38, $ff, $2a, $b0, $42, $2a, $b1, $2e, $46, $c2, $20, $b0, $38, $20, $b1, $20
+        dc.b $38, $2a, $b0, $42, $2a, $b1, $2a, $42, $ff, $ff, $c4, $20, $b0, $38, $20, $b1
+        dc.b $20, $38, $ff, $c4, $24, $b0, $3c, $ba, $24, $02, $b1, $24, $3c, $ff, $c3, $b1
+        dc.b $20, $ba, $38, $02, $20, $02, $b1, $20, $38, $ff, $20, $b0, $38, $20, $9f, $a0
+        dc.b $00, $b2, $40, $00, $f6, $f8, $6d, $f9, $f6, $f8, $b7, $f9, $ff, $ff, $9e, $f8
+        dc.b $ce, $f8, $47, $f9, $ce, $f8, $91, $f9, $ff, $ff, $aa, $f8, $0b, $f9, $7f, $f9
+        dc.b $0b, $f9, $d2, $f9, $ff, $ff, $b6, $f8, $20, $f9, $20, $f9, $20, $f9, $30, $f9
+        dc.b $ff, $ff, $c2, $f8, $9f, $01, $b1, $b1, $56, $b0, $56, $56, $56, $4c, $48, $4c
+        dc.b $b1, $56, $b0, $56, $56, $56, $5a, $5e, $5a, $b1, $56, $b0, $56, $56, $5a, $56
+        dc.b $54, $56, $b0, $5a, $5e, $5a, $5e, $5a, $02, $58, $5a, $00, $9f, $02, $b1, $b1
+        dc.b $02, $46, $02, $42, $02, $46, $02, $48, $02, $46, $02, $46, $02, $42, $02, $42
+        dc.b $00, $9f, $00, $00, $b1, $56, $56, $4c, $54, $56, $56, $4c, $5a, $56, $56, $54
+        dc.b $56, $50, $56, $4c, $54, $00, $c6, $b0, $04, $04, $0a, $04, $ff, $b1, $04, $0a
+        dc.b $b0, $04, $04, $b1, $0a, $00, $c4, $b0, $04, $04, $0a, $04, $ff, $b1, $01, $b0
+        dc.b $0a, $0a, $b1, $0a, $b0, $0a, $0a, $b2, $0a, $b1, $0a, $04, $00, $b1, $60, $b0
+        dc.b $60, $60, $60, $56, $52, $56, $b1, $60, $b0, $60, $60, $60, $64, $68, $64, $b1
+        dc.b $60, $b0, $60, $5e, $b1, $5a, $b0, $5a, $56, $b0, $54, $56, $54, $56, $54, $02
+        dc.b $50, $54, $00, $b1, $02, $48, $02, $4c, $02, $48, $02, $4c, $02, $48, $02, $48
+        dc.b $02, $48, $02, $48, $00, $b1, $48, $56, $56, $56, $48, $56, $56, $56, $48, $56
+        dc.b $54, $5a, $46, $54, $4c, $5a, $00, $9f, $01, $b1, $b1, $64, $b0, $64, $64, $64
+        dc.b $60, $5c, $60, $b1, $64, $b0, $64, $64, $64, $60, $5c, $60, $b0, $64, $02, $4c
+        dc.b $50, $b1, $54, $b0, $4c, $5e, $b2, $5a, $b0, $56, $b7, $6e, $00, $9f, $01, $b1
+        dc.b $b1, $02, $4c, $02, $4c, $02, $4c, $02, $4c, $02, $b0, $48, $48, $b1, $48, $b0
+        dc.b $48, $48, $b2, $48, $b1, $46, $02, $00, $b1, $44, $5c, $52, $5c, $44, $5c, $52
+        dc.b $5c, $b0, $4c, $02, $54, $54, $b1, $54, $b0, $54, $54, $b2, $54, $b1, $56, $02
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00
+;--------------------
+        ; Padding
 
-        incbin sound_routines.bin
-
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $20, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $10, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $40, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $81, $08
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $df, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $bd, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $fe, $ff, $ff, $7f, $ff, $ff, $f9, $ff, $ff, $ef, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $7f, $ff, $ff, $df, $ff, $ff, $bf, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fb, $ff
+        dc.b $ff, $ff, $fd, $ff, $ff, $ff, $fb, $ff, $ff, $ff, $ff, $ff, $ff, $7d, $7f, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $fb, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $fb, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fd, $af, $fb
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ef, $ff, $ff, $ff, $7f, $fe
+        dc.b $f7, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fe, $fe, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $7f, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $f7, $ff, $ff, $ff, $f7, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $fe, $ff, $fb, $ff, $ff, $ff, $ff, $ff, $ff, $fa
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fd, $fe, $f7, $ff, $ff
+        dc.b $bf, $ff, $df, $ff, $ff, $bf, $ff, $ff, $ff, $fd, $df, $ff, $bf, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $ff, $bf, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ef, $ff, $ff, $ff, $ff, $ff
+        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+;--------------------
 resetHandler
         cld
         sei
@@ -5138,7 +6789,7 @@ lbl_ff0f
         lda #$0
         jsr switchPrgBank
         jmp boot
-
+;--------------------
         ; Padding
 
         dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
@@ -5158,7 +6809,7 @@ lbl_ff0f
         dc.b $bf, $ff, $ff, $7f, $ff, $ff, $ff, $ff, $00, $00, $00, $00
         dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
         dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-
+;--------------------
         ; Interrupt vectors
 
         dc.b <nmiHandler, >nmiHandler        ; NMI vector
