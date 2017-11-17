@@ -5108,13 +5108,13 @@ demoPieceSpawns
 
 ;--------------------
 advanceAudio
-        jmp lbl_e216
+        jmp advanceAudioImpl
 ;--------------------
 resetAudio
-        jmp lbl_e244
+        jmp resetAudioImpl
 ;--------------------
 initAudio
-        jmp lbl_e1d8
+        jmp initAudioImpl
 ;--------------------
 lbl_e009
         dc.b $dd, $e2, $f8, $e2, $cc, $e2, $e4, $e2, $ff, $e2, $e4, $e2, $ca, $e3, $73, $e4
@@ -5271,12 +5271,12 @@ lbl_e1ce
 lbl_e1d7
         rts
 ;--------------------
-lbl_e1d8
+initAudioImpl
         lda #$f
         sta APU_STATUS
         lda #$55
         sta $eb
-        jsr lbl_e244
+        jsr resetAudioImpl
         rts
 ;--------------------
 lbl_e1e5
@@ -5307,7 +5307,7 @@ lbl_e212
 lbl_e215
         rts
 ;--------------------
-lbl_e216
+advanceAudioImpl
         lda #$c0
         sta APU_FRAME_COUNTER
         lda $68d
@@ -5329,7 +5329,7 @@ lbl_e23d
         bne lbl_e23d
         rts
 ;--------------------
-lbl_e244
+resetAudioImpl
         jsr lbl_e253
 lbl_e247
         jsr lbl_e271
@@ -5749,11 +5749,11 @@ lbl_e57c
 		dc.b $72, $74, $77, $00
 ;--------------------
 lbl_e580
-        jmp lbl_e244
+        jmp resetAudioImpl
 lbl_e583
-        lda $6f5
+        lda backgroundMusic
         tay
-        cmp #$ff
+        cmp #NO_MUSIC
         beq lbl_e580
         cmp #$0
         beq lbl_e5a5
@@ -6063,7 +6063,7 @@ lbl_e7d9
         sta $6a8,x
         jmp lbl_e818
 lbl_e7fb
-        jsr lbl_e244
+        jsr resetAudioImpl
 lbl_e7fe
         rts
 ;--------------------
