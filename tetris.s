@@ -6,6 +6,31 @@
         include control_port_registers.s
         include game_variables.s
 
+		; Macros
+
+		MAC Increase16BitBCD
+
+        inc {1}+1
+        lda {1}+1
+        and #$f
+        cmp #$a
+        bne .return
+        lda {1}+1
+		clc
+		adc #$6
+		sta {1}+1
+		and #$a0
+		cmp #$a0
+		bne .return
+        lda {1}+1
+		clc
+		adc #$60
+		sta {1}+1
+        inc {1}
+        jmp .return
+.return
+        ENDM
+
         org $8000-$10
 
         ; ROM file header
@@ -78,11 +103,11 @@ irqHandler
 render subroutine
         lda renderMode
         jsr switch
-        dc.b <renderLegalTitleScreens, >renderLegalTitleScreens             ; RENDER_MODE_LEGAL_TITLE_SCREENS
-        dc.b <renderMenuScreens, >renderMenuScreens                         ; RENDER_MODE_MENU_SCREENS
-        dc.b <renderCongratulationsScreens, >renderCongratulationsScreens   ; RENDER_MODE_CONGRATULATIONS_SCREENS
-        dc.b <renderPlayAndDemoScreens, >renderPlayAndDemoScreens           ; RENDER_MODE_PLAY_AND_DEMO_SCREENS
-        dc.b <renderEndingAnimation, >renderEndingAnimation                 ; RENDER_MODE_ENDING_ANIMATION
+        dc.b <renderLegalTitleScreens, >renderLegalTitleScreens                 ; RENDER_MODE_LEGAL_TITLE_SCREENS
+        dc.b <renderMenuScreens, >renderMenuScreens                             ; RENDER_MODE_MENU_SCREENS
+        dc.b <renderCongratulationsScreens, >renderCongratulationsScreens       ; RENDER_MODE_CONGRATULATIONS_SCREENS
+        dc.b <renderPlayAndDemoScreensPatched, >renderPlayAndDemoScreensPatched ; RENDER_MODE_PLAY_AND_DEMO_SCREENS
+        dc.b <renderEndingAnimation, >renderEndingAnimation                     ; RENDER_MODE_ENDING_ANIMATION
 ;--------------------
 bootContinued subroutine
         ldy #>$0600        ; Clear memory from $0000-$06ff
@@ -248,7 +273,7 @@ advanceGame subroutine
         jsr advancePlayState
         jsr showCurrentPiece
         jsr backupGameVariables
-        jsr showNextTetrimino
+        jsr showNextTetriminoPatched
         inc playMode
         rts
 ;--------------------
@@ -268,7 +293,7 @@ advancePlayMode subroutine
         lda playMode
         jsr switch
         dc.b <initializePlayBackground, >initializePlayBackground
-        dc.b <initializeGame, >initializeGame
+        dc.b <initializeGamePatched, >initializeGamePatched
         dc.b <checkSelectPressed, >checkSelectPressed
         dc.b <showHighScore, >showHighScore
         dc.b <advanceGame, >advanceGame
@@ -294,7 +319,7 @@ advancePlayState subroutine
         dc.b <incrementPlayState, >incrementPlayState          ; PLAY_STATE_INCREMENT_PLAY_STATE
 ;--------------------
 tetriminoActive subroutine
-        jsr shiftTetrimino
+        jsr shiftTetriminoPatched
         jsr rotateTetrimino
         jsr dropTetrimino
         rts
@@ -343,26 +368,19 @@ gameModeLegalScreen    subroutine
         ldx #$2
         ldy #$2
         jsr fillMemPage
-        lda #$ff
-        jsr initialLegalScreenWait
-        lda #$ff
-        sta $a8
-.waitForStartPressedOrTimeOut
-        lda buttonStateMirror
-        cmp #JOYPAD_START
-        beq .start
-        jsr waitForVerticalBlankAndClearOAM
-        dec $a8
-        bne .waitForStartPressedOrTimeOut
-.start    inc gameMode
+        jsr legalScreenWaitPatched
+.start
+   		inc gameMode
         rts
+endGameModeLegalScreen
+        ds.b ($824f-$8200)-(endGameModeLegalScreen-gameModeLegalScreen),$ea
 ;--------------------
 gameModeTitleScreen subroutine
         jsr resetAudio
         lda #$0
         sta renderMode    ; RENDER_MODE_LEGAL_TITLE_SCREENS
         sta recordingMode
-        sta nextTetriminoHidden
+        sta dasStatsHidden
         jsr disableBackgroundAndSprites
         jsr disableVerticalBlankingNMI
         lda #$0
@@ -370,7 +388,7 @@ gameModeTitleScreen subroutine
         lda #$0
         jsr switchCharBank1
         jsr copyToVRAM
-        dc.b <menu_screen_color_palette, >menu_screen_color_palette
+        dc.b <menu_screen_color_palette_patched, >menu_screen_color_palette_patched
         jsr copyToVRAM
         dc.b <title_screen_background, >title_screen_background
         jsr enableVerticalBlankingNMI
@@ -431,7 +449,7 @@ gameModeGameTypeMenu subroutine
         jsr disableBackgroundAndSprites
         jsr disableVerticalBlankingNMI
         jsr copyToVRAM
-        dc.b <menu_screen_color_palette, >menu_screen_color_palette
+        dc.b <menu_screen_color_palette_patched, >menu_screen_color_palette_patched
         jsr copyToVRAM
         dc.b <game_select_screen_background, >game_select_screen_background
         lda #$0
@@ -570,7 +588,7 @@ gameModeLevelAndHeightMenu subroutine
         lda #$0
         jsr switchCharBank1
         jsr copyToVRAM
-        dc.b <menu_screen_color_palette, >menu_screen_color_palette
+        dc.b <menu_screen_color_palette_patched, >menu_screen_color_palette_patched
         jsr copyToVRAM
         dc.b <level_select_screen_background, >level_select_screen_background
         lda aType
@@ -845,8 +863,6 @@ initializePlayBackground subroutine
         sta PPUADDR
         lda aType
         bne lbl_863c
-        lda #$a                    ; Draw A in x-TYPE box
-        sta PPUDATA
         lda #$20                   ; Draw top A-TYPE score
         sta PPUADDR
         lda #$b8
@@ -859,8 +875,6 @@ initializePlayBackground subroutine
         jsr printTwoDigitNumber
         jmp lbl_8693
 lbl_863c
-        lda #$b                    ; Draw B in A-TYPE box
-        sta PPUDATA
         lda #$20                   ; Draw top B-TYPE score
         sta PPUADDR
         lda #$b8
@@ -872,6 +886,7 @@ lbl_863c
         lda highScoresBType+2
         jsr printTwoDigitNumber
         ldx #$0
+        jmp lbl_8693
 lbl_865f
         lda heightBoxGraphics,x    ; Draw height box
         inx
@@ -896,7 +911,6 @@ lbl_867f
         lda bTypeHeight
         and #$f
         sta PPUDATA
-        jmp lbl_8693
 lbl_8693
         jsr enableVerticalBlankingNMI
         jsr waitForVerticalBlankAndClearOAM
@@ -911,6 +925,7 @@ lbl_8693
         sta $84
         inc playMode
         rts
+        ds.b 10, $ea
 ;--------------------
 heightBoxGraphics
         dc.b $22, $f7, $38, $39, $39, $39, $39, $39, $39, $3a, $fe
@@ -923,8 +938,8 @@ initializeGame subroutine
         ldx #$4
         ldy #$4
         jsr fillMemPage
-        ldx #$f
-        lda #$0
+        ldx #27
+        lda #$ff
 lbl_86e9
         sta tetriminoStats,x
         dex
@@ -1170,9 +1185,9 @@ lbl_889c
         lda buttonStateMirror
         and #JOYPAD_SELECT
         beq .selectNotPressed
-        lda nextTetriminoHidden
+        lda dasStatsHidden
         eor #$1
-        sta nextTetriminoHidden
+        sta dasStatsHidden
 .selectNotPressed
         inc playMode
         rts
@@ -1229,8 +1244,7 @@ rotationTable
         dc.b $08, $08 ; 09: Z vertical
 
         dc.b $0a, $0a ; 0A: O (spawn)
-        dc.b $0c, $0c
-                      ; 0B: S horizontal (spawn)
+        dc.b $0c, $0c ; 0B: S horizontal (spawn)
         dc.b $0b, $0b ; 0C: S vertical
 
         dc.b $10, $0e ; 0D: L right
@@ -1528,7 +1542,8 @@ lbl_8b9d
         rts
 ;--------------------
 showNextTetrimino subroutine
-        lda nextTetriminoHidden
+        lda dasStatsHidden
+        ;lda #$0
         bne .return
         lda #$c8
         sta spriteX
@@ -1814,34 +1829,6 @@ lbl_960e
         and #$fb
         sta $a3
 lbl_9639
-        lda numPlayers
-        cmp #$2
-        beq lbl_9673
-        lda $a3
-        and #$40
-        beq lbl_9673
-        lda #$0
-        sta $b0
-lbl_9649
-        lda $b0
-        asl
-        tax
-        lda tetriminoStatsVramAdresses,x
-        sta PPUADDR
-        lda tetriminoStatsVramAdresses+1,x
-        sta PPUADDR
-        lda tetriminoStatHighByte,x
-        sta PPUDATA
-        lda tetriminoStatLowByte,x
-        jsr printTwoDigitNumber
-        inc $b0
-        lda $b0
-        cmp #$7
-        bne lbl_9649
-        lda $a3
-        and #$bf
-        sta $a3
-lbl_9673
         lda #$3f
         sta PPUADDR
         lda #$e
@@ -1870,7 +1857,7 @@ lbl_9698
         rts
 ;--------------------
 tetriminoStatsVramAdresses
-        dc.b $21, $86, $21, $c6, $22, $06, $22, $46, $22, $86, $22, $c6, $23, $06
+        dc.b $20, $e7, $21, $67, $21, $a7, $21, $e7, $22, $27, $22, $67, $22, $a7, $22, $e7, $23, $27
 levelToBinaryCodedDecimal
         dc.b $00, $01, $02, $03, $04, $05, $06, $07, $08, $09, $10, $11, $12, $13, $14, $15
         dc.b $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
@@ -1881,18 +1868,23 @@ vramPlayfieldRows
         dc.b $c6, $20, $e6, $20, $06, $21, $26, $21, $46, $21, $66, $21, $86, $21, $a6, $21
         dc.b $c6, $21, $e6, $21, $06, $22, $26, $22, $46, $22, $66, $22, $86, $22, $a6, $22
         dc.b $c6, $22, $e6, $22, $06, $23, $26, $23
+endRenderPlayAndDemoScreens
+        ds.b 548-(endRenderPlayAndDemoScreens-renderPlayAndDemoScreens),$ea
+;--------------------
 printTwoDigitNumber
-        sta $a8
+        pha
         and #$f0
         lsr
         lsr
         lsr
         lsr
         sta PPUDATA
-        lda $a8
+        pla
         and #$f
         sta PPUDATA
         rts
+endPrintTwoDigitNumber
+        ds.b ($9725-$9712)-(endPrintTwoDigitNumber-printTwoDigitNumber),$ea
 ;--------------------
 copyPlayfieldRowToVRAM subroutine
         ldx vramRow
@@ -2219,37 +2211,10 @@ spawnOrientations
 ;--------------------
         ; Updates the Tetrimino stats based on the orientation ID in register A.
 updateTetriminoStats subroutine
-        tax
-        lda tetriminoTypes,x
-        asl
-        tax
-        lda tetriminoStatLowByte,x
-        clc
-        adc #$1
-        sta $a8
-        and #$f
-        cmp #$a
-        bmi lbl_9996
-        lda $a8
-        clc
-        adc #$6
-        sta $a8
-        cmp #$a0
-        bcc lbl_9996
-        clc
-        adc #$60
-        sta $a8
-        lda tetriminoStatHighByte,x
-        clc
-        adc #$1
-        sta tetriminoStatHighByte,x
-lbl_9996
-        lda $a8
-        sta tetriminoStatLowByte,x
-        lda $a3
-        ora #$40
-        sta $a3
+        jsr updateTetriminoStatsPatched
         rts
+endUpdateTetriminoStats
+        ds.b 57-(endUpdateTetriminoStats-updateTetriminoStats)
 ;--------------------
 lockTetrimino subroutine
         jsr isPositionValid
@@ -2354,17 +2319,16 @@ lbl_9a46
         lda numPlayers
         cmp #$2
         beq .advancePlayState
-        lda scoreMirror+2	; Score >= 30000?
-        cmp #$3
-        bcc .noEnding
-        lda #$80
-        jsr initialLegalScreenWait
-        jsr showEndingAnimation
-        jmp .advancePlayState
-.noEnding
         lda buttonStateMirror
         cmp #JOYPAD_START
         bne lbl_9a6a
+        lda scoreMirror+2	; Score >= 30000?
+        cmp #$3
+        bcc .advancePlayState
+        lda #$01
+        jsr initialLegalScreenWait
+        jsr showEndingAnimation
+        jmp .advancePlayState
 .advancePlayState
         lda #$0
         sta playState            ; PLAY_STATE_UNASSIGN_ORIENTATION_ID
@@ -3445,7 +3409,7 @@ enterHighScoreName
         lda #$0
         jsr switchCharBank1
         jsr copyToVRAM
-        dc.b <menu_screen_color_palette, >menu_screen_color_palette
+        dc.b <menu_screen_color_palette_patched, >menu_screen_color_palette_patched
         jsr copyToVRAM
         dc.b <highscore_screen_background, >highscore_screen_background
         lda #$20
@@ -3654,28 +3618,22 @@ lbl_a3aa
         lda #RENDER_MODE_LEGAL_TITLE_SCREENS
         sta renderMode
         jsr waitForVerticalBlankingInterval
-        lda #$16
-        sta PPUMASK
-        lda #$ff
-        ldx #$2
-        ldy #$2
-        jsr fillMemPage
-lbl_a3c4
-        lda #linesLowByteMirror
+        lda #197									; Show PAUSE sprites.
         sta spriteX
-        lda #$77
+        lda #22
         sta spriteY
         lda #$5
         sta objectAttributeEntryIndex
+        lda #4*25
+        sta objectAttributeMemoryIndex
         jsr copyObjectAttributeData
+lbl_a3c4
         lda buttonStateMirror
         cmp #JOYPAD_START
         beq lbl_a3df
-        jsr waitForVerticalBlankAndClearOAM
+        jsr waitForVerticalBlankingInterval
         jmp lbl_a3c4
 lbl_a3df
-        lda #$1e
-        sta PPUMASK
         lda #$0
         sta $68d
         sta vramRowMirror
@@ -3684,6 +3642,8 @@ lbl_a3df
 .nextPlayMode
         inc playMode
         rts
+endCheckStartPressed
+        ds.b ($a3f2-$a37f)-(endCheckStartPressed-checkStartPressed)
 ;--------------------
 checkBTypeGoal subroutine
         lda aType
@@ -4817,7 +4777,7 @@ switchPrgBank
 ingame_screen_color_palette
         dc.b $3f, $00, $20
         dc.b $0f, $30, $12, $16, $0f, $20, $12, $18, $0f, $2c, $16, $29, $0f, $3c, $00, $30
-        dc.b $0f, $35, $15, $22, $0f, $35, $29, $26, $0f, $2c, $16, $29, $0f, $3c, $00, $30
+        dc.b $0f, $35, $16, $22, $0f, $17, $28, $2a, $0f, $2c, $16, $29, $0f, $3c, $10, $30
         dc.b $ff
 
 copyright_screen_color_palette
@@ -4861,7 +4821,7 @@ initialHighScoreTable
         ; Screen background data
 
 copyright_screen_background
-        incbin backgrounds/copyright_screen.bin
+        include backgrounds/copyright_screen.s
 
 title_screen_background
         incbin backgrounds/title_screen.bin
@@ -4873,7 +4833,7 @@ level_select_screen_background
         incbin backgrounds/level_select_screen.bin
 
 ingame_screen_background
-        incbin backgrounds/ingame_screen.bin
+        include backgrounds/ingame_screen.s
 
 highscore_screen_background
         incbin backgrounds/highscore_screen.bin
@@ -4899,141 +4859,745 @@ b_type_ending_screen_background
 type_a_ending_screen_background
         incbin backgrounds/a_type_ending_screen.bin
 
+;--------------------
+startPatchedRoutines
+;--------------------
+legalScreenWaitPatched subroutine
+        lda #$ff
+        sta $a8
+.waitForStartPressedOrTimeOut1
+        lda buttonStateMirror
+        cmp #JOYPAD_START
+        beq .start
+        jsr waitForVerticalBlankAndClearOAM
+        dec $a8
+        bne .waitForStartPressedOrTimeOut1
+        lda #$ff
+        sta $a8
+.waitForStartPressedOrTimeOut2
+        lda buttonStateMirror
+        cmp #JOYPAD_START
+        beq .start
+        jsr waitForVerticalBlankAndClearOAM
+        dec $a8
+        bne .waitForStartPressedOrTimeOut2
+.start
+        rts
+initializeGamePatched subroutine
+        lda #$ff
+        sta activeTetrimino
+        sta startAutoRepeatX
+        sta carryAutoRepeatX
+        lda #0
+        sta noDasCount
+        sta noDasCount+1
+        sta badDasCount
+        sta badDasCount+1
+        sta goodDasCount
+        sta goodDasCount+1
+        sta perfectDasCount
+        sta perfectDasCount+1
+		jsr initializeGame
+		rts
+;--------------------
+checkSelectPressedPatched subroutine
+		lda dasStatsHidden
+		pha
+		jsr checkSelectPressed
+		pla
+        cmp dasStatsHidden
+        beq .return
+        lda $a3
+        ora #$20
+        sta $a3
+.return
+		rts
+;--------------------
+showNextTetriminoPatched subroutine
+		jsr showNextTetrimino
+		;jsr showCurrentDasBar
+		jsr showDasCarryIndicators
+		jsr showJoyPadButtons
+		rts
+;--------------------
+showCurrentDasBar subroutine
+		ldx #0
+.next
+        ldy objectAttributeMemoryIndex
+		lda #$27
+		sta objectAttributeMemory,y
+		iny
+		txa
+        clc
+        rol
+        cmp autoRepeatX
+        bmi .color
+		lda #$fd
+		sta objectAttributeMemory,y
+		iny
+		lda #$23
+		sta objectAttributeMemory,y
+		iny
+        jmp .endColor
+.color
+		lda autoRepeatX
+		cmp #10
+		bmi .lowCarry
+		cmp #15
+		bmi .mediumCarry
+		lda #$fc
+		jmp .pushCarrySymbol
+.lowCarry
+        lda #$fe
+		jmp .pushCarrySymbol
+.mediumCarry
+        lda #$fd
+.pushCarrySymbol
+		sta objectAttributeMemory,y
+		iny
+		lda #$21
+		sta objectAttributeMemory,y
+		iny
+.endColor
+		txa
+		clc
+		rol
+		rol
+		rol
+		clc
+		adc #$10
+		sta objectAttributeMemory,y
+
+		lda objectAttributeMemoryIndex
+		clc
+		adc #4
+		sta objectAttributeMemoryIndex
+
+		inx
+		cpx #8
+		bne .next
+
+		rts
+;--------------------
+showDasCarryIndicators subroutine
+		ldx #0
+		ldy #0
+.next
+		tya
+		pha
+		cpx #5
+		bmi .showPreviousPiece
+		;lda dasStatsHidden
+		lda #$0
+		beq .splitView
+.showPreviousPiece
+		lda carryAutoRepeatX,y
+		beq .noCarry
+		cmp #1
+		beq .carry
+		lda #$00
+		pha
+		lda #$ff
+		pha
+		jmp .showCarry
+.noCarry
+		lda #$00
+		pha
+        lda #$f8
+        pha
+		jmp .showCarry
+.carry
+		lda #$01
+		pha
+		lda startAutoRepeatX,y
+		cmp #10
+		bmi .lowCarry
+		cmp #15
+		bmi .mediumCarry
+		lda #$fb
+		jmp .pushCarrySymbol
+.lowCarry
+        lda #$f9
+		jmp .pushCarrySymbol
+.mediumCarry
+        lda #$fa
+.pushCarrySymbol
+        pha
+.showCarry
+		lda carrySpriteY,x
+		pha
+
+        ldy objectAttributeMemoryIndex
+		pla
+		sta objectAttributeMemory,y
+		iny
+		pla
+		sta objectAttributeMemory,y
+		iny
+		pla
+		sta objectAttributeMemory,y
+		iny
+		lda #$48
+		sta objectAttributeMemory,y
+
+		jmp .endView
+
+.splitView
+		txa
+		pha
+		clc
+		sbc #4
+		clc
+		rol
+		rol
+		tax
+        ldy objectAttributeMemoryIndex
+        lda statsSpriteData,x
+		sta objectAttributeMemory,y
+        lda statsSpriteData+1,x
+		sta objectAttributeMemory+1,y
+        lda statsSpriteData+2,x
+		sta objectAttributeMemory+2,y
+        lda statsSpriteData+3,x
+		sta objectAttributeMemory+3,y
+		pla
+		tax
+.endView
+
+		lda objectAttributeMemoryIndex
+		clc
+		adc #4
+		sta objectAttributeMemoryIndex
+
+		pla
+		clc
+		adc #3
+		tay
+		inx
+		cpx #9
+		beq .return
+		jmp .next
+
+.return
+		rts
+;--------------------
+carrySpriteY
+		dc.b $37, $57, $67, $77, $87, $97, $a7, $b7, $c7
+statsSpriteData
+		dc.b $a7, $fb, $01, $18
+		dc.b $af, $fa, $01, $18
+		dc.b $b7, $f9, $01, $18
+		dc.b $bf, $f8, $00, $18
+;--------------------
+showJoyPadButtons subroutine
+        ldy objectAttributeMemoryIndex
+
+		; Show left arrow.
+
+        lda #192
+		sta objectAttributeMemory,y
+        lda #$d6
+		iny
+		sta objectAttributeMemory,y
+		lda buttonPressed
+		and #(JOYPAD_LEFT)
+		cmp #(JOYPAD_LEFT)
+		bne .leftPressed
+        lda #$00
+        jmp .setLeftColor
+.leftPressed
+        lda #$03
+.setLeftColor
+		iny
+		sta objectAttributeMemory,y
+        lda #192
+		iny
+		sta objectAttributeMemory,y
+
+		; Show right arrow.
+
+        lda #192
+		iny
+		sta objectAttributeMemory,y
+        lda #$c6
+		iny
+		sta objectAttributeMemory,y
+		lda buttonPressed
+		and #(JOYPAD_RIGHT)
+		cmp #(JOYPAD_RIGHT)
+		bne .rightPressed
+        lda #$00
+        jmp .setRightColor
+.rightPressed
+        lda #$03
+.setRightColor
+		iny
+		sta objectAttributeMemory,y
+        lda #205
+		iny
+		sta objectAttributeMemory,y
+
+		; Show down arrow.
+
+        lda #198
+		iny
+		sta objectAttributeMemory,y
+        lda #$e6
+		iny
+		sta objectAttributeMemory,y
+		lda buttonPressed
+		and #(JOYPAD_DOWN)
+		cmp #(JOYPAD_DOWN)
+		bne .downPressed
+        lda #$00
+        jmp .setDownColor
+.downPressed
+        lda #$03
+.setDownColor
+		iny
+		sta objectAttributeMemory,y
+        lda #199
+		iny
+		sta objectAttributeMemory,y
+
+		; Show B button.
+
+        lda #200
+		iny
+		sta objectAttributeMemory,y
+        lda #$f7
+		iny
+		sta objectAttributeMemory,y
+		lda buttonPressed
+		and #(JOYPAD_B)
+		cmp #(JOYPAD_B)
+		bne .bPressed
+        lda #$00
+        jmp .setBColor
+.bPressed
+        lda #$03
+.setBColor
+		iny
+		sta objectAttributeMemory,y
+        lda #215
+		iny
+		sta objectAttributeMemory,y
+
+		; Show A button.
+
+        lda #200
+		iny
+		sta objectAttributeMemory,y
+        lda #$f6
+		iny
+		sta objectAttributeMemory,y
+		lda buttonPressed
+		and #(JOYPAD_A)
+		cmp #(JOYPAD_A)
+		bne .aPressed
+        lda #$00
+        jmp .setAColor
+.aPressed
+        lda #$03
+.setAColor
+		iny
+		sta objectAttributeMemory,y
+        lda #224
+		iny
+		sta objectAttributeMemory,y
+
+		tya
+		clc
+		adc objectAttributeMemoryIndex
+		sta objectAttributeMemoryIndex
+
+		rts
+;--------------------
+        ; Updates the Tetrimino stats based on the orientation ID in register A.
+updateTetriminoStatsPatched subroutine
+		pha                       ; Save new tetrimino ID.
+
+		ldx #24                  ; Shift all stats down.
+.nextStat
+		lda tetriminoStats,x
+		sta tetriminoStats+3,x
+		dex
+		bne .nextStat
+
+		; Update aggregate stats
+
+		lda activeTetrimino
+		cmp #$ff
+		bne .updateAggregateStats
+		jmp .endUpdateAggregateStats
+.updateAggregateStats
+		lda carryAutoRepeatX
+		cmp #1
+		beq .carryDas
+        Increase16BitBCD noDasCount
+		jmp .endUpdateAggregateStats
+.carryDas
+		lda startAutoRepeatX
+		cmp #10
+		bmi .badDas
+		cmp #15
+		bmi .goodDas
+		Increase16BitBCD perfectDasCount
+		jmp .endUpdateAggregateStats
+.badDas
+		Increase16BitBCD badDasCount
+		jmp .endUpdateAggregateStats
+.goodDas
+		Increase16BitBCD goodDasCount
+.endUpdateAggregateStats
+
+        lda $a3                   ; Make sure stats are re-rendered during subsequent frames.
+        ora #$40
+        sta $a3
+
+        lda #$ff				  ; One frame delay before first stat is updated.
+        sta $b0
+
+		pla                       ; Restore new tetrimino ID.
+
+		sta activeTetrimino       ; Initialize active tetrimino stats.
+        lda autoRepeatX
+		sta startAutoRepeatX
+		lda #1
+		sta carryAutoRepeatX
+
+        rts
+;--------------------
+renderPlayAndDemoScreensPatched subroutine
+		jsr renderPlayAndDemoScreens
+		;jsr flashBackground
+
+		lda $b0								   ; Wait for next frame.
+		cmp #$ff
+		bne .renderCurrentDas
+		inc $b0
+		jmp .return
+
+.renderCurrentDas
+		lda #$20								; Render current DAS.
+		sta PPUADDR
+		lda #$a5
+		sta PPUADDR
+        ldx autoRepeatX
+        lda binaryToBinaryCodedDecimal,x
+        jsr printTwoDigitNumber
+
+		lda $a3
+		and #$20
+		beq .noClearView
+		jsr clearStatsView
+        lda $a3
+        and #$df
+        ora #$40
+        sta $a3
+        lda #$0
+        sta $b0
+		jmp .return
+
+.noClearView
+        lda $a3                                 ; Redraw stats flag set?
+        and #$40
+        beq .return
+
+		lda $b0
+		cmp #9
+		beq .endStatsRender
+
+		;lda dasStatsHidden					; Render split view?
+		lda #$0
+		beq .splitView
+
+.renderPreviousStats
+        jsr renderPreviousTetriminoStats	    ; Render stats of previous pieces.
+		jmp .return
+
+.splitView
+		lda $b0
+		cmp #5
+		bmi .renderPreviousStats
+		jsr renderAggregateStats
+		jmp .return
+
+.endStatsRender
+        lda $a3			; Disable redraw flag.
+        and #$bf
+        sta $a3
+.return
+		rts
+;--------------------
+flashBackground subroutine
+		lda #$3f
+		sta PPUADDR
+		lda #$00
+		sta PPUADDR
+		lda dasStatsHidden
+		beq .active
+		lda playState
+		cmp #PLAY_STATE_TETRIMINO_ACTIVE
+		bne .notActive
+.active
+		lda #$0f
+        jmp .bgColorSet
+.notActive
+		lda #$09
+.bgColorSet
+		sta PPUDATA
+		rts
+;--------------------
+clearStatsView subroutine
+		lda dasStatsHidden
+		beq .showDasStats
+
+		; Clear DAS stats
+
+		lda #$22
+		sta PPUADDR
+		lda #$62
+		sta PPUADDR
+		lda #$ff
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+
+		lda #$22
+		sta PPUADDR
+		lda #$a6
+		sta PPUADDR
+		lda #$ff
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+
+		lda #$22
+		sta PPUADDR
+		lda #$c6
+		sta PPUADDR
+		lda #$ff
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+
+		lda #$22
+		sta PPUADDR
+		lda #$e6
+		sta PPUADDR
+		lda #$ff
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+
+		lda #$23
+		sta PPUADDR
+		lda #$06
+		sta PPUADDR
+		lda #$ff
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+
+		jmp .return
+
+		; Clear stats on bottom 4 pieces
+.showDasStats
+
+
+.return
+		rts
+;--------------------
+renderPreviousTetriminoStats subroutine
+        lda $b0									; Print DAS value.
+        asl
+        tax
+        clc
+        adc $b0
+        tay
+        lda tetriminoStatsVramAdresses,x
+        sta PPUADDR
+        lda tetriminoStatsVramAdresses+1,x
+        sta PPUADDR
+        lda startAutoRepeatX,y
+        cmp #$ff
+        beq .clearStat
+        tax
+        lda binaryToBinaryCodedDecimal,x
+        jsr printTwoDigitNumber
+		jmp .noClearStat
+.clearStat
+        sta PPUDATA
+        sta PPUDATA
+.noClearStat
+
+		lda $b0									; Draw Tetrimino shape.
+        asl
+        tax
+        lda tetriminoShapesTopVramAdresses,x
+        sta PPUADDR
+        lda tetriminoShapesTopVramAdresses+1,x
+        sta PPUADDR
+        lda activeTetrimino,y
+        cmp #$ff
+        beq .clearShapeTop
+        tax
+        lda tetriminoTypes,x
+        tax
+        lda multiplyBy6,x
+        tax
+        lda tetriminoShapesChars,x
+        sta PPUDATA
+        lda tetriminoShapesChars+1,x
+        sta PPUDATA
+        lda tetriminoShapesChars+2,x
+        sta PPUDATA
+        jmp .noClearShapeTop
+.clearShapeTop
+		lda #$ff
+        sta PPUDATA
+        sta PPUDATA
+        sta PPUDATA
+.noClearShapeTop
+        lda $b0
+		asl
+        tax
+        lda tetriminoShapesBottomVramAdresses,x
+        sta PPUADDR
+        lda tetriminoShapesBottomVramAdresses+1,x
+        sta PPUADDR
+        lda activeTetrimino,y
+        cmp #$ff
+        beq .clearShapeBottom
+        tax
+        lda tetriminoTypes,x
+        tax
+        lda multiplyBy6,x
+        tax
+        lda tetriminoShapesChars+3,x
+        sta PPUDATA
+        lda tetriminoShapesChars+4,x
+        sta PPUDATA
+        lda tetriminoShapesChars+5,x
+        sta PPUDATA
+        jmp .noClearShapeBottom
+.clearShapeBottom
+		lda #$ff
+        sta PPUDATA
+        sta PPUDATA
+        sta PPUDATA
+.noClearShapeBottom
+        inc $b0
+.return
+        rts
+;--------------------
+renderAggregateStats subroutine
+		lda $b0
+		cmp #5
+		beq .perfectStat
+		cmp #6
+		beq .goodStat
+		cmp #7
+		beq .badStat
+		cmp #8
+		beq .noStat
+		jmp .return
+
+.perfectStat
+		lda #$22
+		sta PPUADDR
+		lda #$a6
+		sta PPUADDR
+		lda perfectDasCount
+		sta PPUDATA
+		lda perfectDasCount+1
+        jsr printTwoDigitNumber
+        jmp .return
+
+.goodStat
+        lda #$22
+        sta PPUADDR
+        lda #$c6
+        sta PPUADDR
+        lda goodDasCount
+        sta PPUDATA
+        lda goodDasCount+1
+        jsr printTwoDigitNumber
+        jmp .return
+
+.badStat
+        lda #$22
+        sta PPUADDR
+        lda #$e6
+        sta PPUADDR
+        lda badDasCount
+        sta PPUDATA
+        lda badDasCount+1
+        jsr printTwoDigitNumber
+        jmp .return
+
+.noStat
+        lda #$23
+        sta PPUADDR
+        lda #$06
+        sta PPUADDR
+        lda noDasCount
+        sta PPUDATA
+        lda noDasCount+1
+        jsr printTwoDigitNumber
+
+.return
+		inc $b0
+		rts
+;--------------------
+tetriminoShapesTopVramAdresses
+        dc.b $20, $c2, $21, $42, $21, $82, $21, $c2, $22, $02, $22, $42, $22, $82, $22, $c2, $23, $02
+tetriminoShapesBottomVramAdresses
+        dc.b $20, $e2, $21, $62, $21, $a2, $21, $e2, $22, $22, $22, $62, $22, $a2, $22, $e2, $23, $22
+multiplyBy6
+        dc.b 0, 6, 12, 18, 24, 30, 36
+tetriminoShapesChars
+        dc.b $40, $41, $42, $50, $51, $52 ; T
+        dc.b $49, $4a, $4b, $59, $5a, $5b ; J
+        dc.b $46, $47, $48, $56, $57, $58 ; Z
+        dc.b $60, $61, $ff, $62, $63, $ff ; O
+        dc.b $43, $44, $45, $53, $54, $55 ; S
+        dc.b $4c, $4d, $4e, $5c, $5d, $5e ; L
+        dc.b $ff, $ff, $ff, $64, $65, $66 ; I
+;--------------------
+shiftTetriminoPatched subroutine
+		lda autoRepeatX
+		sta previousAutoRepeatX
+		jsr shiftTetrimino
+		lda autoRepeatX				; Did the DAS counter change?
+		cmp previousAutoRepeatX
+		beq .return
+		cmp #0						; Did the DAS counter reset to 0?
+		bne .return
+		lda #0
+		sta carryAutoRepeatX
+.return
+		rts
+;--------------------
+menu_screen_color_palette_patched
+        dc.b $3f, $00, $20
+        dc.b $0f, $30, $38, $00, $0f, $30, $16, $00, $0f, $30, $21, $00, $0f, $16, $2a, $28
+        dc.b $0f, $30, $29, $27, $0f, $35, $29, $26, $0f, $2c, $16, $29, $0f, $3c, $00, $30
+        dc.b $ff
+;--------------------
+endPatchedRoutines
+;--------------------
         ; Padding
 
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $02
-        dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $10, $00, $00, $00
-        dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $80
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $10, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $08, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $10, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $04, $00, $00, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $40, $00, $00, $00, $00, $00, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $10, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $04, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $c0, $60, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $f7, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $fb
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $7f, $ff, $df, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $df, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $fb, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $fe, $ff, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
-        dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00
+		; Make sure the ROM stays aligned within the MMC1 mapper boundaries.
+		ds.b 1591-(endPatchedRoutines-startPatchedRoutines), $00
+;--------------------
 
 demoButtons
 

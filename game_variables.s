@@ -119,7 +119,7 @@ highScoreNameCharacterIndex equ $d4
 highScoreTableIndex equ $d5
 highScoreNameStartOffset equ $d6
 totalScore equ $dc ; $dc-$de
-nextTetriminoHidden equ $df
+dasStatsHidden equ $df
 
 buttonStateMirror equ $f5
 buttonPressedMirror equ $f6
@@ -132,9 +132,17 @@ ppuCtrlFlags equ $ff
 
 objectAttributeMemory equ $200 ; $200-$2ff
 
-tetriminoStats equ $3ef ; base address used in loops
-tetriminoStatLowByte equ $3f0 ; $3f0-$3fd
-tetriminoStatHighByte equ $3f1
+noDasCount equ $3d0
+badDasCount equ $3d2
+goodDasCount equ $3d4
+perfectDasCount equ $3d6
+
+previousAutoRepeatX equ $3e4
+
+tetriminoStats equ $3e4 ; base address used in loops
+activeTetrimino equ $3e5 ; $3e5-$3ff
+startAutoRepeatX equ $3e6
+carryAutoRepeatX equ $3e7
 
 playfield equ $400 ; $400-$4ff
 playfield2 equ $500 ; $500-$5ff
