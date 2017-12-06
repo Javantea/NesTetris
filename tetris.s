@@ -5165,13 +5165,14 @@ lbl_e07b
         tya
         cmp #$22
         bne lbl_e07b
-        lda #$91
+        lda #<lbl_e091
         sta $e2
-        lda #$e0
+        lda #>lbl_e091
         sta $e3
 lbl_e08e
         pla
         sta $ef
+lbl_e091
         rts
 ;--------------------
 lbl_e092
@@ -5181,7 +5182,7 @@ lbl_e092
         lda ($e0),y
         sta $e3
         jmp lbl_e08e
-        lda $eb
+        lda squareWave
         and #$2
         sta $6ff
         lda $ec
@@ -5191,7 +5192,7 @@ lbl_e092
         beq lbl_e0b0
         sec
 lbl_e0b0
-        ror $eb
+        ror squareWave
         ror $ec
         rts
 ;--------------------
@@ -5272,10 +5273,10 @@ lbl_e1d7
         rts
 ;--------------------
 initAudioImpl
-        lda #$f
+        lda #$f					; Enable noise, triangle and pulse channels.
         sta APU_STATUS
-        lda #$55
-        sta $eb
+        lda #%01010101
+        sta squareWave
         jsr resetAudioImpl
         rts
 ;--------------------

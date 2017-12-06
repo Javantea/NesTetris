@@ -121,6 +121,8 @@ highScoreNameStartOffset equ $d6
 totalScore equ $dc ; $dc-$de
 nextTetriminoHidden equ $df
 
+squareWave equ $eb
+
 buttonStateMirror equ $f5
 buttonPressedMirror equ $f6
 heldButtonsMirror equ $f7
