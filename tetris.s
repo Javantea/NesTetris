@@ -2823,16 +2823,16 @@ updateControllerVariables subroutine
 .inDemoMode
         lda recordingMode
         cmp #$ff
-        beq lbl_9db0
+        beq .recordButtons
         jsr pollController
         lda buttonStateMirror
         cmp #JOYPAD_START
         beq .exitDemo
         lda repeats
-        beq lbl_9d73
+        beq .nextDemoButtonPress
         dec repeats
-        jmp lbl_9d9a
-lbl_9d73
+        jmp .repeatLastDemoButtonPress
+.nextDemoButtonPress
         ldx #$0
         lda (demoButtonsLowByte,x)
         sta $a8
@@ -2849,15 +2849,15 @@ lbl_9d73
         jsr advanceDemoButtons
         lda demoButtonsHighByte
         cmp #$df
-        beq lbl_9da2
-        jmp lbl_9d9e
-lbl_9d9a
+        beq .noSetHeldButtons
+        jmp .setHeldButtons
+.repeatLastDemoButtonPress
         lda #$0
         sta buttonStateMirror
-lbl_9d9e
+.setHeldButtons
         lda heldButtons
         sta heldButtonsMirror
-lbl_9da2
+.noSetHeldButtons
         rts
 .exitDemo
         lda #>demoButtons
@@ -2867,17 +2867,17 @@ lbl_9da2
         lda #GAME_MODE_TITLE_SCREEN
         sta gameMode
         rts
-lbl_9db0
+.recordButtons
         jsr pollController
         lda gameMode
         cmp #GAME_MODE_DEMO
-        bne lbl_9de7
+        bne .return
         lda recordingMode
         cmp #$ff
-        bne lbl_9de7
+        bne .return
         lda heldButtonsMirror
         cmp heldButtons
-        beq lbl_9de4
+        beq .noButtonsChanged
         ldx #$0
         lda heldButtons
         sta (demoButtonsLowByte,x)
@@ -2887,16 +2887,16 @@ lbl_9db0
         jsr advanceDemoButtons
         lda demoButtonsHighByte
         cmp #$df
-        beq lbl_9de7
+        beq .return
         lda heldButtonsMirror
         sta heldButtons
         lda #$0
         sta repeats
         rts
-lbl_9de4
+.noButtonsChanged
         inc repeats
         rts
-lbl_9de7
+.return
         rts
 ;--------------------
 advanceDemoButtons subroutine
