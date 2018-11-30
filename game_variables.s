@@ -121,7 +121,18 @@ highScoreNameStartOffset equ $d6
 totalScore equ $dc ; $dc-$de
 nextTetriminoHidden equ $df
 
+apuRegisterLow equ $e0
+apuRegisterHigh equ $e1
+apuChannelPlayerLow equ $e0
+apuChannelPlayerHigh equ $e1
+voiceVolumeDuty equ $e0
+apuChannelInitializerLow equ $e2
+apuChannelInitializerHigh equ $e3
+activeChannelPlayerLow equ $e2
+activeChannelPlayerHigh equ $e3
 squareWave equ $eb
+currentApuChannel equ $ed
+voiceParameterOffset equ $ee
 
 buttonStateMirror equ $f5
 buttonPressedMirror equ $f6
@@ -141,6 +152,25 @@ tetriminoStatHighByte equ $3f1
 playfield equ $400 ; $400-$4ff
 playfield2 equ $500 ; $500-$5ff
 
+voiceParameters equ $680
+pulse1TimerLow equ $680
+pulse1TimerHigh equ $681
+currentSongHeader equ $690
+songTempo equ $691
+songStartLow equ $692
+songStartHigh equ $693
+
+voiceData = $6a0 ; $6a0-$6a7
+                 ; 4 voices, 1 address each (2 bytes)
+
+voicePosition equ $6ac ; $6ac-$6af
+                       ; 4 voices, 1 byte each (offset w.r.t. voice data start)
+voiceRepeatStart equ $6b0
+voiceCountdown equ $6b4
+voiceNoteLength equ $6b8
+voiceRepeatCounter equ $6bc
+pulse1Sweep equ $6c0
+pulse2Sweep equ $6c1
 noiseSoundEffect equ $6f0
 
 GAME_OVER_CURTAIN_SOUND	equ $02

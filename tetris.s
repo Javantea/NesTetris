@@ -5116,72 +5116,73 @@ resetAudio
 initAudio
         jmp initAudioImpl
 ;--------------------
-lbl_e009
-        dc.b $dd, $e2, $f8, $e2, $cc, $e2, $e4, $e2, $ff, $e2, $e4, $e2, $ca, $e3, $73, $e4
+apuChannelPlayers
+        dc.b $dd, $e2, $f8, $e2, <lbl_e2cc, >lbl_e2cc, $e4, $e2, $ff, $e2, $e4, $e2
+        dc.b $ca, $e3, $73, $e4
         dc.b $90, $e3, $03, $e4, $d1, $e3, $ec, $e4, $84, $e3, $7f, $e3, $2e, $e4, $1a, $e4
         dc.b $b3, $e3, $81, $e4, $9c, $e3, $0e, $e4, $dd, $e3, $d1, $e4, $9c, $e3, $4f, $e3
-        dc.b $3b, $e4, $25, $e4, $6e, $e5, $34, $e5, $51, $e5, $3b, $e5, $44, $e2, $13, $e5
+        dc.b $3b, $e4, $25, $e4, <lbl_e56e, >lbl_e56e, $34, $e5, $51, $e5, $3b, $e5, $44, $e2, $13, $e5
         dc.b $0b, $e5
 ;--------------------
-lbl_e04b
-        lda #$0
-        beq lbl_e059
-lbl_e04f
-        lda #$8
-        bne lbl_e059
-lbl_e053
-        lda #$c
-        bne lbl_e059
-lbl_e057
-        lda #$4
-lbl_e059
-        sta $e0
-        lda #$40
-        sta $e1
-        sty $e2
-        lda #$e1
-        sta $e3
+initPulse1Channel subroutine
+        lda #<PULSE_1_DUTY
+        beq initApuChannel
+initTriangleChannel
+        lda #<TRIANGLE_DUTY
+        bne initApuChannel
+initNoiseChannel
+        lda #<NOISE_DUTY
+        bne initApuChannel
+initPulse2Channel
+        lda #<PULSE_2_DUTY
+initApuChannel
+        sta apuRegisterLow
+        lda #>APU_REGISTERS
+        sta apuRegisterHigh
+        sty apuChannelInitializerLow
+        lda #>apuChannelInitializers
+        sta apuChannelInitializerHigh
         ldy #$0
-lbl_e067
-        lda ($e2),y
-        sta ($e0),y
+.next
+        lda (apuChannelInitializerLow),y
+        sta (apuRegisterLow),y
         iny
         tya
         cmp #$4
-        bne lbl_e067
+        bne .next
         rts
 ;--------------------
-lbl_e072
+initApuChannelPlayer subroutine
         sta $ef
         pha
-        ldy #$e0
-        sty $e1
+        ldy #>apuChannelPlayers
+        sty apuChannelPlayerHigh
         ldy #$0
 lbl_e07b
         dec $ef
-        beq lbl_e092
+        beq .setPlayer
         iny
         iny
         tya
         cmp #$22
         bne lbl_e07b
-        lda #<lbl_e091
-        sta $e2
-        lda #>lbl_e091
-        sta $e3
-lbl_e08e
+        lda #<.noPlayer
+        sta activeChannelPlayerLow
+        lda #>.noPlayer
+        sta activeChannelPlayerHigh
+.return
         pla
         sta $ef
-lbl_e091
+.noPlayer
         rts
-;--------------------
-lbl_e092
-        lda ($e0),y
-        sta $e2
+.setPlayer
+        lda (apuChannelPlayerLow),y
+        sta activeChannelPlayerLow
         iny
-        lda ($e0),y
-        sta $e3
-        jmp lbl_e08e
+        lda (apuChannelPlayerLow),y
+        sta activeChannelPlayerHigh
+        jmp .return
+;--------------------
         lda squareWave
         and #$2
         sta $6ff
@@ -5197,7 +5198,7 @@ lbl_e0b0
         rts
 ;--------------------
 lbl_e0b5
-        ldx $ed
+        ldx currentApuChannel
         inc $6da,x
         lda $6da,x
         cmp $6d5,x
@@ -5211,18 +5212,39 @@ lbl_e0c8
         dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
         dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $00, $00, $00, $00, $00, $00, $00, $00
         dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $03, $7f, $0f, $c0, $1f, $7f, $0f, $c0
-        dc.b $08, $7f, $0e, $c0, $9d, $7f, $7a, $28, $9d, $7f, $40, $28, $9e, $7f, $c0, $28
-        dc.b $b2, $7f, $c0, $08, $de, $7f, $a8, $18, $9f, $84, $ff, $0b, $db, $7f, $40, $28
-        dc.b $d2, $7f, $40, $28, $d9, $7f
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00
+
+apuChannelInitializers
+        dc.b $03, $7f, $0f, $c0
+        dc.b $1f, $7f, $0f, $c0
+        dc.b $08, $7f, $0e, $c0
+        dc.b $9d, $7f, $7a, $28
+
+        dc.b $9d, $7f, $40, $28
+        dc.b $9e, $7f, $c0, $28
+        dc.b $b2, $7f, $c0, $08
+        dc.b $de, $7f, $a8, $18
+
+        dc.b $9f, $84, $ff, $0b
+        dc.b $db, $7f, $40, $28
+        dc.b $d2, $7f, $40, $28
+        dc.b $d9, $7f
 lbl_e12e
-        dc.b $84, $28, $9e, $9d, $c0, $08, $9c, $9a, $a0, $09
-        dc.b $9e, $7f, $69, $08, $96, $7f, $36, $20, $82, $7f, $30, $f8, $98, $7f, $80, $38
+        dc.b $84, $28
+
+        dc.b $9e, $9d, $c0, $08
+        dc.b $9c, $9a, $a0, $09
+        dc.b $9e, $7f, $69, $08
+        dc.b $96, $7f, $36, $20
+
+        dc.b $82, $7f, $30, $f8
+        dc.b $98, $7f, $80, $38
         dc.b $30, $7f
 lbl_e14a
         dc.b $70
 lbl_e14b
-        dc.b $08, $03, $7f, $3d, $18
+        dc.b $08
+        dc.b $03, $7f, $3d, $18
 lbl_e150
         dc.b $14, $93, $94, $d3, $7a, $de, $ff, $ef
         dc.b $fd, $df, $fe, $ef, $ef, $fd, $ef, $fe, $df, $ff, $ee, $ee, $ff, $ef, $ff, $ff
@@ -5230,44 +5252,43 @@ lbl_e150
         dc.b $ef, $ef, $df, $fb, $bb, $aa, $aa, $99, $98, $87, $76, $66, $55, $44, $44, $44
         dc.b $44, $43, $33, $33, $22, $22, $22, $22, $21, $11, $11, $11
 ;--------------------
-lbl_e194
+advancePulse2Channel subroutine
         ldx #$2
         lda #$45
         ldy #$45
-        bne lbl_e1bf
-lbl_e19c
+        bne .advanceChannel
+advanceTriangleChannel
         ldx #$3
         lda #$3d
         ldy #$41
-        bne lbl_e1bf
+        bne .advanceChannel
         ldx #$4
         lda #$45
         ldy #$45
-        bne lbl_e1bf
-lbl_e1ac
+        bne .advanceChannel
+advancePulse1Channel
         lda $6fc
         bne lbl_e1d7
         ldx #$1
         lda #$15
         ldy #$29
-        bne lbl_e1bf
-lbl_e1b9
+        bne .advanceChannel
+advanceNoiseChannel
         ldx #$0
         lda #$9
         ldy #$f
-lbl_e1bf
-        sta $e0
-        stx $ed
+.advanceChannel
+        sta apuChannelPlayerLow
+        stx currentApuChannel
         lda $6f0,x
         beq lbl_e1ce
 lbl_e1c8
-        jsr lbl_e072
-lbl_e1cb
-        jmp ($e2)
+        jsr initApuChannelPlayer
+        jmp (activeChannelPlayerLow)
 lbl_e1ce
         lda $6f8,x
         beq lbl_e1d7
-        sty $e0
+        sty apuRegisterLow
         bne lbl_e1c8
 lbl_e1d7
         rts
@@ -5282,7 +5303,7 @@ initAudioImpl
 ;--------------------
 lbl_e1e5
         inc $682
-        jsr lbl_e271
+        jsr silenceAllChannels
         sta $683
         rts
 ;--------------------
@@ -5302,13 +5323,13 @@ lbl_e1ef
         bne lbl_e20f
         ldy #$c
 lbl_e20f
-        jsr lbl_e04b
+        jsr initPulse1Channel
 lbl_e212
         inc $683
 lbl_e215
         rts
 ;--------------------
-advanceAudioImpl
+advanceAudioImpl subroutine
         lda #$c0
         sta APU_FRAME_COUNTER
         lda $68d
@@ -5317,23 +5338,22 @@ advanceAudioImpl
         lda #$0
         sta $682
         sta $68b
-        jsr lbl_e194
-        jsr lbl_e1b9
-        jsr lbl_e19c
-        jsr lbl_e1ac
-        jsr lbl_e583
+        jsr advancePulse2Channel
+        jsr advanceNoiseChannel
+        jsr advanceTriangleChannel
+        jsr advancePulse1Channel
+        jsr advanceMusic
         lda #$0
         ldx #$6
-lbl_e23d
-        sta $6ef,x
+.next   sta $6ef,x
         dex
-        bne lbl_e23d
+        bne .next
         rts
 ;--------------------
 resetAudioImpl
         jsr lbl_e253
-lbl_e247
-        jsr lbl_e271
+silenceAllChannels2
+        jsr silenceAllChannels
         lda #$0
         sta DMC_DIRECT_LOAD
         sta $69c
@@ -5356,7 +5376,7 @@ lbl_e265
         bne lbl_e265
         rts
 ;--------------------
-lbl_e271
+silenceAllChannels
         lda #$0
         sta DMC_DIRECT_LOAD
         lda #$10
@@ -5367,35 +5387,34 @@ lbl_e271
         sta TRIANGLE_DUTY
         rts
 ;--------------------
-lbl_e287
-        ldx $ed
+initSound
+        ldx currentApuChannel
         sta $6d5,x
         txa
         sta $6c7,x
         tya
-        beq lbl_e2b5
+        beq .endSwitch
         txa
-        beq lbl_e2b2
+        beq .noise
         cmp #$1
-        beq lbl_e2a3
+        beq .pulse1
         cmp #$2
-        beq lbl_e2a8
+        beq .pulse2
         cmp #$3
-        beq lbl_e2ad
+        beq .triangle
         rts
-;--------------------
-lbl_e2a3
-        jsr lbl_e04b
-        beq lbl_e2b5
-lbl_e2a8
-        jsr lbl_e057
-        beq lbl_e2b5
-lbl_e2ad
-        jsr lbl_e04f
-        beq lbl_e2b5
-lbl_e2b2
-        jsr lbl_e053
-lbl_e2b5
+.pulse1
+        jsr initPulse1Channel
+        beq .endSwitch
+.pulse2
+        jsr initPulse2Channel
+        beq .endSwitch
+.triangle
+        jsr initTriangleChannel
+        beq .endSwitch
+.noise
+        jsr initNoiseChannel
+.endSwitch
         lda $ef
         sta $6f8,x
         lda #$0
@@ -5409,17 +5428,17 @@ lbl_e2b5
 lbl_e2cc
         lda #$20
         ldy #$8
-        jmp lbl_e287
+        jmp initSound
+;--------------------
 lbl_e2d3
         sta NOISE_TIMER_LOW
         rts
-;--------------------
 lbl_e2d7
         jsr lbl_e31a
         jmp lbl_e2d3
         lda #$10
         ldy #$0
-        jmp lbl_e287
+        jmp initSound
         jsr lbl_e0b5
         bne lbl_e2f3
 lbl_e2e9
@@ -5435,7 +5454,7 @@ lbl_e2f4
         sta $ef
         lda #$40
         ldy #$4
-        jmp lbl_e287
+        jmp initSound
         jsr lbl_e0b5
         bne lbl_e307
         jmp lbl_e2e9
@@ -5450,14 +5469,14 @@ lbl_e307
         rts
 ;--------------------
 lbl_e31a
-        stx $e0
+        stx apuRegisterLow
         ldy #$e1
-        sty $e1
+        sty apuRegisterHigh
         ldx $6df
         txa
         lsr
         tay
-        lda ($e0),y
+        lda (apuRegisterLow),y
         sta $e4
         txa
         and #$1
@@ -5507,19 +5526,19 @@ lbl_e361
         bne lbl_e3b1
         inc $6e4
         ldy #$40
-        jmp lbl_e04b
+        jmp initPulse1Channel
         ldy #$3c
-        jmp lbl_e287
+        jmp initSound
         jsr lbl_e33b
         beq lbl_e3b1
         lda #$f
         ldy #$20
-        jmp lbl_e287
+        jmp initSound
         jsr lbl_e33b
         beq lbl_e3b1
         lda #$2
         ldy #$44
-        jmp lbl_e287
+        jmp initSound
         jsr lbl_e0b5
         bne lbl_e3b1
 lbl_e3a1
@@ -5545,7 +5564,7 @@ lbl_e3b3
         jmp lbl_e3a1
 lbl_e3c5
         ldy #$28
-        jmp lbl_e04b
+        jmp initPulse1Channel
         lda #$3
         ldy #$24
         bne lbl_e417
@@ -5572,10 +5591,10 @@ lbl_e3d1
         jmp lbl_e3a1
 lbl_e3f9
         ldy #$14
-        jmp lbl_e04b
+        jmp initPulse1Channel
 lbl_e3fe
         ldy #$18
-        jmp lbl_e04b
+        jmp initPulse1Channel
         lda #$5
         ldy #$30
         jsr lbl_e417
@@ -5587,7 +5606,7 @@ lbl_e3fe
         bne lbl_e442
 ;--------------------
 lbl_e417
-        jmp lbl_e287
+        jmp initSound
         lda #$5
         ldy #$34
         jsr lbl_e417
@@ -5612,7 +5631,7 @@ lbl_e43b
         bne lbl_e43a
         ldy #$38
 lbl_e442
-        jsr lbl_e04b
+        jsr initPulse1Channel
         clc
         lda $6e4
         adc $6e0
@@ -5641,7 +5660,7 @@ lbl_e472
 lbl_e473
         lda #$3
         ldy #$2c
-        jsr lbl_e287
+        jsr initSound
         lda lbl_e12e
         sta $6e0
         rts
@@ -5712,7 +5731,7 @@ lbl_e52e
 lbl_e534
         lda #$2
         ldy #$4c
-        jmp lbl_e287
+        jmp initSound
         jsr lbl_e0b5
         bne lbl_e550
 lbl_e540
@@ -5741,7 +5760,7 @@ lbl_e551
 lbl_e56e
         lda #$6
         ldy #$48
-        jsr lbl_e287
+        jsr initSound
         lda lbl_e14a
         sta $6e6
         rts
@@ -5749,27 +5768,27 @@ lbl_e56e
 lbl_e57c
 		dc.b $72, $74, $77, $00
 ;--------------------
-lbl_e580
+stopMusic
         jmp resetAudioImpl
-lbl_e583
+advanceMusic subroutine
         lda backgroundMusic
         tay
         cmp #NO_MUSIC
-        beq lbl_e580
+        beq stopMusic
         cmp #$0
-        beq lbl_e5a5
+        beq .norestart
         sta $ef
         sta $6cc
         dec $6cc
         lda #$7f
-        sta $6c0
-        sta $6c1
-        jsr lbl_e6d7
-lbl_e5a2
-        jmp lbl_e840
-lbl_e5a5
+        sta pulse1Sweep
+        sta pulse2Sweep
+        jsr startSong
+.advance
+        jmp advanceSong
+.norestart
         lda $6fd
-        bne lbl_e5a2
+        bne .advance
         rts
 ;--------------------
 lbl_e5ab
@@ -5777,27 +5796,27 @@ lbl_e5ab
         dc.b $02, $04, $40, $13, $05, $40, $14, $0a, $40, $14, $08, $40, $12, $0e, $08, $16
         dc.b $0e, $28, $16, $0b, $18
 ;--------------------
-lbl_e5d0
+lbl_e5d0 subroutine
         lda $6fd
         cmp #$1
-        beq lbl_e5f9
+        beq .return
         txa
         cmp #$3
-        beq lbl_e5f9
+        beq .return
         lda $69a,x
         and #$e0
-        beq lbl_e5f9
-        sta $e0
+        beq .return
+        sta apuRegisterLow
         lda $6c3,x
         cmp #$2
         beq lbl_e5f6
-        ldy $ee
-        lda $680,y
-        sta $e1
+        ldy voiceParameterOffset
+        lda pulse1TimerLow,y
+        sta apuRegisterHigh
         jsr lbl_e637
 lbl_e5f6
         inc $6d1,x
-lbl_e5f9
+.return
         rts
 ;--------------------
 lbl_e5fa
@@ -5840,7 +5859,7 @@ lbl_e633
 lbl_e637
         lda $6d1,x
         sta $e2
-        lda $e0
+        lda apuRegisterLow
         cmp #$20
         beq lbl_e656
         cmp #$a0
@@ -5881,8 +5900,8 @@ lbl_e677
         bne lbl_e687
         pla
         clc
-        adc $e1
-        ldy $ee
+        adc apuRegisterHigh
+        ldy voiceParameterOffset
         sta PULSE_1_TIMER_LOW,y
         rts
 lbl_e687
@@ -5900,59 +5919,60 @@ lbl_e6b6
 lbl_e6c0
         dc.b $00, $ff, $fe, $fd, $fc, $fb, $fa, $f9, $f8, $f7, $f6, $f5, $f6, $f7, $f6, $f5
 ;--------------------
-lbl_e6d0
+startSongRoutine subroutine
+.nullVoiceData
         lda #$ff
-        sta $6a0,x
-        bne lbl_e72a
-lbl_e6d7
-        jsr lbl_e247
+        sta voiceData,x
+        bne .copyVoiceDataHigh
+startSong
+        jsr silenceAllChannels2
         lda $ef
         sta $6fd
         lda $6cc
         tay
-        lda lbl_ec23,y
+        lda songHeaderOffsets,y
         tay
         ldx #$0
-lbl_e6e9
-        lda lbl_ec2d,y
-        sta $690,x
+.copyHeader
+        lda songHeaders,y
+        sta currentSongHeader,x
         iny
         inx
         txa
         cmp #$a
-        bne lbl_e6e9
+        bne .copyHeader
         lda #$1
-        sta $6b4
-        sta $6b5
-        sta $6b6
-        sta $6b7
+        sta voiceCountdown
+        sta voiceCountdown+1
+        sta voiceCountdown+2
+        sta voiceCountdown+3
         lda #$0
         sta $ea
         ldy #$8
-lbl_e70a
-        sta $6a7,y
+.clearVoiceData
+        sta voiceData+7,y
         dey
-        bne lbl_e70a
+        bne .clearVoiceData
         tax
-lbl_e711
-        lda $692,x
+.copyVoiceData
+        lda songStartLow,x
         sta $e6
-        lda $693,x
+        lda songStartHigh,x
         cmp #$ff
-        beq lbl_e6d0
+        beq .nullVoiceData
         sta $e7
         ldy $6a8
         lda ($e6),y
-        sta $6a0,x
+        sta voiceData,x
         iny
         lda ($e6),y
-lbl_e72a
-        sta $6a1,x
+.copyVoiceDataHigh
+        sta voiceData+1,x
         inx
         inx
         txa
         cmp #$8
-        bne lbl_e711
+        bne .copyVoiceData
         rts
 ;--------------------
 lbl_e735
@@ -5969,29 +5989,29 @@ lbl_e735
 lbl_e74f
         lda #$7f
         sta PULSE_1_SWEEP
-        lda $680
+        lda pulse1TimerLow
         sta PULSE_1_TIMER_LOW
-        lda $681
+        lda pulse1TimerHigh
         sta PULSE_1_TIMER_HIGH
         lda #$0
         sta $68a
 lbl_e765
         rts
 ;--------------------
-lbl_e766
+lbl_e766 subroutine
         txa
         cmp #$2
         bcs lbl_e765
         lda $69a,x
         and #$1f
         beq lbl_e7cb
-        sta $e1
+        sta apuRegisterHigh
         lda $6c3,x
         cmp #$2
         beq lbl_e7d5
         ldy #$0
 lbl_e77d
-        dec $e1
+        dec apuRegisterHigh
         beq lbl_e785
         iny
         iny
@@ -6020,10 +6040,10 @@ lbl_e785
 lbl_e7af
         lda $e4
         and #$f
-        sta $e0
+        sta apuRegisterLow
         lda $69d,x
         and #$f0
-        ora $e0
+        ora apuRegisterLow
         tay
 lbl_e7bd
         inc $6cd,x
@@ -6031,11 +6051,10 @@ lbl_e7c0
         lda $6c8,x
         bne lbl_e7cb
         tya
-        ldy $ee
+        ldy voiceParameterOffset
         sta PULSE_1_DUTY,y
 lbl_e7cb
         rts
-;--------------------
 lbl_e7cc
         ldy $69d,x
         bne lbl_e7c0
@@ -6048,13 +6067,13 @@ lbl_e7d5
 lbl_e7d9
         iny
         lda ($e6),y
-        sta $692,x
+        sta songStartLow,x
         iny
         lda ($e6),y
-        sta $693,x
-        lda $692,x
+        sta songStartHigh,x
+        lda songStartLow,x
         sta $e6
-        lda $693,x
+        lda songStartHigh,x
         sta $e7
         txa
         lsr
@@ -6065,16 +6084,15 @@ lbl_e7d9
         jmp lbl_e818
 lbl_e7fb
         jsr resetAudioImpl
-lbl_e7fe
+.return
         rts
-;--------------------
 lbl_e7ff
         txa
         asl
         tax
-        lda $692,x
+        lda songStartLow,x
         sta $e6
-        lda $693,x
+        lda songStartHigh,x
         sta $e7
         txa
         lsr
@@ -6087,10 +6105,10 @@ lbl_e818
         asl
         tax
         lda ($e6),y
-        sta $6a0,x
+        sta voiceData,x
         iny
         lda ($e6),y
-        sta $6a1,x
+        sta voiceData+1,x
         cmp #$0
         beq lbl_e7fb
         cmp #$ff
@@ -6099,57 +6117,57 @@ lbl_e818
         lsr
         tax
         lda #$0
-        sta $6ac,x
+        sta voicePosition,x
         lda #$1
-        sta $6b4,x
+        sta voiceCountdown,x
         bne lbl_e85a
 lbl_e83d
         jmp lbl_e7ff
-lbl_e840
+advanceSong
         jsr lbl_e735
         lda #$0
         tax
-        sta $ee
+        sta voiceParameterOffset
         beq lbl_e85a
-lbl_e84a
+.advanceVoice
         txa
         lsr
         tax
-lbl_e84d
+.nextVoice
         inx
         txa
         cmp #$4
-        beq lbl_e7fe
-        lda $ee
+        beq .return
+        lda voiceParameterOffset
         clc
         adc #$4
-        sta $ee
+        sta voiceParameterOffset
 lbl_e85a
         txa
         asl
         tax
-        lda $6a0,x
+        lda voiceData,x
         sta $e6
-        lda $6a1,x
+        lda voiceData+1,x
         sta $e7
-        lda $6a1,x
+        lda voiceData+1,x
         cmp #$ff
-        beq lbl_e84a
+        beq .advanceVoice
         txa
         lsr
         tax
-        dec $6b4,x
+        dec voiceCountdown,x
         bne lbl_e8bf
         lda #$0
         sta $6cd,x
         sta $6d1,x
-lbl_e87e
-        jsr lbl_ea41
+.doNextCommand
+        jsr nextSongCommand
         beq lbl_e83d
         cmp #$9f
-        beq lbl_e8ce
+        beq .initVoice
         cmp #$9e
-        beq lbl_e8e6
+        beq .setTempo
         cmp #$9c
         beq lbl_e8ef
         tay
@@ -6157,97 +6175,97 @@ lbl_e87e
         beq lbl_e89d
         and #$c0
         cmp #$c0
-        beq lbl_e8ad
-        jmp lbl_e8f8
+        beq .setRepeat
+        jmp .setNoteLength
 lbl_e89d
-        lda $6bc,x
+        lda voiceRepeatCounter,x
         beq lbl_e8bc
-        dec $6bc,x
-        lda $6b0,x
-        sta $6ac,x
+        dec voiceRepeatCounter,x
+        lda voiceRepeatStart,x
+        sta voicePosition,x
         bne lbl_e8bc
-lbl_e8ad
+.setRepeat
         tya
         and #$3f
-        sta $6bc,x
-        dec $6bc,x
-        lda $6ac,x
-        sta $6b0,x
+        sta voiceRepeatCounter,x
+        dec voiceRepeatCounter,x
+        lda voicePosition,x
+        sta voiceRepeatStart,x
 lbl_e8bc
-        jmp lbl_e87e
+        jmp .doNextCommand
 lbl_e8bf
         jsr lbl_e766
         jsr lbl_e5d0
-        jmp lbl_e84d
+        jmp .nextVoice
 lbl_e8c8
         jmp lbl_e9dc
 lbl_e8cb
         jmp lbl_e9b2
-lbl_e8ce
-        jsr lbl_ea41
+.initVoice
+        jsr nextSongCommand
         sta $69a,x
-        jsr lbl_ea41
+        jsr nextSongCommand
         sta $69d,x
-        jmp lbl_e87e
-        jsr lbl_ea41
-        jsr lbl_ea41
-        jmp lbl_e87e
-lbl_e8e6
-        jsr lbl_ea41
-        sta $691
-        jmp lbl_e87e
+        jmp .doNextCommand
+        jsr nextSongCommand
+        jsr nextSongCommand
+        jmp .doNextCommand
+.setTempo
+        jsr nextSongCommand
+        sta songTempo
+        jmp .doNextCommand
 lbl_e8ef
-        jsr lbl_ea41
-        sta $690
-        jmp lbl_e87e
-lbl_e8f8
+        jsr nextSongCommand
+        sta currentSongHeader
+        jmp .doNextCommand
+.setNoteLength
         tya
         and #$b0
         cmp #$b0
-        bne lbl_e917
+        bne .playNote
         tya
         and #$f
         clc
-        adc $691
+        adc songTempo
         tay
-        lda lbl_ebaf,y
-        sta $6b8,x
+        lda noteLengths,y
+        sta voiceNoteLength,x
         tay
         txa
         cmp #$2
         beq lbl_e8cb
 lbl_e913
-        jsr lbl_ea41
+        jsr nextSongCommand
         tay
-lbl_e917
+.playNote
         tya
         sta $6c3,x
         txa
         cmp #$3
         beq lbl_e8c8
         pha
-        ldx $ee
-        lda lbl_eb13+1,y
+        ldx voiceParameterOffset
+        lda pulsePeriodTable+1,y
         beq lbl_e94c
-        lda $690
-        bpl lbl_e938
+        lda currentSongHeader
+        bpl .transposeNote
         and #$7f
         sta $e3
         tya
         clc
         sbc $e3
-        jmp lbl_e93d
-lbl_e938
+        jmp .setPulseTimer
+.transposeNote
         tya
         clc
-        adc $690
-lbl_e93d
+        adc currentSongHeader
+.setPulseTimer
         tay
-        lda lbl_eb13+1,y
-        sta $680,x
-        lda lbl_eb13,y
+        lda pulsePeriodTable+1,y
+        sta pulse1TimerLow,x
+        lda pulsePeriodTable,y
         ora #$8
-        sta $681,x
+        sta pulse1TimerHigh,x
 lbl_e94c
         tay
         pla
@@ -6255,49 +6273,49 @@ lbl_e94c
         tya
         bne lbl_e961
         lda #$0
-        sta $e0
+        sta voiceVolumeDuty
         txa
         cmp #$2
         beq lbl_e966
         lda #$10
-        sta $e0
+        sta voiceVolumeDuty
         bne lbl_e966
 lbl_e961
         lda $69d,x
-        sta $e0
+        sta voiceVolumeDuty
 lbl_e966
         txa
         dec $6c8,x
         cmp $6c8,x
         beq lbl_e9ac
         inc $6c8,x
-        ldy $ee
+        ldy voiceParameterOffset
         txa
         cmp #$2
         beq lbl_e98c
         lda $69a,x
         and #$1f
         beq lbl_e98c
-        lda $e0
+        lda voiceVolumeDuty
         cmp #$10
         beq lbl_e98e
         and #$f0
         ora #$0
         bne lbl_e98e
 lbl_e98c
-        lda $e0
+        lda voiceVolumeDuty
 lbl_e98e
         sta PULSE_1_DUTY,y
-        lda $6c0,x
+        lda pulse1Sweep,x
         sta PULSE_1_SWEEP,y
-        lda $680,y
+        lda pulse1TimerLow,y
         sta PULSE_1_TIMER_LOW,y
-        lda $681,y
+        lda pulse1TimerHigh,y
         sta PULSE_1_TIMER_HIGH,y
 lbl_e9a3
-        lda $6b8,x
-        sta $6b4,x
-        jmp lbl_e84d
+        lda voiceNoteLength,x
+        sta voiceCountdown,x
+        jmp .nextVoice
 lbl_e9ac
         inc $6c8,x
         jmp lbl_e9a3
@@ -6357,13 +6375,13 @@ lbl_ea03
         rts
 lbl_ea0f
         lda #$e
-        sta $e1
+        sta apuRegisterHigh
         lda #$7
         ldy #$0
         beq lbl_ea21
 lbl_ea19
         lda #$e
-        sta $e1
+        sta apuRegisterHigh
         lda #$f
         ldy #$2
 lbl_ea21
@@ -6371,7 +6389,7 @@ lbl_ea21
         sty DMC_SAMPLE_ADDRESS
         lda $6f7
         bne lbl_ea40
-        lda $e1
+        lda apuRegisterHigh
         sta DMC_FREQUENCY
         lda #$f
         sta APU_STATUS
@@ -6382,9 +6400,9 @@ lbl_ea21
 lbl_ea40
         rts
 ;--------------------
-lbl_ea41
-        ldy $6ac,x
-        inc $6ac,x
+nextSongCommand
+        ldy voicePosition,x
+        inc voicePosition,x
         lda ($e6),y
         rts
 ;--------------------
@@ -6436,7 +6454,7 @@ lbl_eb0d
         dc.b $85, $51, $f0
 lbl_eb10
         dc.b $63, $31, $f0
-lbl_eb13
+pulsePeriodTable
         dc.b $07, $f0, $00, $00, $06, $ae, $06
         dc.b $4e, $05, $f3, $05, $9e, $05, $4d, $05, $01, $04, $b9, $04, $75, $04, $35, $03
         dc.b $f8, $03, $bf, $03, $89, $03, $57, $03, $27, $02, $f9, $02, $cf, $02, $a6, $02
@@ -6448,46 +6466,102 @@ lbl_eb13
         dc.b $3e, $00, $3a, $00, $37, $00, $34, $00, $31, $00, $2e, $00, $2b, $00, $29, $00
         dc.b $27, $00, $01, $00, $24, $00, $22, $00, $20, $00, $1e, $00, $1c, $00, $1a, $00
         dc.b $0a, $00, $10, $00, $19
-lbl_ebaf
-        dc.b $03, $06, $0c, $18, $30, $12, $24, $09, $08, $04, $02
-        dc.b $01, $04, $08, $10, $20, $40, $18, $30, $0c, $0a, $05, $02, $01, $05, $0a, $14
-        dc.b $28, $50, $1e, $3c, $0f, $0d, $06, $02, $01, $06, $0c, $18, $30, $60, $24, $48
-        dc.b $12, $10, $08, $03, $01, $04, $02, $00, $90, $07, $0e, $1c, $38, $70, $2a, $54
-        dc.b $15, $12, $09, $03, $01, $02, $08, $10, $20, $40, $80, $30, $60, $18, $15, $0a
-        dc.b $04, $01, $02, $c0, $09, $12, $24, $48, $90, $36, $6c, $1b, $18, $0a, $14, $28
-        dc.b $50, $a0, $3c, $78, $1e, $1a, $0d, $05, $01, $02, $17, $0b, $16, $2c, $58, $b0
-        dc.b $42, $84, $21, $1d, $0e, $05, $01, $02, $17
-lbl_ec23
-        dc.b $00, $0a, $14, $1e, $28, $32, $3c, $46, $50, $5a
-lbl_ec2d
-        dc.b $0a, $24, $f1, $ec, $f5, $ec, $f7, $ec, $f9, $ec, $83, $00, $91
-        dc.b $ec, $95, $ec, $97, $ec, $99, $ec, $81, $24, $bf, $ee, $c9, $ee, $d3, $ee, $dd
-        dc.b $ee, $83, $24, $c2, $f5, $d0, $f5, $de, $f5, $ec, $f5, $81, $24, $b1, $f2, $b9
-        dc.b $f2, $bf, $f2, $ff, $ff, $81, $00, $bf, $ee, $c9, $ee, $d3, $ee, $dd, $ee, $83
-        dc.b $0c, $c2, $f5, $d0, $f5, $de, $f5, $ec, $f5, $81, $0c, $b1, $f2, $b9, $f2, $bf
-        dc.b $f2, $ff, $ff, $00, $18, $a4, $f3, $aa, $f3, $b0, $f3, $b6, $f3, $8f, $24, $9e
-        dc.b $f8, $aa, $f8, $b6, $f8, $c2, $f8, $9b, $ec, $00, $00, $c7, $ec, $b1, $ec, $dd
-        dc.b $ec, $9f, $a4, $b3, $b1, $50, $02, $50, $b5, $54, $b1, $5a, $58, $50, $b5, $54
-        dc.b $b1, $5a, $5e, $60, $b4, $62, $00, $9f, $a0, $00, $b1, $4a, $02, $4a, $b5, $4e
-        dc.b $b1, $50, $50, $46, $b5, $4e, $b1, $50, $54, $56, $b4, $5c, $00, $9f, $a4, $b3
+noteLengths
+        dc.b $03, $06, $0c, $18, $30, $12, $24, $09, $08, $04, $02, $01
+        dc.b $04, $08, $10, $20, $40, $18, $30, $0c, $0a, $05, $02, $01
+        dc.b $05, $0a, $14, $28, $50, $1e, $3c, $0f, $0d, $06, $02, $01
+        dc.b $06, $0c, $18, $30, $60, $24, $48, $12, $10, $08, $03, $01, $04, $02, $00, $90
+        dc.b $07, $0e, $1c, $38, $70, $2a, $54, $15, $12, $09, $03, $01, $02
+        dc.b $08, $10, $20, $40, $80, $30, $60, $18, $15, $0a, $04, $01, $02, $c0
+        dc.b $09, $12, $24, $48, $90, $36, $6c, $1b, $18
+        dc.b $0a, $14, $28, $50, $a0, $3c, $78, $1e, $1a, $0d, $05, $01, $02, $17
+        dc.b $0b, $16, $2c, $58, $b0, $42, $84, $21, $1d, $0e, $05, $01, $02, $17
+songHeaderOffsets
+        dc.b titleMusicHeader-songHeaders, $0a, $14, $1e, $28, $32, $3c, $46, $50, $5a
+songHeaders
+        ; key/note offset (byte), tempo (byte), address (word), address (word), address (word), address (word)
+titleMusicHeader
+        dc.b $0a, $24
+        dc.b <titleMusicVoice1Offsets, >titleMusicVoice1Offsets
+        dc.b <titleMusicVoice2Offsets, >titleMusicVoice2Offsets
+        dc.b <titleMusicVoice3Offsets, >titleMusicVoice3Offsets
+        dc.b <titleMusicVoice4Offsets, >titleMusicVoice4Offsets
+
+        dc.b $83, $00, <lbl_ec91, >lbl_ec91, <lbl_ec95, >lbl_ec95, <lbl_ec97, >lbl_ec97, <lbl_ec99, >lbl_ec99
+        dc.b $81, $24, <lbl_eebf, >lbl_eebf, <lbl_eec9, >lbl_eebf, <lbl_eed3, >lbl_eed3, <lbl_eedd, >lbl_eedd
+        dc.b $83, $24, <lbl_f5c2, >lbl_f5c2, $d0, $f5, $de, $f5, $ec, $f5
+        dc.b $81, $24, <lbl_f2b1, >lbl_f2b1, <lbl_f2b9, >lbl_f2b9, <lbl_f2bf, >lbl_f2bf, $ff, $ff
+        dc.b $81, $00, <lbl_eebf, >lbl_eebf, <lbl_eec9, >lbl_eebf, <lbl_eed3, >lbl_eed3, <lbl_eedd, >lbl_eedd
+        dc.b $83, $0c, <lbl_f5c2, >lbl_f5c2, $d0, $f5, $de, $f5, $ec, $f5
+        dc.b $81, $0c, <lbl_f2b1, >lbl_f2b1, <lbl_f2b9, >lbl_f2b9, <lbl_f2bf, >lbl_f2bf, $ff, $ff
+        dc.b $00, $18, <lbl_f3a4, >lbl_f3a4, $aa, $f3, $b0, $f3, $b6, $f3
+        dc.b $8f, $24, <lbl_f89e, >lbl_f89e, $aa, $f8, $b6, $f8, $c2, $f8
+
+        ; B-type goal achieved music
+
+lbl_ec91
+        dc.b <lbl_ec9b, >lbl_ec9b
+        dc.b $00, $00
+lbl_ec95
+        dc.b <lbl_ecc7, >lbl_ecc7
+lbl_ec97
+        dc.b <lbl_ecb1, >lbl_ecb1
+lbl_ec99
+        dc.b <lbl_ecdd, >lbl_ecdd
+lbl_ec9b
+        dc.b $9f, $a4, $b3, $b1, $50, $02, $50, $b5, $54, $b1, $5a, $58, $50, $b5, $54
+        dc.b $b1, $5a, $5e, $60, $b4, $62, $00
+lbl_ecb1
+        dc.b $9f, $a0, $00, $b1, $4a, $02, $4a, $b5, $4e
+        dc.b $b1, $50, $50, $46, $b5, $4e, $b1, $50, $54, $56, $b4, $5c, $00
+lbl_ecc7
+        dc.b $9f, $a4, $b3
         dc.b $b1, $42, $02, $42, $b5, $46, $b1, $4a, $46, $40, $b5, $46, $b1, $4a, $4c, $50
-        dc.b $b4, $54, $00, $b1, $04, $01, $04, $b5, $04, $b1, $04, $04, $04, $b5, $04, $b1
-        dc.b $04, $04, $04, $e0, $b0, $04, $ff, $ff, $ec, $00, $00, $6f, $ed, $e2, $ed, $6f
-        dc.b $ee, $ff, $ff, $f9, $ec, $9f, $14, $b1, $b9, $02, $02, $42, $b2, $5a, $42, $46
+        dc.b $b4, $54, $00
+lbl_ecdd
+        dc.b $b1, $04, $01, $04, $b5, $04, $b1, $04, $04, $04, $b5, $04, $b1
+        dc.b $04, $04, $04, $e0, $b0, $04, $ff
+
+        ; Unused title screen music
+
+titleMusicVoice1Offsets
+        dc.b <titleMusicVoice1Commands, >titleMusicVoice1Commands
+        dc.b $00, $00
+titleMusicVoice2Offsets
+        dc.b <titleMusicVoice2Commands, >titleMusicVoice2Commands
+titleMusicVoice3Offsets
+        dc.b <titleMusicVoice3Commands, >titleMusicVoice3Commands
+titleMusicVoice4Offsets
+        dc.b <titleMusicVoice4Commands, >titleMusicVoice4Commands
+        dc.b $ff, $ff
+        dc.b <titleMusicVoice4Offsets, >titleMusicVoice4Offsets
+titleMusicVoice1Commands
+        dc.b $9f, $14, $b1
+        dc.b $b9, $02, $02, $42, $b2, $5a, $42, $46
         dc.b $4a, $4c, $50, $54, $b3, $56, $b8, $56, $56, $56, $b4, $54, $b9, $02, $02, $b2
-        dc.b $5e, $b9, $02, $b2, $46, $4a, $b2, $4c, $4a, $4c, $4e, $b9, $50, $02, $9f, $15
-        dc.b $b1, $b9, $70, $b6, $02, $b2, $40, $b8, $02, $28, $02, $b2, $02, $9f, $14, $b1
+        dc.b $5e, $b9, $02, $b2, $46, $4a, $b2, $4c, $4a, $4c, $4e, $b9, $50, $02
+        dc.b $9f, $15, $b1
+        dc.b $b9, $70, $b6, $02, $b2, $40, $b8, $02, $28, $02, $b2, $02
+        dc.b $9f, $14, $b1
         dc.b $b9, $02, $02, $42, $b2, $5a, $42, $46, $4a, $4c, $50, $54, $b3, $54, $b8, $54
         dc.b $54, $54, $b4, $4c, $b9, $02, $02, $b2, $56, $b9, $02, $b2, $54, $4c, $b2, $54
         dc.b $50, $46, $4a, $b1, $02, $b5, $2e, $b8, $2a, $b9, $28, $b8, $26, $b9, $24, $b2
-        dc.b $02, $04, $b3, $02, $00, $9f, $15, $b1, $b9, $02, $02, $3c, $b2, $54, $3c, $3c
+        dc.b $02, $04, $b3, $02, $00
+titleMusicVoice2Commands
+        dc.b $9f, $15, $b1
+        dc.b $b9, $02, $02, $3c, $b2, $54, $3c, $3c
         dc.b $44, $44, $4a, $4e, $b3, $4e, $b8, $4e, $46, $4e, $b4, $4e, $b9, $02, $02, $b2
-        dc.b $56, $b9, $02, $b2, $3e, $4a, $b2, $46, $44, $46, $48, $b9, $3e, $02, $9f, $15
-        dc.b $b1, $b9, $72, $b2, $02, $5a, $02, $b9, $42, $02, $02, $02, $02, $2a, $b3, $02
-        dc.b $9f, $15, $b1, $b9, $02, $02, $3c, $b2, $54, $3c, $3c, $44, $44, $4a, $4e, $b3
+        dc.b $56, $b9, $02, $b2, $3e, $4a, $b2, $46, $44, $46, $48, $b9, $3e, $02
+        dc.b $9f, $15, $b1
+        dc.b $b9, $72, $b2, $02, $5a, $02, $b9, $42, $02, $02, $02, $02, $2a, $b3, $02
+        dc.b $9f, $15, $b1
+        dc.b $b9, $02, $02, $3c, $b2, $54, $3c, $3c, $44, $44, $4a, $4e, $b3
         dc.b $4c, $b8, $4c, $4c, $4c, $b4, $46, $b9, $02, $02, $b2, $46, $b9, $02, $b2, $42
         dc.b $3c, $b2, $42, $3e, $3e, $38, $b1, $02, $b5, $34, $b8, $34, $b9, $34, $b8, $34
-        dc.b $b9, $34, $b2, $02, $1c, $b3, $02, $00, $9f, $00, $00, $b1, $34, $02, $b8, $34
+        dc.b $b9, $34, $b2, $02, $1c, $b3, $02, $00
+titleMusicVoice3Commands
+        dc.b $9f, $00, $00
+        dc.b $b1, $34, $02, $b8, $34
         dc.b $b9, $2a, $b1, $34, $02, $36, $02, $38, $02, $3c, $02, $3e, $02, $40, $02, $42
         dc.b $02, $b2, $02, $b8, $42, $42, $42, $b8, $46, $b9, $46, $b1, $42, $02, $b8, $3e
         dc.b $b9, $2e, $b1, $3c, $02, $38, $02, $38, $02, $b8, $38, $b9, $38, $b1, $3c, $02
@@ -6495,15 +6569,30 @@ lbl_ec2d
         dc.b $02, $34, $02, $34, $02, $36, $02, $38, $02, $3c, $02, $3e, $02, $3e, $02, $b3
         dc.b $40, $b8, $40, $40, $40, $b1, $40, $b5, $3e, $b8, $3c, $b9, $38, $b1, $34, $02
         dc.b $38, $02, $38, $02, $3c, $02, $3e, $02, $42, $02, $42, $02, $42, $02, $42, $02
-        dc.b $9f, $00, $00, $b1, $02, $b5, $3e, $b8, $3c, $b9, $3a, $b8, $38, $b9, $34, $b2
-        dc.b $02, $1c, $02, $02, $00, $c6, $b9, $04, $01, $04, $b2, $07, $b9, $04, $04, $04
+        dc.b $9f, $00, $00
+        dc.b $b1, $02, $b5, $3e, $b8, $3c, $b9, $3a, $b8, $38, $b9, $34, $b2
+        dc.b $02, $1c, $02, $02, $00
+titleMusicVoice4Commands
+        dc.b $c6, $b9, $04, $01, $04, $b2, $07, $b9, $04, $04, $04
         dc.b $b2, $07, $ff, $c4, $b9, $04, $01, $04, $07, $01, $04, $ff, $c2, $b9, $04, $01
         dc.b $04, $b2, $07, $b9, $04, $01, $04, $07, $01, $04, $ff, $b2, $07, $01, $b8, $07
         dc.b $07, $07, $c3, $b9, $04, $01, $04, $07, $01, $04, $b9, $01, $04, $04, $07, $01
         dc.b $04, $ff, $b1, $01, $ba, $07, $cb, $04, $ff, $c2, $b8, $07, $b9, $07, $ff, $b2
-        dc.b $01, $0a, $01, $01, $00, $e3, $ee, $f0, $f0, $de, $f1, $ff, $ff, $bf, $ee, $b1
-        dc.b $ef, $47, $f1, $f7, $f1, $ff, $ff, $c9, $ee, $4f, $f0, $96, $f1, $42, $f2, $ff
-        dc.b $ff, $d3, $ee, $58, $f2, $ff, $ff, $dd, $ee, $9f, $0a, $f1, $b2, $20, $38, $20
+        dc.b $01, $0a, $01, $01, $00
+
+        ; Music 1
+
+lbl_eebf
+        dc.b <lbl_eee3, >lbl_eee3, $f0, $f0, $de, $f1, $ff, $ff, <lbl_eebf, >lbl_eebf
+lbl_eec9
+        dc.b <lbl_efb1, >lbl_efb1, $47, $f1, $f7, $f1, $ff, $ff, <lbl_eec9, >lbl_eec9
+lbl_eed3
+        dc.b <lbl_f04f, >lbl_f04f, $96, $f1, $42, $f2, $ff, $ff, $d3, $ee
+lbl_eedd
+        dc.b <lbl_f258, >lbl_f258, $ff, $ff, $dd, $ee
+lbl_eee3
+        dc.b $9f, $0a, $f1
+        dc.b $b2, $20, $38, $20
         dc.b $38, $9f, $0d, $f1, $b2, $20, $38, $20, $38, $9f, $0a, $f1, $b2, $20, $b1, $46
         dc.b $3e, $b2, $46, $42, $3c, $3e, $b1, $40, $40, $b2, $40, $b1, $42, $42, $b2, $42
         dc.b $b1, $3c, $3c, $b2, $3c, $b1, $3e, $3e, $42, $42, $b2, $3e, $9f, $0a, $f1, $b0
@@ -6516,7 +6605,10 @@ lbl_ec2d
         dc.b $3c, $b2, $3c, $b1, $3e, $3e, $42, $42, $b2, $3e, $b0, $50, $4c, $4a, $46, $b2
         dc.b $44, $b1, $44, $44, $b2, $44, $b0, $46, $4a, $46, $42, $b2, $40, $b1, $40, $40
         dc.b $b2, $40, $b0, $42, $46, $42, $3e, $b2, $3c, $b1, $3c, $3c, $b2, $3c, $3e, $02
-        dc.b $3c, $9f, $09, $f1, $3e, $02, $00, $9f, $0a, $f1, $b2, $20, $3e, $20, $3e, $9f
+        dc.b $3c, $9f, $09, $f1, $3e, $02, $00
+lbl_efb1
+        dc.b $9f, $0a, $f1
+        dc.b $b2, $20, $3e, $20, $3e, $9f
         dc.b $0b, $f1, $b2, $20, $3e, $20, $3e, $9f, $09, $f1, $b2, $02, $b1, $56, $50, $b2
         dc.b $56, $54, $4e, $50, $b1, $4c, $4c, $b2, $4c, $b1, $4a, $4a, $b2, $4a, $b1, $48
         dc.b $48, $b2, $48, $b1, $46, $50, $48, $50, $b2, $46, $02, $9f, $0c, $f1, $02, $b1
@@ -6526,7 +6618,10 @@ lbl_ec2d
         dc.b $b1, $4c, $4c, $b2, $4c, $b1, $4a, $4a, $b2, $4a, $b1, $48, $48, $b2, $48, $b1
         dc.b $46, $50, $48, $50, $b2, $46, $02, $b2, $02, $b1, $50, $4a, $b2, $50, $4e, $02
         dc.b $b1, $4c, $46, $b2, $4c, $4a, $02, $b1, $48, $42, $b2, $48, $46, $02, $46, $9f
-        dc.b $09, $f1, $50, $02, $00, $9f, $00, $00, $c4, $b2, $20, $b1, $46, $02, $ff, $b2
+        dc.b $09, $f1, $50, $02, $00
+lbl_f04f
+        dc.b $9f, $00, $00
+        dc.b $c4, $b2, $20, $b1, $46, $02, $ff, $b2
         dc.b $38, $b1, $50, $02, $b2, $38, $b1, $4a, $02, $b2, $38, $b1, $44, $02, $b2, $38
         dc.b $b1, $50, $02, $b2, $38, $b1, $50, $02, $b2, $38, $b1, $50, $02, $c3, $38, $02
         dc.b $ff, $b0, $56, $54, $50, $4c, $b2, $44, $b1, $4a, $02, $b2, $42, $b1, $5e, $02
@@ -6552,21 +6647,49 @@ lbl_ec2d
         dc.b $46, $ff, $b2, $46, $b0, $5c, $5e, $02, $02, $c4, $b1, $5e, $ff, $b2, $5e, $b0
         dc.b $5c, $5e, $02, $02, $c4, $b1, $5e, $ff, $b2, $5e, $b0, $5c, $5e, $02, $02, $c4
         dc.b $b1, $76, $ff, $00, $9f, $0e, $f1, $b2, $6e, $4e, $4c, $4e, $4c, $56, $54, $56
-        dc.b $54, $62, $5e, $62, $5e, $62, $5a, $62, $5a, $76, $b2, $2e, $00, $9f, $0f, $f1
+        dc.b $54, $62, $5e, $62, $5e, $62, $5a, $62, $5a, $76, $b2, $2e, $00
+        dc.b $9f, $0f, $f1
         dc.b $b2, $76, $b0, $02, $54, $5a, $60, $02, $54, $5a, $5e, $02, $54, $5a, $60, $02
         dc.b $54, $5a, $5e, $02, $5a, $62, $68, $02, $5a, $62, $66, $02, $66, $72, $78, $02
         dc.b $5a, $62, $66, $02, $5a, $62, $66, $02, $66, $72, $76, $02, $66, $72, $78, $02
         dc.b $66, $72, $76, $02, $6c, $72, $80, $02, $6c, $72, $7e, $02, $6c, $72, $80, $02
         dc.b $6c, $72, $7e, $b2, $76, $b2, $2e, $00, $b2, $76, $02, $02, $02, $02, $02, $02
-        dc.b $02, $02, $6c, $66, $6c, $66, $6c, $5e, $6c, $5e, $76, $b2, $02, $00, $c4, $b2
+        dc.b $02, $02, $6c, $66, $6c, $66, $6c, $5e, $6c, $5e, $76, $b2, $02, $00
+lbl_f258
+        dc.b $c4, $b2
         dc.b $01, $04, $ff, $c6, $01, $04, $ff, $01, $07, $07, $01, $c6, $01, $04, $ff, $01
         dc.b $07, $07, $01, $c6, $01, $04, $ff, $01, $07, $07, $01, $c2, $01, $07, $07, $01
         dc.b $ff, $01, $04, $01, $04, $01, $07, $07, $01, $c2, $b4, $04, $ff, $c2, $b2, $01
         dc.b $04, $04, $04, $ff, $c2, $b4, $04, $ff, $c2, $b2, $01, $04, $04, $04, $ff, $c3
         dc.b $b1, $04, $04, $04, $04, $b2, $04, $01, $ff, $b1, $04, $04, $04, $04, $b2, $04
-        dc.b $c4, $b4, $01, $ff, $b3, $01, $00, $cb, $f2, $d4, $f2, $ff, $ff, $b3, $f2, $d1
-        dc.b $f2, $ff, $ff, $b9, $f2, $4d, $f3, $ff, $ff, $bf, $f2, $a0, $f3, $ff, $ff, $c5
-        dc.b $f2, $9f, $a5, $b1, $b8, $02, $00, $9f, $a4, $b3, $b1, $02, $42, $48, $42, $4c
+        dc.b $c4, $b4, $01, $ff, $b3, $01, $00
+
+        ; Music 3
+
+lbl_f2b1
+        dc.b <lbl_f2cb, >lbl_f2cb
+lbl_f2b3
+        dc.b <lbl_f2d4, >lbl_f2d4
+        dc.b $ff, $ff
+        dc.b <lbl_f2b3, >lbl_f2b3
+lbl_f2b9
+        dc.b <lbl_f2d1, >lbl_f2d1
+        dc.b $ff, $ff
+        dc.b <lbl_f2b9, >lbl_f2b9
+lbl_f2bf
+        dc.b <lbl_f34d, >lbl_f34d
+        dc.b $ff, $ff
+        dc.b <lbl_f2bf, >lbl_f2bf
+lbl_f2c5
+        dc.b <lbl_f3a0, >lbl_f3a0
+        dc.b $ff, $ff
+        dc.b <lbl_f2c5, >lbl_f2c5
+lbl_f2cb
+        dc.b $9f, $a5, $b1, $b8, $02, $00
+lbl_f2d1
+        dc.b $9f, $a4, $b3
+lbl_f2d4
+        dc.b $b1, $02, $42, $48, $42, $4c
         dc.b $42, $56, $42, $54, $42, $50, $42, $54, $42, $4c, $42, $02, $42, $02, $42, $48
         dc.b $42, $4c, $42, $02, $3e, $48, $3e, $4c, $3e, $50, $3e, $52, $3e, $50, $3e, $4c
         dc.b $3e, $48, $3e, $50, $3e, $02, $3e, $48, $3e, $50, $3e, $b1, $02, $42, $48, $42
@@ -6574,12 +6697,21 @@ lbl_ec2d
         dc.b $48, $42, $4c, $42, $b1, $02, $42, $48, $42, $50, $42, $56, $42, $54, $42, $50
         dc.b $42, $46, $42, $50, $42, $4c, $42, $02, $42, $b2, $42, $02, $b1, $5a, $42, $48
         dc.b $4c, $50, $56, $b3, $5a, $b2, $02, $b1, $42, $5a, $60, $5e, $5a, $56, $b3, $5a
-        dc.b $b2, $42, $00, $9f, $00, $00, $b5, $4c, $b1, $4c, $b2, $34, $b5, $42, $b1, $42
+        dc.b $b2, $42, $00
+lbl_f34d
+        dc.b $9f, $00, $00, $b5, $4c, $b1, $4c, $b2, $34, $b5, $42, $b1, $42
         dc.b $b2, $42, $4c, $42, $4c, $42, $4c, $42, $b5, $48, $b1, $48, $b2, $48, $b5, $3e
         dc.b $b1, $3e, $b2, $3e, $48, $3e, $48, $3e, $48, $3e, $b3, $4c, $b2, $42, $4c, $42
         dc.b $4c, $42, $4c, $42, $4c, $42, $4c, $b5, $48, $b1, $48, $b2, $48, $b5, $3e, $b1
         dc.b $3e, $b2, $3e, $48, $3e, $48, $3e, $48, $3e, $4c, $42, $4c, $48, $3e, $48, $4c
-        dc.b $42, $4c, $48, $3e, $48, $00, $b2, $04, $04, $00, $bc, $f3, $ff, $ff, $a4, $f3
+        dc.b $42, $4c, $48, $3e, $48, $00
+lbl_f3a0
+        dc.b $b2, $04, $04, $00
+
+        ; Congratulations music
+
+lbl_f3a4
+        dc.b $bc, $f3, $ff, $ff, $a4, $f3
         dc.b $58, $f4, $ff, $ff, $aa, $f3, $30, $f5, $ff, $ff, $b0, $f3, $7f, $f5, $ff, $ff
         dc.b $b6, $f3, $9f, $07, $b1, $b2, $42, $40, $3e, $c2, $b1, $1c, $02, $b2, $3c, $b1
         dc.b $12, $02, $b2, $3c, $b1, $1c, $02, $b2, $3c, $b1, $12, $02, $b2, $3c, $b1, $20
@@ -6590,8 +6722,9 @@ lbl_ec2d
         dc.b $b1, $1c, $02, $b2, $46, $b1, $16, $02, $b2, $46, $b1, $1c, $02, $b2, $3c, $b1
         dc.b $12, $02, $b2, $3c, $b1, $1c, $02, $b2, $3c, $b1, $12, $02, $b2, $3c, $b1, $20
         dc.b $02, $b2, $46, $b1, $16, $02, $b2, $46, $b1, $20, $02, $b2, $46, $b1, $16, $02
-        dc.b $b2, $46, $c2, $b8, $4c, $4c, $4c, $bb, $02, $ff, $b1, $38, $02, $00, $9f, $a6
-        dc.b $b1, $b2, $42, $46, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02, $b7
+        dc.b $b2, $46, $c2, $b8, $4c, $4c, $4c, $bb, $02, $ff, $b1, $38, $02, $00
+        dc.b $9f, $a6, $b1
+        dc.b $b2, $42, $46, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02, $b7
         dc.b $4a, $b0, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b2, $4a, $48, $b4, $46, $b1
         dc.b $02, $b0, $02, $3c, $b7, $38, $b0, $34, $b1, $02, $b0, $02, $46, $b7, $4a, $b0
         dc.b $4c, $b2, $4c, $4c, $b1, $4c, $4c, $b0, $02, $4c, $50, $52, $b2, $54, $50, $4a
@@ -6613,7 +6746,12 @@ lbl_ec2d
         dc.b $b2, $07, $b7, $04, $b0, $04, $ff, $b4, $04, $c7, $b2, $04, $b7, $04, $b0, $04
         dc.b $b2, $07, $b7, $04, $b0, $04, $ff, $b4, $04, $c6, $b7, $04, $b0, $04, $b2, $07
         dc.b $b7, $04, $b0, $04, $b2, $07, $ff, $c2, $b9, $04, $04, $04, $ba, $01, $b9, $07
-        dc.b $04, $04, $ba, $01, $ff, $b2, $07, $00, $f8, $f5, $6a, $f6, $86, $f6, $86, $f6
+        dc.b $04, $04, $ba, $01, $ff, $b2, $07, $00
+
+        ; Music 2
+
+lbl_f5c2
+        dc.b $f8, $f5, $6a, $f6, $86, $f6, $86, $f6
         dc.b $f2, $f6, $ff, $ff, $c2, $f5, $f2, $f5, $67, $f6, $ac, $f6, $ac, $f6, $95, $f7
         dc.b $ff, $ff, $d0, $f5, $06, $f6, $78, $f6, $d2, $f6, $d2, $f6, $33, $f8, $ff, $ff
         dc.b $de, $f5, $14, $f6, $ff, $ff, $ec, $f5, $9f, $10, $31, $b4, $02, $00, $9f, $10
@@ -6659,7 +6797,12 @@ lbl_ec2d
         dc.b $38, $2a, $b0, $42, $2a, $b1, $2a, $42, $ff, $ff, $c4, $20, $b0, $38, $20, $b1
         dc.b $20, $38, $ff, $c4, $24, $b0, $3c, $ba, $24, $02, $b1, $24, $3c, $ff, $c3, $b1
         dc.b $20, $ba, $38, $02, $20, $02, $b1, $20, $38, $ff, $20, $b0, $38, $20, $9f, $a0
-        dc.b $00, $b2, $40, $00, $f6, $f8, $6d, $f9, $f6, $f8, $b7, $f9, $ff, $ff, $9e, $f8
+        dc.b $00, $b2, $40, $00
+
+        ; B-type goal achieved music 2
+
+lbl_f89e
+        dc.b $f6, $f8, $6d, $f9, $f6, $f8, $b7, $f9, $ff, $ff, $9e, $f8
         dc.b $ce, $f8, $47, $f9, $ce, $f8, $91, $f9, $ff, $ff, $aa, $f8, $0b, $f9, $7f, $f9
         dc.b $0b, $f9, $d2, $f9, $ff, $ff, $b6, $f8, $20, $f9, $20, $f9, $20, $f9, $30, $f9
         dc.b $ff, $ff, $c2, $f8, $9f, $01, $b1, $b1, $56, $b0, $56, $56, $56, $4c, $48, $4c
