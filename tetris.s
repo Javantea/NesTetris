@@ -6454,6 +6454,7 @@ lbl_eb0d
         dc.b $85, $51, $f0
 lbl_eb10
         dc.b $63, $31, $f0
+
 pulsePeriodTable
         dc.b $07, $f0, $00, $00, $06, $ae, $06
         dc.b $4e, $05, $f3, $05, $9e, $05, $4d, $05, $01, $04, $b9, $04, $75, $04, $35, $03
@@ -6466,6 +6467,7 @@ pulsePeriodTable
         dc.b $3e, $00, $3a, $00, $37, $00, $34, $00, $31, $00, $2e, $00, $2b, $00, $29, $00
         dc.b $27, $00, $01, $00, $24, $00, $22, $00, $20, $00, $1e, $00, $1c, $00, $1a, $00
         dc.b $0a, $00, $10, $00, $19
+
 noteLengths
         dc.b $03, $06, $0c, $18, $30, $12, $24, $09, $08, $04, $02, $01
         dc.b $04, $08, $10, $20, $40, $18, $30, $0c, $0a, $05, $02, $01
@@ -6476,10 +6478,26 @@ noteLengths
         dc.b $09, $12, $24, $48, $90, $36, $6c, $1b, $18
         dc.b $0a, $14, $28, $50, $a0, $3c, $78, $1e, $1a, $0d, $05, $01, $02, $17
         dc.b $0b, $16, $2c, $58, $b0, $42, $84, $21, $1d, $0e, $05, $01, $02, $17
+
 songHeaderOffsets
-        dc.b titleMusicHeader-songHeaders, $0a, $14, $1e, $28, $32, $3c, $46, $50, $5a
+        dc.b titleMusicHeader-songHeaders
+        dc.b bTypeGoalMusicHeader-songHeaders
+        dc.b music1Header-songHeaders
+        dc.b music2Header-songHeaders
+        dc.b music3Header-songHeaders
+        dc.b music1FastHeader-songHeaders
+        dc.b music2FastHeader-songHeaders
+        dc.b music3FastHeader-songHeaders
+        dc.b congratulationsMusicHeader-songHeaders
+        dc.b endingsMusicHeader-songHeaders
+
 songHeaders
-        ; key/note offset (byte), tempo (byte), address (word), address (word), address (word), address (word)
+        ; key/note offset (byte), tempo (byte)
+        ; voice 1 address (word)
+        ; voice 2 address (word)
+        ; voice 3 address (word)
+        ; voice 4 address (word)
+
 titleMusicHeader
         dc.b $0a, $24
         dc.b <titleMusicVoice1Offsets, >titleMusicVoice1Offsets
@@ -6487,38 +6505,91 @@ titleMusicHeader
         dc.b <titleMusicVoice3Offsets, >titleMusicVoice3Offsets
         dc.b <titleMusicVoice4Offsets, >titleMusicVoice4Offsets
 
-        dc.b $83, $00, <lbl_ec91, >lbl_ec91, <lbl_ec95, >lbl_ec95, <lbl_ec97, >lbl_ec97, <lbl_ec99, >lbl_ec99
-        dc.b $81, $24, <lbl_eebf, >lbl_eebf, <lbl_eec9, >lbl_eebf, <lbl_eed3, >lbl_eed3, <lbl_eedd, >lbl_eedd
-        dc.b $83, $24, <lbl_f5c2, >lbl_f5c2, $d0, $f5, $de, $f5, $ec, $f5
-        dc.b $81, $24, <lbl_f2b1, >lbl_f2b1, <lbl_f2b9, >lbl_f2b9, <lbl_f2bf, >lbl_f2bf, $ff, $ff
-        dc.b $81, $00, <lbl_eebf, >lbl_eebf, <lbl_eec9, >lbl_eebf, <lbl_eed3, >lbl_eed3, <lbl_eedd, >lbl_eedd
-        dc.b $83, $0c, <lbl_f5c2, >lbl_f5c2, $d0, $f5, $de, $f5, $ec, $f5
-        dc.b $81, $0c, <lbl_f2b1, >lbl_f2b1, <lbl_f2b9, >lbl_f2b9, <lbl_f2bf, >lbl_f2bf, $ff, $ff
-        dc.b $00, $18, <lbl_f3a4, >lbl_f3a4, $aa, $f3, $b0, $f3, $b6, $f3
-        dc.b $8f, $24, <lbl_f89e, >lbl_f89e, $aa, $f8, $b6, $f8, $c2, $f8
+bTypeGoalMusicHeader
+        dc.b $83, $00
+        dc.b <bTypeGoalMusicVoice1Offsets, >bTypeGoalMusicVoice1Offsets
+        dc.b <bTypeGoalMusicVoice2Offsets, >bTypeGoalMusicVoice2Offsets
+        dc.b <bTypeGoalMusicVoice3Offsets, >bTypeGoalMusicVoice3Offsets
+        dc.b <bTypeGoalMusicVoice4Offsets, >bTypeGoalMusicVoice4Offsets
+
+music1Header
+        dc.b $81, $24
+        dc.b <music1Voice1Offsets, >music1Voice1Offsets
+        dc.b <music1Voice2Offsets, >music1Voice2Offsets
+        dc.b <music1Voice3Offsets, >music1Voice3Offsets
+        dc.b <music1Voice4Offsets, >music1Voice4Offsets
+
+music2Header
+        dc.b $83, $24
+        dc.b <music2Voice1Offsets, >music2Voice1Offsets
+        dc.b <music2Voice2Offsets, >music2Voice2Offsets
+        dc.b <music2Voice3Offsets, >music2Voice3Offsets
+        dc.b <music2Voice4Offsets, >music2Voice4Offsets
+
+music3Header
+        dc.b $81, $24
+        dc.b <music3Voice1Offsets, >music3Voice1Offsets
+        dc.b <music3Voice2Offsets, >music3Voice2Offsets
+        dc.b <music3Voice3Offsets, >music3Voice3Offsets
+        dc.b $ff, $ff
+
+music1FastHeader
+        dc.b $81, $00
+        dc.b <music1Voice1Offsets, >music1Voice1Offsets
+        dc.b <music1Voice2Offsets, >music1Voice2Offsets
+        dc.b <music1Voice3Offsets, >music1Voice3Offsets
+        dc.b <music1Voice4Offsets, >music1Voice4Offsets
+
+music2FastHeader
+        dc.b $83, $0c
+        dc.b <music2Voice1Offsets, >music2Voice1Offsets
+        dc.b <music2Voice2Offsets, >music2Voice2Offsets
+        dc.b <music2Voice3Offsets, >music2Voice3Offsets
+        dc.b <music2Voice4Offsets, >music2Voice4Offsets
+
+music3FastHeader
+        dc.b $81, $0c
+        dc.b <music3Voice1Offsets, >music3Voice1Offsets
+        dc.b <music3Voice2Offsets, >music3Voice2Offsets
+        dc.b <music3Voice3Offsets, >music3Voice3Offsets
+        dc.b $ff, $ff
+
+congratulationsMusicHeader
+        dc.b $00, $18
+        dc.b <congratulationsMusicVoice1Offsets, >congratulationsMusicVoice1Offsets
+        dc.b <congratulationsMusicVoice2Offsets, >congratulationsMusicVoice2Offsets
+        dc.b <congratulationsMusicVoice3Offsets, >congratulationsMusicVoice3Offsets
+        dc.b <congratulationsMusicVoice4Offsets, >congratulationsMusicVoice4Offsets
+
+endingsMusicHeader
+        dc.b $8f, $24
+        dc.b <endingsMusicVoice1Offsets, >endingsMusicVoice1Offsets
+        dc.b <endingsMusicVoice2Offsets, >endingsMusicVoice2Offsets
+        dc.b <endingsMusicVoice3Offsets, >endingsMusicVoice3Offsets
+        dc.b <endingsMusicVoice4Offsets, >endingsMusicVoice4Offsets
 
         ; B-type goal achieved music
 
-lbl_ec91
-        dc.b <lbl_ec9b, >lbl_ec9b
+bTypeGoalMusicVoice1Offsets
+        dc.b <bTypeGoalMusicVoice1Commands, >bTypeGoalMusicVoice1Commands
         dc.b $00, $00
-lbl_ec95
-        dc.b <lbl_ecc7, >lbl_ecc7
-lbl_ec97
-        dc.b <lbl_ecb1, >lbl_ecb1
-lbl_ec99
-        dc.b <lbl_ecdd, >lbl_ecdd
-lbl_ec9b
+bTypeGoalMusicVoice2Offsets
+        dc.b <bTypeGoalMusicVoice3Commands, >bTypeGoalMusicVoice3Commands
+bTypeGoalMusicVoice3Offsets
+        dc.b <bTypeGoalMusicVoice2Commands, >bTypeGoalMusicVoice2Commands
+bTypeGoalMusicVoice4Offsets
+        dc.b <bTypeGoalMusicVoice4Commands, >bTypeGoalMusicVoice4Commands
+bTypeGoalMusicVoice1Commands
         dc.b $9f, $a4, $b3, $b1, $50, $02, $50, $b5, $54, $b1, $5a, $58, $50, $b5, $54
         dc.b $b1, $5a, $5e, $60, $b4, $62, $00
-lbl_ecb1
+bTypeGoalMusicVoice2Commands
         dc.b $9f, $a0, $00, $b1, $4a, $02, $4a, $b5, $4e
         dc.b $b1, $50, $50, $46, $b5, $4e, $b1, $50, $54, $56, $b4, $5c, $00
-lbl_ecc7
+bTypeGoalMusicVoice3Commands
         dc.b $9f, $a4, $b3
         dc.b $b1, $42, $02, $42, $b5, $46, $b1, $4a, $46, $40, $b5, $46, $b1, $4a, $4c, $50
         dc.b $b4, $54, $00
-lbl_ecdd
+bTypeGoalMusicVoice4Commands
         dc.b $b1, $04, $01, $04, $b5, $04, $b1, $04, $04, $04, $b5, $04, $b1
         dc.b $04, $04, $04, $e0, $b0, $04, $ff
 
@@ -6582,15 +6653,29 @@ titleMusicVoice4Commands
 
         ; Music 1
 
-lbl_eebf
-        dc.b <lbl_eee3, >lbl_eee3, $f0, $f0, $de, $f1, $ff, $ff, <lbl_eebf, >lbl_eebf
-lbl_eec9
-        dc.b <lbl_efb1, >lbl_efb1, $47, $f1, $f7, $f1, $ff, $ff, <lbl_eec9, >lbl_eec9
-lbl_eed3
-        dc.b <lbl_f04f, >lbl_f04f, $96, $f1, $42, $f2, $ff, $ff, $d3, $ee
-lbl_eedd
-        dc.b <lbl_f258, >lbl_f258, $ff, $ff, $dd, $ee
-lbl_eee3
+music1Voice1Offsets
+        dc.b <music1Voice1CommandsPart1, >music1Voice1CommandsPart1
+        dc.b <music1Voice1CommandsPart2, >music1Voice1CommandsPart2
+        dc.b <music1Voice1CommandsPart3, >music1Voice1CommandsPart3
+        dc.b $ff, $ff
+        dc.b <music1Voice1Offsets, >music1Voice1Offsets
+music1Voice2Offsets
+        dc.b <music1Voice2CommandsPart1, >music1Voice2CommandsPart1
+        dc.b <music1Voice2CommandsPart2, >music1Voice2CommandsPart2
+        dc.b <music1Voice2CommandsPart3, >music1Voice2CommandsPart3
+        dc.b $ff, $ff
+        dc.b <music1Voice2Offsets, >music1Voice2Offsets
+music1Voice3Offsets
+        dc.b <music1Voice3CommandsPart1, >music1Voice3CommandsPart1
+        dc.b <music1Voice3CommandsPart2, >music1Voice3CommandsPart2
+        dc.b <music1Voice3CommandsPart3, >music1Voice3CommandsPart3
+        dc.b $ff, $ff
+        dc.b <music1Voice3Offsets, >music1Voice3Offsets
+music1Voice4Offsets
+        dc.b <music1Voice4Commands, >music1Voice4Commands
+        dc.b $ff, $ff
+        dc.b <music1Voice4Offsets, >music1Voice4Offsets
+music1Voice1CommandsPart1
         dc.b $9f, $0a, $f1
         dc.b $b2, $20, $38, $20
         dc.b $38, $9f, $0d, $f1, $b2, $20, $38, $20, $38, $9f, $0a, $f1, $b2, $20, $b1, $46
@@ -6606,7 +6691,7 @@ lbl_eee3
         dc.b $44, $b1, $44, $44, $b2, $44, $b0, $46, $4a, $46, $42, $b2, $40, $b1, $40, $40
         dc.b $b2, $40, $b0, $42, $46, $42, $3e, $b2, $3c, $b1, $3c, $3c, $b2, $3c, $3e, $02
         dc.b $3c, $9f, $09, $f1, $3e, $02, $00
-lbl_efb1
+music1Voice2CommandsPart1
         dc.b $9f, $0a, $f1
         dc.b $b2, $20, $3e, $20, $3e, $9f
         dc.b $0b, $f1, $b2, $20, $3e, $20, $3e, $9f, $09, $f1, $b2, $02, $b1, $56, $50, $b2
@@ -6619,7 +6704,7 @@ lbl_efb1
         dc.b $46, $50, $48, $50, $b2, $46, $02, $b2, $02, $b1, $50, $4a, $b2, $50, $4e, $02
         dc.b $b1, $4c, $46, $b2, $4c, $4a, $02, $b1, $48, $42, $b2, $48, $46, $02, $46, $9f
         dc.b $09, $f1, $50, $02, $00
-lbl_f04f
+music1Voice3CommandsPart1
         dc.b $9f, $00, $00
         dc.b $c4, $b2, $20, $b1, $46, $02, $ff, $b2
         dc.b $38, $b1, $50, $02, $b2, $38, $b1, $4a, $02, $b2, $38, $b1, $44, $02, $b2, $38
@@ -6631,31 +6716,43 @@ lbl_f04f
         dc.b $38, $b1, $50, $02, $b2, $38, $b1, $60, $02, $c3, $38, $02, $ff, $b0, $50, $4c
         dc.b $4a, $46, $b2, $3c, $b1, $62, $02, $b2, $62, $b1, $46, $02, $b2, $38, $b1, $5e
         dc.b $02, $b2, $46, $b1, $2a, $02, $b2, $34, $b1, $42, $02, $b2, $42, $b1, $46, $02
-        dc.b $b2, $02, $46, $38, $02, $00, $c2, $b1, $46, $46, $4a, $4a, $4e, $4e, $50, $50
+        dc.b $b2, $02, $46, $38, $02, $00
+music1Voice1CommandsPart2
+        dc.b $c2, $b1, $46, $46, $4a, $4a, $4e, $4e, $50, $50
         dc.b $50, $50, $4a, $4a, $b2, $4e, $76, $b9, $38, $3e, $46, $38, $3e, $46, $38, $3e
         dc.b $46, $38, $3e, $46, $34, $3c, $42, $34, $3c, $42, $b1, $42, $02, $64, $02, $ff
         dc.b $9f, $0c, $f1, $b1, $5e, $5e, $62, $62, $b2, $66, $b1, $46, $02, $9f, $0b, $f1
         dc.b $b1, $68, $68, $6c, $6c, $b2, $6e, $b1, $46, $02, $9f, $09, $f1, $b1, $6c, $6c
-        dc.b $6e, $6e, $b2, $72, $b1, $46, $02, $b1, $6e, $6e, $72, $72, $00, $c2, $b1, $4e
+        dc.b $6e, $6e, $b2, $72, $b1, $46, $02, $b1, $6e, $6e, $72, $72, $00
+music1Voice2CommandsPart2
+        dc.b $c2, $b1, $4e
         dc.b $4e, $50, $50, $54, $54, $56, $56, $5a, $5a, $50, $50, $b2, $54, $02, $9f, $09
         dc.b $f1, $02, $b1, $4e, $02, $b3, $50, $b2, $02, $b1, $4a, $02, $b3, $4c, $ff, $9f
         dc.b $0c, $f1, $b1, $66, $66, $68, $68, $b2, $6c, $b1, $46, $02, $9f, $0b, $f1, $b1
         dc.b $5e, $62, $66, $66, $b2, $68, $b1, $46, $02, $9f, $09, $f1, $b1, $5e, $66, $68
-        dc.b $68, $b2, $6c, $b1, $46, $02, $b1, $5e, $68, $6c, $6c, $00, $c2, $b1, $46, $46
+        dc.b $68, $b2, $6c, $b1, $46, $02, $b1, $5e, $68, $6c, $6c, $00
+music1Voice3CommandsPart2
+        dc.b $c2, $b1, $46, $46
         dc.b $46, $46, $5e, $5e, $5e, $5e, $62, $62, $62, $62, $5e, $02, $46, $02, $b2, $38
         dc.b $38, $b1, $38, $02, $38, $02, $b3, $34, $b1, $34, $02, $4c, $02, $ff, $c4, $b1
         dc.b $46, $ff, $b2, $46, $b0, $5c, $5e, $02, $02, $c4, $b1, $5e, $ff, $b2, $5e, $b0
         dc.b $5c, $5e, $02, $02, $c4, $b1, $5e, $ff, $b2, $5e, $b0, $5c, $5e, $02, $02, $c4
-        dc.b $b1, $76, $ff, $00, $9f, $0e, $f1, $b2, $6e, $4e, $4c, $4e, $4c, $56, $54, $56
+        dc.b $b1, $76, $ff, $00
+music1Voice1CommandsPart3
+        dc.b $9f, $0e, $f1
+        dc.b $b2, $6e, $4e, $4c, $4e, $4c, $56, $54, $56
         dc.b $54, $62, $5e, $62, $5e, $62, $5a, $62, $5a, $76, $b2, $2e, $00
+music1Voice2CommandsPart3
         dc.b $9f, $0f, $f1
         dc.b $b2, $76, $b0, $02, $54, $5a, $60, $02, $54, $5a, $5e, $02, $54, $5a, $60, $02
         dc.b $54, $5a, $5e, $02, $5a, $62, $68, $02, $5a, $62, $66, $02, $66, $72, $78, $02
         dc.b $5a, $62, $66, $02, $5a, $62, $66, $02, $66, $72, $76, $02, $66, $72, $78, $02
         dc.b $66, $72, $76, $02, $6c, $72, $80, $02, $6c, $72, $7e, $02, $6c, $72, $80, $02
-        dc.b $6c, $72, $7e, $b2, $76, $b2, $2e, $00, $b2, $76, $02, $02, $02, $02, $02, $02
+        dc.b $6c, $72, $7e, $b2, $76, $b2, $2e, $00
+music1Voice3CommandsPart3
+        dc.b $b2, $76, $02, $02, $02, $02, $02, $02
         dc.b $02, $02, $6c, $66, $6c, $66, $6c, $5e, $6c, $5e, $76, $b2, $02, $00
-lbl_f258
+music1Voice4Commands
         dc.b $c4, $b2
         dc.b $01, $04, $ff, $c6, $01, $04, $ff, $01, $07, $07, $01, $c6, $01, $04, $ff, $01
         dc.b $07, $07, $01, $c6, $01, $04, $ff, $01, $07, $07, $01, $c2, $01, $07, $07, $01
@@ -6666,29 +6763,30 @@ lbl_f258
 
         ; Music 3
 
-lbl_f2b1
-        dc.b <lbl_f2cb, >lbl_f2cb
-lbl_f2b3
-        dc.b <lbl_f2d4, >lbl_f2d4
+music3Voice1Offsets
+        dc.b <music3Voice1CommandsPart1, >music3Voice1CommandsPart1
+music3Voice1OffsetsRepeat
+        dc.b <music3Voice1CommandsPart2, >music3Voice1CommandsPart2
         dc.b $ff, $ff
-        dc.b <lbl_f2b3, >lbl_f2b3
-lbl_f2b9
-        dc.b <lbl_f2d1, >lbl_f2d1
+        dc.b <music3Voice1OffsetsRepeat, >music3Voice1OffsetsRepeat
+music3Voice2Offsets
+        dc.b <music3Voice2Commands, >music3Voice2Commands
         dc.b $ff, $ff
-        dc.b <lbl_f2b9, >lbl_f2b9
-lbl_f2bf
-        dc.b <lbl_f34d, >lbl_f34d
+        dc.b <music3Voice2Offsets, >music3Voice2Offsets
+music3Voice3Offsets
+        dc.b <music3Voice3Commands, >music3Voice3Commands
         dc.b $ff, $ff
-        dc.b <lbl_f2bf, >lbl_f2bf
-lbl_f2c5
-        dc.b <lbl_f3a0, >lbl_f3a0
+        dc.b <music3Voice3Offsets, >music3Voice3Offsets
+music3Voice4Offsets
+        dc.b <music3Voice4Commands, >music3Voice4Commands
         dc.b $ff, $ff
-        dc.b <lbl_f2c5, >lbl_f2c5
-lbl_f2cb
-        dc.b $9f, $a5, $b1, $b8, $02, $00
-lbl_f2d1
+        dc.b <music3Voice4Offsets, >music3Voice4Offsets
+music3Voice1CommandsPart1
+        dc.b $9f, $a5, $b1
+        dc.b $b8, $02, $00
+music3Voice2Commands
         dc.b $9f, $a4, $b3
-lbl_f2d4
+music3Voice1CommandsPart2
         dc.b $b1, $02, $42, $48, $42, $4c
         dc.b $42, $56, $42, $54, $42, $50, $42, $54, $42, $4c, $42, $02, $42, $02, $42, $48
         dc.b $42, $4c, $42, $02, $3e, $48, $3e, $4c, $3e, $50, $3e, $52, $3e, $50, $3e, $4c
@@ -6698,22 +6796,38 @@ lbl_f2d4
         dc.b $42, $46, $42, $50, $42, $4c, $42, $02, $42, $b2, $42, $02, $b1, $5a, $42, $48
         dc.b $4c, $50, $56, $b3, $5a, $b2, $02, $b1, $42, $5a, $60, $5e, $5a, $56, $b3, $5a
         dc.b $b2, $42, $00
-lbl_f34d
-        dc.b $9f, $00, $00, $b5, $4c, $b1, $4c, $b2, $34, $b5, $42, $b1, $42
+music3Voice3Commands
+        dc.b $9f, $00, $00
+        dc.b $b5, $4c, $b1, $4c, $b2, $34, $b5, $42, $b1, $42
         dc.b $b2, $42, $4c, $42, $4c, $42, $4c, $42, $b5, $48, $b1, $48, $b2, $48, $b5, $3e
         dc.b $b1, $3e, $b2, $3e, $48, $3e, $48, $3e, $48, $3e, $b3, $4c, $b2, $42, $4c, $42
         dc.b $4c, $42, $4c, $42, $4c, $42, $4c, $b5, $48, $b1, $48, $b2, $48, $b5, $3e, $b1
         dc.b $3e, $b2, $3e, $48, $3e, $48, $3e, $48, $3e, $4c, $42, $4c, $48, $3e, $48, $4c
         dc.b $42, $4c, $48, $3e, $48, $00
-lbl_f3a0
+music3Voice4Commands
         dc.b $b2, $04, $04, $00
 
         ; Congratulations music
 
-lbl_f3a4
-        dc.b $bc, $f3, $ff, $ff, $a4, $f3
-        dc.b $58, $f4, $ff, $ff, $aa, $f3, $30, $f5, $ff, $ff, $b0, $f3, $7f, $f5, $ff, $ff
-        dc.b $b6, $f3, $9f, $07, $b1, $b2, $42, $40, $3e, $c2, $b1, $1c, $02, $b2, $3c, $b1
+congratulationsMusicVoice1Offsets
+        dc.b <congratulationsMusicVoice1Commands, >congratulationsMusicVoice1Commands
+        dc.b $ff, $ff
+        dc.b <congratulationsMusicVoice1Offsets, >congratulationsMusicVoice1Offsets
+congratulationsMusicVoice2Offsets
+        dc.b <congratulationsMusicVoice2Commands, >congratulationsMusicVoice2Commands
+        dc.b $ff, $ff
+        dc.b <congratulationsMusicVoice2Offsets, >congratulationsMusicVoice2Offsets
+congratulationsMusicVoice3Offsets
+        dc.b <congratulationsMusicVoice3Commands, >congratulationsMusicVoice3Commands
+        dc.b $ff, $ff
+        dc.b <congratulationsMusicVoice3Offsets, >congratulationsMusicVoice3Offsets
+congratulationsMusicVoice4Offsets
+        dc.b <congratulationsMusicVoice4Commands, >congratulationsMusicVoice4Commands
+        dc.b $ff, $ff
+        dc.b <congratulationsMusicVoice4Offsets, >congratulationsMusicVoice4Offsets
+congratulationsMusicVoice1Commands
+        dc.b $9f, $07, $b1
+        dc.b $b2, $42, $40, $3e, $c2, $b1, $1c, $02, $b2, $3c, $b1
         dc.b $12, $02, $b2, $3c, $b1, $1c, $02, $b2, $3c, $b1, $12, $02, $b2, $3c, $b1, $20
         dc.b $02, $b2, $3e, $b1, $1e, $02, $b2, $3e, $b1, $1c, $02, $b2, $3e, $b1, $1e, $02
         dc.b $b2, $3e, $b1, $20, $02, $b2, $3e, $b1, $16, $02, $b2, $3e, $b1, $12, $02, $b2
@@ -6723,6 +6837,7 @@ lbl_f3a4
         dc.b $12, $02, $b2, $3c, $b1, $1c, $02, $b2, $3c, $b1, $12, $02, $b2, $3c, $b1, $20
         dc.b $02, $b2, $46, $b1, $16, $02, $b2, $46, $b1, $20, $02, $b2, $46, $b1, $16, $02
         dc.b $b2, $46, $c2, $b8, $4c, $4c, $4c, $bb, $02, $ff, $b1, $38, $02, $00
+congratulationsMusicVoice2Commands
         dc.b $9f, $a6, $b1
         dc.b $b2, $42, $46, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02, $b7
         dc.b $4a, $b0, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b2, $4a, $48, $b4, $46, $b1
@@ -6737,12 +6852,18 @@ lbl_f3a4
         dc.b $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02, $b7, $4a, $b0, $48, $b1, $4a, $02
         dc.b $b7, $4a, $b0, $48, $b2, $4a, $b9, $4a, $4c, $4e, $ba, $02, $b2, $50, $4c, $46
         dc.b $b3, $3e, $b2, $46, $4c, $50, $b8, $52, $52, $52, $bb, $02, $b8, $52, $50, $4c
-        dc.b $bb, $02, $b1, $50, $02, $00, $9f, $0f, $00, $c3, $b2, $02, $ff, $c2, $b2, $34
+        dc.b $bb, $02, $b1, $50, $02, $00
+congratulationsMusicVoice3Commands
+        dc.b $9f, $0f, $00
+        dc.b $c3, $b2, $02, $ff, $c2, $b2, $34
         dc.b $5a, $2a, $5a, $34, $5a, $2a, $5a, $38, $5e, $36, $5e, $34, $5e, $36, $5e, $38
-        dc.b $5e, $2e, $5e, $2a, $56, $2a, $56, $34, $5a, $2a, $5a, $b4, $34, $ff, $9f, $10
-        dc.b $00, $b2, $38, $56, $36, $56, $34, $56, $2e, $56, $34, $5a, $2a, $5a, $34, $5a
+        dc.b $5e, $2e, $5e, $2a, $56, $2a, $56, $34, $5a, $2a, $5a, $b4, $34, $ff
+        dc.b $9f, $10, $00
+        dc.b $b2, $38, $56, $36, $56, $34, $56, $2e, $56, $34, $5a, $2a, $5a, $34, $5a
         dc.b $2a, $5a, $38, $56, $2e, $56, $38, $56, $2e, $56, $c2, $b8, $2a, $2a, $2a, $bb
-        dc.b $02, $ff, $b2, $42, $00, $b2, $01, $01, $01, $c7, $b2, $04, $b7, $04, $b0, $04
+        dc.b $02, $ff, $b2, $42, $00
+congratulationsMusicVoice4Commands
+        dc.b $b2, $01, $01, $01, $c7, $b2, $04, $b7, $04, $b0, $04
         dc.b $b2, $07, $b7, $04, $b0, $04, $ff, $b4, $04, $c7, $b2, $04, $b7, $04, $b0, $04
         dc.b $b2, $07, $b7, $04, $b0, $04, $ff, $b4, $04, $c6, $b7, $04, $b0, $04, $b2, $07
         dc.b $b7, $04, $b0, $04, $b2, $07, $ff, $c2, $b9, $04, $04, $04, $ba, $01, $b9, $07
@@ -6750,27 +6871,75 @@ lbl_f3a4
 
         ; Music 2
 
-lbl_f5c2
-        dc.b $f8, $f5, $6a, $f6, $86, $f6, $86, $f6
-        dc.b $f2, $f6, $ff, $ff, $c2, $f5, $f2, $f5, $67, $f6, $ac, $f6, $ac, $f6, $95, $f7
-        dc.b $ff, $ff, $d0, $f5, $06, $f6, $78, $f6, $d2, $f6, $d2, $f6, $33, $f8, $ff, $ff
-        dc.b $de, $f5, $14, $f6, $ff, $ff, $ec, $f5, $9f, $10, $31, $b4, $02, $00, $9f, $10
-        dc.b $31, $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00, $9f, $00, $00, $c2
-        dc.b $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00, $c4, $b1, $04, $b0, $04, $04
+music2Voice1Offsets
+        dc.b <music2Voice1CommandsPart1, >music2Voice1CommandsPart1
+        dc.b <music2Voice1CommandsPart2, >music2Voice1CommandsPart2
+        dc.b <music2Voice1CommandsPart3, >music2Voice1CommandsPart3
+        dc.b <music2Voice1CommandsPart3, >music2Voice1CommandsPart3
+        dc.b <music2Voice1CommandsPart4, >music2Voice1CommandsPart4
+        dc.b $ff, $ff
+        dc.b <music2Voice1Offsets, >music2Voice1Offsets
+music2Voice2Offsets
+        dc.b <music2Voice2CommandsPart1, >music2Voice2CommandsPart1
+        dc.b <music2Voice2CommandsPart2, >music2Voice2CommandsPart2
+        dc.b <music2Voice2CommandsPart3, >music2Voice2CommandsPart3
+        dc.b <music2Voice2CommandsPart3, >music2Voice2CommandsPart3
+        dc.b <music2Voice2CommandsPart4, >music2Voice2CommandsPart4
+        dc.b $ff, $ff
+        dc.b <music2Voice2Offsets, >music2Voice2Offsets
+music2Voice3Offsets
+        dc.b <music2Voice3CommandsPart1, >music2Voice3CommandsPart1
+        dc.b <music2Voice3CommandsPart2, >music2Voice3CommandsPart2
+        dc.b <music2Voice3CommandsPart3, >music2Voice3CommandsPart3
+        dc.b <music2Voice3CommandsPart3, >music2Voice3CommandsPart3
+        dc.b <music2Voice3CommandsPart4, >music2Voice3CommandsPart4
+        dc.b $ff, $ff
+        dc.b <music2Voice3Offsets, >music2Voice3Offsets
+music2Voice4Offsets
+        dc.b <music2Voice4CommandsPart1, >music2Voice4CommandsPart1
+        dc.b $ff, $ff
+        dc.b <music2Voice4Offsets, >music2Voice4Offsets
+music2Voice2CommandsPart1
+        dc.b $9f, $10, $31
+        dc.b $b4, $02, $00
+music2Voice1CommandsPart1
+        dc.b $9f, $10, $31
+        dc.b $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00
+music2Voice3CommandsPart1
+        dc.b $9f, $00, $00, $c2
+        dc.b $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00
+music2Voice4CommandsPart1
+        dc.b $c4, $b1, $04, $b0, $04, $04
         dc.b $b1, $04, $04, $ff, $cf, $b1, $04, $b0, $04, $04, $b1, $04, $04, $ff, $b1, $04
         dc.b $b0, $04, $04, $b1, $07, $01, $cc, $b1, $04, $b0, $04, $04, $b1, $04, $04, $ff
         dc.b $c4, $b1, $04, $b0, $04, $04, $b1, $04, $04, $ff, $c2, $b1, $04, $b0, $04, $04
         dc.b $b1, $04, $04, $01, $b0, $04, $04, $b1, $04, $04, $ff, $c3, $b1, $04, $b0, $04
-        dc.b $04, $b1, $04, $04, $ff, $b1, $04, $b0, $04, $04, $b2, $07, $00, $b4, $02, $00
-        dc.b $9f, $12, $31, $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00, $9f, $00
-        dc.b $00, $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00, $9f, $11, $31, $b1
+        dc.b $04, $b1, $04, $04, $ff, $b1, $04, $b0, $04, $04, $b2, $07, $00
+music2Voice2CommandsPart2
+        dc.b $b4, $02, $00
+music2Voice1CommandsPart2
+        dc.b $9f, $12, $31, $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00
+music2Voice3CommandsPart2
+        dc.b $9f, $00, $00
+        dc.b $c2, $b1, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $00
+music2Voice1CommandsPart3
+        dc.b $9f, $11, $31
+        dc.b $b1
         dc.b $3c, $4a, $54, $52, $54, $b0, $4a, $4a, $b1, $4c, $46, $4a, $b0, $42, $42, $b1
         dc.b $46, $40, $42, $b0, $3c, $3c, $b1, $40, $3a, $3c, $32, $34, $3a, $3c, $32, $34
-        dc.b $40, $00, $9f, $10, $31, $b1, $32, $42, $42, $46, $42, $b0, $40, $42, $b1, $46
+        dc.b $40, $00
+music2Voice2CommandsPart3
+        dc.b $9f, $10, $31
+        dc.b $b1, $32, $42, $42, $46, $42, $b0, $40, $42, $b1, $46
         dc.b $40, $42, $b0, $3a, $3c, $b1, $40, $3a, $3c, $b0, $30, $32, $b1, $3a, $32, $32
-        dc.b $2a, $2e, $2e, $32, $2a, $2e, $3a, $00, $9f, $00, $00, $c2, $b1, $3c, $b0, $3c
+        dc.b $2a, $2e, $2e, $32, $2a, $2e, $3a, $00
+music2Voice3CommandsPart3
+        dc.b $9f, $00, $00
+        dc.b $c2, $b1, $3c, $b0, $3c
         dc.b $3c, $b1, $32, $32, $ff, $c2, $3c, $b0, $3c, $3c, $b1, $32, $32, $ff, $c2, $3c
-        dc.b $b0, $3c, $3c, $b1, $3a, $32, $ff, $00, $9f, $11, $31, $b1, $3c, $02, $b3, $02
+        dc.b $b0, $3c, $3c, $b1, $3a, $32, $ff, $00
+music2Voice1CommandsPart4
+        dc.b $9f, $11, $31, $b1, $3c, $02, $b3, $02
         dc.b $b1, $40, $3a, $3c, $02, $b3, $02, $b2, $40, $9f, $10, $31, $c2, $b1, $42, $b0
         dc.b $42, $42, $b1, $46, $40, $ff, $b1, $42, $02, $b3, $02, $b2, $46, $9f, $11, $31
         dc.b $c2, $b1, $4a, $b0, $4a, $4a, $b1, $4c, $46, $ff, $4a, $02, $b3, $02, $b2, $4e
@@ -6780,7 +6949,10 @@ lbl_f5c2
         dc.b $b1, $4c, $46, $40, $42, $46, $38, $9f, $10, $31, $b1, $46, $9f, $11, $31, $b0
         dc.b $42, $42, $b1, $38, $b2, $42, $b0, $38, $3c, $b1, $38, $32, $b0, $46, $02, $b0
         dc.b $42, $42, $b1, $38, $b2, $42, $b0, $38, $3c, $b1, $38, $30, $9f, $10, $31, $b1
-        dc.b $38, $02, $b6, $02, $02, $9f, $13, $31, $b2, $3a, $00, $9f, $10, $31, $b1, $32
+        dc.b $38, $02, $b6, $02, $02, $9f, $13, $31, $b2, $3a, $00
+music2Voice2CommandsPart4
+        dc.b $9f, $10, $31
+        dc.b $b1, $32
         dc.b $02, $b3, $02, $b1, $32, $32, $32, $02, $b3, $02, $b2, $38, $9f, $11, $31, $b4
         dc.b $02, $b6, $02, $b2, $40, $c2, $b1, $42, $b0, $42, $42, $b1, $46, $40, $ff, $b1
         dc.b $38, $02, $b3, $02, $9f, $13, $31, $b2, $3c, $9f, $10, $31, $b1, $40, $b0, $42
@@ -6790,7 +6962,9 @@ lbl_f5c2
         dc.b $40, $28, $9f, $13, $31, $b1, $32, $9f, $10, $31, $b0, $32, $32, $b1, $32, $b2
         dc.b $32, $b0, $32, $36, $b1, $32, $2a, $9f, $11, $31, $b0, $30, $02, $30, $30, $b1
         dc.b $30, $b2, $30, $b0, $30, $34, $b1, $30, $2a, $9f, $13, $31, $b1, $28, $02, $b6
-        dc.b $02, $02, $9f, $13, $31, $b2, $2e, $00, $00, $9f, $00, $00, $b1, $3c, $b0, $3c
+        dc.b $02, $02, $9f, $13, $31, $b2, $2e, $00, $00
+music2Voice3CommandsPart4
+        dc.b $9f, $00, $00, $b1, $3c, $b0, $3c
         dc.b $3c, $b1, $34, $2e, $3c, $b0, $3c, $3c, $b1, $3a, $32, $3c, $b0, $3c, $3c, $b1
         dc.b $34, $2e, $3c, $b0, $3c, $3c, $b1, $2e, $20, $c7, $2a, $b0, $42, $2a, $b1, $20
         dc.b $38, $ff, $2a, $b0, $42, $2a, $b1, $2e, $46, $c2, $20, $b0, $38, $20, $b1, $20
@@ -6799,35 +6973,86 @@ lbl_f5c2
         dc.b $20, $ba, $38, $02, $20, $02, $b1, $20, $38, $ff, $20, $b0, $38, $20, $9f, $a0
         dc.b $00, $b2, $40, $00
 
-        ; B-type goal achieved music 2
+        ; Endings music
 
-lbl_f89e
-        dc.b $f6, $f8, $6d, $f9, $f6, $f8, $b7, $f9, $ff, $ff, $9e, $f8
-        dc.b $ce, $f8, $47, $f9, $ce, $f8, $91, $f9, $ff, $ff, $aa, $f8, $0b, $f9, $7f, $f9
-        dc.b $0b, $f9, $d2, $f9, $ff, $ff, $b6, $f8, $20, $f9, $20, $f9, $20, $f9, $30, $f9
-        dc.b $ff, $ff, $c2, $f8, $9f, $01, $b1, $b1, $56, $b0, $56, $56, $56, $4c, $48, $4c
+endingsMusicVoice1Offsets
+        dc.b <endingsMusicVoice1CommandsPart1, >endingsMusicVoice1CommandsPart1
+        dc.b <endingsMusicVoice1CommandsPart2, >endingsMusicVoice1CommandsPart2
+        dc.b <endingsMusicVoice1CommandsPart1, >endingsMusicVoice1CommandsPart1
+        dc.b <endingsMusicVoice1CommandsPart3, >endingsMusicVoice1CommandsPart3
+        dc.b $ff, $ff
+        dc.b <endingsMusicVoice1Offsets, >endingsMusicVoice1Offsets
+endingsMusicVoice2Offsets
+        dc.b <endingsMusicVoice2CommandsPart1, >endingsMusicVoice2CommandsPart1
+        dc.b <endingsMusicVoice2CommandsPart2, >endingsMusicVoice2CommandsPart2
+        dc.b <endingsMusicVoice2CommandsPart1, >endingsMusicVoice2CommandsPart1
+        dc.b <endingsMusicVoice2CommandsPart3, >endingsMusicVoice2CommandsPart3
+        dc.b $ff, $ff
+        dc.b <endingsMusicVoice2Offsets, >endingsMusicVoice2Offsets
+endingsMusicVoice3Offsets
+        dc.b <endingsMusicVoice3CommandsPart1, >endingsMusicVoice3CommandsPart1
+        dc.b <endingsMusicVoice3CommandsPart2, >endingsMusicVoice3CommandsPart2
+        dc.b <endingsMusicVoice3CommandsPart1, >endingsMusicVoice3CommandsPart1
+        dc.b <endingsMusicVoice3CommandsPart3, >endingsMusicVoice3CommandsPart3
+        dc.b $ff, $ff
+        dc.b <endingsMusicVoice3Offsets, >endingsMusicVoice3Offsets
+endingsMusicVoice4Offsets
+        dc.b <endingsMusicVoice4CommandsPart1, >endingsMusicVoice4CommandsPart1
+        dc.b <endingsMusicVoice4CommandsPart1, >endingsMusicVoice4CommandsPart1
+        dc.b <endingsMusicVoice4CommandsPart1, >endingsMusicVoice4CommandsPart1
+        dc.b <endingsMusicVoice4CommandsPart2, >endingsMusicVoice4CommandsPart2
+        dc.b $ff, $ff
+        dc.b <endingsMusicVoice4Offsets, >endingsMusicVoice4Offsets
+endingsMusicVoice2CommandsPart1
+        dc.b $9f, $01, $b1, $b1, $56, $b0, $56, $56, $56, $4c, $48, $4c
         dc.b $b1, $56, $b0, $56, $56, $56, $5a, $5e, $5a, $b1, $56, $b0, $56, $56, $5a, $56
-        dc.b $54, $56, $b0, $5a, $5e, $5a, $5e, $5a, $02, $58, $5a, $00, $9f, $02, $b1, $b1
+        dc.b $54, $56, $b0, $5a, $5e, $5a, $5e, $5a, $02, $58, $5a, $00
+endingsMusicVoice1CommandsPart1
+        dc.b $9f, $02, $b1
+        dc.b $b1
         dc.b $02, $46, $02, $42, $02, $46, $02, $48, $02, $46, $02, $46, $02, $42, $02, $42
-        dc.b $00, $9f, $00, $00, $b1, $56, $56, $4c, $54, $56, $56, $4c, $5a, $56, $56, $54
-        dc.b $56, $50, $56, $4c, $54, $00, $c6, $b0, $04, $04, $0a, $04, $ff, $b1, $04, $0a
-        dc.b $b0, $04, $04, $b1, $0a, $00, $c4, $b0, $04, $04, $0a, $04, $ff, $b1, $01, $b0
-        dc.b $0a, $0a, $b1, $0a, $b0, $0a, $0a, $b2, $0a, $b1, $0a, $04, $00, $b1, $60, $b0
+        dc.b $00
+endingsMusicVoice3CommandsPart1
+        dc.b $9f, $00, $00
+        dc.b $b1, $56, $56, $4c, $54, $56, $56, $4c, $5a, $56, $56, $54
+        dc.b $56, $50, $56, $4c, $54, $00
+endingsMusicVoice4CommandsPart1
+        dc.b $c6, $b0, $04, $04, $0a, $04, $ff, $b1, $04, $0a
+        dc.b $b0, $04, $04, $b1, $0a, $00
+endingsMusicVoice4CommandsPart2
+        dc.b $c4, $b0, $04, $04, $0a, $04, $ff, $b1, $01, $b0
+        dc.b $0a, $0a, $b1, $0a, $b0, $0a, $0a, $b2, $0a, $b1, $0a, $04, $00
+endingsMusicVoice2CommandsPart2
+        dc.b $b1, $60, $b0
         dc.b $60, $60, $60, $56, $52, $56, $b1, $60, $b0, $60, $60, $60, $64, $68, $64, $b1
         dc.b $60, $b0, $60, $5e, $b1, $5a, $b0, $5a, $56, $b0, $54, $56, $54, $56, $54, $02
-        dc.b $50, $54, $00, $b1, $02, $48, $02, $4c, $02, $48, $02, $4c, $02, $48, $02, $48
-        dc.b $02, $48, $02, $48, $00, $b1, $48, $56, $56, $56, $48, $56, $56, $56, $48, $56
-        dc.b $54, $5a, $46, $54, $4c, $5a, $00, $9f, $01, $b1, $b1, $64, $b0, $64, $64, $64
+        dc.b $50, $54, $00
+endingsMusicVoice1CommandsPart2
+        dc.b $b1, $02, $48, $02, $4c, $02, $48, $02, $4c, $02, $48, $02, $48
+        dc.b $02, $48, $02, $48, $00
+endingsMusicVoice3CommandsPart2
+        dc.b $b1, $48, $56, $56, $56, $48, $56, $56, $56, $48, $56
+        dc.b $54, $5a, $46, $54, $4c, $5a, $00
+endingsMusicVoice2CommandsPart3
+        dc.b $9f, $01, $b1
+        dc.b $b1, $64, $b0, $64, $64, $64
         dc.b $60, $5c, $60, $b1, $64, $b0, $64, $64, $64, $60, $5c, $60, $b0, $64, $02, $4c
-        dc.b $50, $b1, $54, $b0, $4c, $5e, $b2, $5a, $b0, $56, $b7, $6e, $00, $9f, $01, $b1
+        dc.b $50, $b1, $54, $b0, $4c, $5e, $b2, $5a, $b0, $56, $b7, $6e, $00
+endingsMusicVoice1CommandsPart3
+        dc.b $9f, $01, $b1
         dc.b $b1, $02, $4c, $02, $4c, $02, $4c, $02, $4c, $02, $b0, $48, $48, $b1, $48, $b0
-        dc.b $48, $48, $b2, $48, $b1, $46, $02, $00, $b1, $44, $5c, $52, $5c, $44, $5c, $52
+        dc.b $48, $48, $b2, $48, $b1, $46, $02, $00
+endingsMusicVoice3CommandsPart3
+        dc.b $b1, $44, $5c, $52, $5c, $44, $5c, $52
         dc.b $5c, $b0, $4c, $02, $54, $54, $b1, $54, $b0, $54, $54, $b2, $54, $b1, $56, $02
-        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        dc.b $00, $00, $00, $00, $00, $00
+        dc.b $00
+
 ;--------------------
+
         ; Padding
 
+        dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        dc.b $00, $00, $00, $00, $00, $00
         dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
         dc.b $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
         dc.b $00, $00, $00, $00, $00, $20, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
