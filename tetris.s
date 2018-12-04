@@ -5807,7 +5807,7 @@ lbl_e5d0 subroutine
         and #$e0
         beq .return
         sta apuRegisterLow
-        lda $6c3,x
+        lda currentNote,x
         cmp #$2
         beq lbl_e5f6
         ldy voiceParameterOffset
@@ -5828,7 +5828,7 @@ lbl_e602
         tay
         lda lbl_e689,y
         pha
-        lda $6c3,x
+        lda currentNote,x
         cmp #$46
         bne lbl_e613
         pla
@@ -5848,7 +5848,7 @@ lbl_e624
         lda #$f6
         bne lbl_e677
 lbl_e628
-        lda $6c3,x
+        lda currentNote,x
         cmp #$4c
         bcc lbl_e633
         lda #$fe
@@ -5955,9 +5955,9 @@ startSong
         bne .clearVoiceData
         tax
 .copyVoiceData
-        lda songStartLow,x
+        lda voiceStart,x
         sta $e6
-        lda songStartHigh,x
+        lda voiceStart+1,x
         cmp #$ff
         beq .nullVoiceData
         sta $e7
@@ -5982,9 +5982,9 @@ lbl_e735
         beq lbl_e74f
         lda #$7f
         sta PULSE_2_SWEEP
-        lda $684
+        lda pulse2TimerLow
         sta PULSE_2_TIMER_LOW
-        lda $685
+        lda pulse2TimerHigh
         sta PULSE_2_TIMER_HIGH
 lbl_e74f
         lda #$7f
@@ -6006,7 +6006,7 @@ lbl_e766 subroutine
         and #$1f
         beq lbl_e7cb
         sta apuRegisterHigh
-        lda $6c3,x
+        lda currentNote,x
         cmp #$2
         beq lbl_e7d5
         ldy #$0
@@ -6067,13 +6067,13 @@ lbl_e7d5
 lbl_e7d9
         iny
         lda ($e6),y
-        sta songStartLow,x
+        sta voiceStart,x
         iny
         lda ($e6),y
-        sta songStartHigh,x
-        lda songStartLow,x
+        sta voiceStart+1,x
+        lda voiceStart,x
         sta $e6
-        lda songStartHigh,x
+        lda voiceStart+1,x
         sta $e7
         txa
         lsr
@@ -6090,9 +6090,9 @@ lbl_e7ff
         txa
         asl
         tax
-        lda songStartLow,x
+        lda voiceStart,x
         sta $e6
-        lda songStartHigh,x
+        lda voiceStart+1,x
         sta $e7
         txa
         lsr
@@ -6169,7 +6169,7 @@ lbl_e85a
         cmp #$9e
         beq .setTempo
         cmp #$9c
-        beq lbl_e8ef
+        beq .setKey
         tay
         cmp #$ff
         beq lbl_e89d
@@ -6214,9 +6214,9 @@ lbl_e8cb
         jsr nextSongCommand
         sta songTempo
         jmp .doNextCommand
-lbl_e8ef
+.setKey
         jsr nextSongCommand
-        sta currentSongHeader
+        sta songKey
         jmp .doNextCommand
 .setNoteLength
         tya
@@ -6239,7 +6239,7 @@ lbl_e913
         tay
 .playNote
         tya
-        sta $6c3,x
+        sta currentNote,x
         txa
         cmp #$3
         beq lbl_e8c8
@@ -6247,7 +6247,7 @@ lbl_e913
         ldx voiceParameterOffset
         lda pulsePeriodTable+1,y
         beq lbl_e94c
-        lda currentSongHeader
+        lda songKey
         bpl .transposeNote
         and #$7f
         sta $e3
@@ -6258,7 +6258,7 @@ lbl_e913
 .transposeNote
         tya
         clc
-        adc currentSongHeader
+        adc songKey
 .setPulseTimer
         tay
         lda pulsePeriodTable+1,y
@@ -6407,9 +6407,28 @@ nextSongCommand
         rts
 ;--------------------
 lbl_ea4a
-        dc.b $76, $ea, $82, $ea, $8b, $ea, $91, $ea, $9a, $ea, $a2, $ea, $a5, $ea, $a8, $ea
-        dc.b $ac, $ea, $ba, $ea, $c7, $ea, $d4, $ea, $de, $ea, $e8, $ea, $f2, $ea, $f7, $ea
-        dc.b $fc, $ea, $01, $eb, $05, $eb, $0a, $eb, $0d, $eb, $10, $eb
+        dc.w lbl_ea76
+        dc.w lbl_ea82
+        dc.w lbl_ea8b
+        dc.w lbl_ea91
+        dc.w lbl_ea9a
+        dc.w lbl_eaa2
+        dc.w lbl_eaa5
+        dc.w lbl_eaa8
+        dc.w lbl_eaac
+        dc.w lbl_eaba
+        dc.w lbl_eac7
+        dc.w lbl_ead4
+        dc.w lbl_eade
+        dc.w lbl_eae8
+        dc.w lbl_eaf2
+        dc.w lbl_eaf7
+        dc.w lbl_eafc
+        dc.w lbl_eb01
+        dc.w lbl_eb05
+        dc.w lbl_eb0a
+        dc.w lbl_eb0d
+        dc.w lbl_eb10
 lbl_ea76
         dc.b $46, $89, $87, $76, $66, $55, $44, $33, $22, $21, $11, $f0
 lbl_ea82
@@ -6456,27 +6475,87 @@ lbl_eb10
         dc.b $63, $31, $f0
 
 pulsePeriodTable
-        dc.b $07, $f0, $00, $00, $06, $ae, $06
-        dc.b $4e, $05, $f3, $05, $9e, $05, $4d, $05, $01, $04, $b9, $04, $75, $04, $35, $03
-        dc.b $f8, $03, $bf, $03, $89, $03, $57, $03, $27, $02, $f9, $02, $cf, $02, $a6, $02
-        dc.b $80, $02, $5c, $02, $3a, $02, $1a, $01, $fc, $01, $df, $01, $c4, $01, $ab, $01
-        dc.b $93, $01, $7c, $01, $67, $01, $52, $01, $3f, $01, $2d, $01, $1c, $01, $0c, $00
-        dc.b $fd, $00, $ee, $00, $e1, $00, $d4, $00, $c8, $00, $bd, $00, $b2, $00, $a8, $00
-        dc.b $9f, $00, $96, $00, $8d, $00, $85, $00, $7e, $00, $76, $00, $70, $00, $69, $00
-        dc.b $63, $00, $5e, $00, $58, $00, $53, $00, $4f, $00, $4a, $00, $46, $00, $42, $00
-        dc.b $3e, $00, $3a, $00, $37, $00, $34, $00, $31, $00, $2e, $00, $2b, $00, $29, $00
-        dc.b $27, $00, $01, $00, $24, $00, $22, $00, $20, $00, $1e, $00, $1c, $00, $1a, $00
-        dc.b $0a, $00, $10, $00, $19
+        ; A1
+        dc.b $07, $f0
+
+        ; Rest / silence
+        dc.b $00, $00
+
+        ; C2 - B2
+        dc.b $06, $ae, $06, $4e, $05, $f3, $05, $9e, $05, $4d, $05, $01
+        dc.b $04, $b9, $04, $75, $04, $35, $03, $f8, $03, $bf, $03, $89
+
+        ; C3 - B3
+        dc.b $03, $57, $03, $27, $02, $f9, $02, $cf, $02, $a6, $02, $80
+        dc.b $02, $5c, $02, $3a, $02, $1a, $01, $fc, $01, $df, $01, $c4
+
+        ; C4 - B4
+        dc.b $01, $ab, $01, $93, $01, $7c, $01, $67, $01, $52, $01, $3f
+        dc.b $01, $2d, $01, $1c, $01, $0c, $00, $fd, $00, $ee, $00, $e1
+
+        ; C5 - B5
+        dc.b $00, $d4, $00, $c8, $00, $bd, $00, $b2, $00, $a8, $00, $9f
+        dc.b $00, $96, $00, $8d, $00, $85, $00, $7e, $00, $76, $00, $70
+
+        ; C6 - B6
+        dc.b $00, $69, $00, $63, $00, $5e, $00, $58, $00, $53, $00, $4f
+        dc.b $00, $4a, $00, $46, $00, $42, $00, $3e, $00, $3a, $00, $37
+
+        ; C7 - F7
+        dc.b $00, $34, $00, $31, $00, $2e, $00, $2b, $00, $29, $00, $27
+
+        ; Rest / silence
+        dc.b $00, $01
+
+        ; F#7 - B7
+        dc.b $00, $24, $00, $22, $00, $20, $00, $1e, $00, $1c, $00, $1a
+
+        ; F9
+        dc.b $00, $0a
+
+        ; A8
+        dc.b $00, $10
+
+        ; C#8
+        dc.b $00, $19
 
 noteLengths
+        ; 1/16  note, 1/8 note, 1/4 note, 1/2 note, full note, 3/8 note, 3/4 note, 3/16 note
+
+noteLengths300bpm
+        ; 300 BPM
         dc.b $03, $06, $0c, $18, $30, $12, $24, $09, $08, $04, $02, $01
+
+noteLengths225bpm
+        ; 225 BPM
         dc.b $04, $08, $10, $20, $40, $18, $30, $0c, $0a, $05, $02, $01
+
+noteLengths180bpm
+        ; 180 BPM
         dc.b $05, $0a, $14, $28, $50, $1e, $3c, $0f, $0d, $06, $02, $01
+
+noteLengths150bpm
+        ; 150 BPM
         dc.b $06, $0c, $18, $30, $60, $24, $48, $12, $10, $08, $03, $01, $04, $02, $00, $90
+
+noteLengths128bpm
+        ; 128 BPM
         dc.b $07, $0e, $1c, $38, $70, $2a, $54, $15, $12, $09, $03, $01, $02
+
+noteLengths112bpm
+        ; 112 BPM
         dc.b $08, $10, $20, $40, $80, $30, $60, $18, $15, $0a, $04, $01, $02, $c0
+
+noteLengths100bpm
+        ; 100 BPM
         dc.b $09, $12, $24, $48, $90, $36, $6c, $1b, $18
+
+noteLengths90bpm
+        ; 90 BPM
         dc.b $0a, $14, $28, $50, $a0, $3c, $78, $1e, $1a, $0d, $05, $01, $02, $17
+
+noteLengths82bpm
+        ; 82 BPM
         dc.b $0b, $16, $2c, $58, $b0, $42, $84, $21, $1d, $0e, $05, $01, $02, $17
 
 songHeaderOffsets
@@ -6492,98 +6571,116 @@ songHeaderOffsets
         dc.b endingsMusicHeader-songHeaders
 
 songHeaders
-        ; key/note offset (byte), tempo (byte)
+        ; key/note offset (byte)
+        ; tempo (byte)
         ; voice 1 address (word)
         ; voice 2 address (word)
         ; voice 3 address (word)
         ; voice 4 address (word)
 
 titleMusicHeader
-        dc.b $0a, $24
-        dc.b <titleMusicVoice1Offsets, >titleMusicVoice1Offsets
-        dc.b <titleMusicVoice2Offsets, >titleMusicVoice2Offsets
-        dc.b <titleMusicVoice3Offsets, >titleMusicVoice3Offsets
-        dc.b <titleMusicVoice4Offsets, >titleMusicVoice4Offsets
+        dc.b $0a
+        dc.b noteLengths150bpm-noteLengths
+        dc.w titleMusicVoice1Offsets
+        dc.w titleMusicVoice2Offsets
+        dc.w titleMusicVoice3Offsets
+        dc.w titleMusicVoice4Offsets
 
 bTypeGoalMusicHeader
-        dc.b $83, $00
-        dc.b <bTypeGoalMusicVoice1Offsets, >bTypeGoalMusicVoice1Offsets
-        dc.b <bTypeGoalMusicVoice2Offsets, >bTypeGoalMusicVoice2Offsets
-        dc.b <bTypeGoalMusicVoice3Offsets, >bTypeGoalMusicVoice3Offsets
-        dc.b <bTypeGoalMusicVoice4Offsets, >bTypeGoalMusicVoice4Offsets
+        dc.b $83
+        dc.b noteLengths300bpm-noteLengths
+        dc.w bTypeGoalMusicVoice1Offsets
+        dc.w bTypeGoalMusicVoice2Offsets
+        dc.w bTypeGoalMusicVoice3Offsets
+        dc.w bTypeGoalMusicVoice4Offsets
 
 music1Header
-        dc.b $81, $24
-        dc.b <music1Voice1Offsets, >music1Voice1Offsets
-        dc.b <music1Voice2Offsets, >music1Voice2Offsets
-        dc.b <music1Voice3Offsets, >music1Voice3Offsets
-        dc.b <music1Voice4Offsets, >music1Voice4Offsets
+        dc.b $81
+        dc.b noteLengths150bpm-noteLengths
+        dc.w music1Voice1Offsets
+        dc.w music1Voice2Offsets
+        dc.w music1Voice3Offsets
+        dc.w music1Voice4Offsets
 
 music2Header
-        dc.b $83, $24
-        dc.b <music2Voice1Offsets, >music2Voice1Offsets
-        dc.b <music2Voice2Offsets, >music2Voice2Offsets
-        dc.b <music2Voice3Offsets, >music2Voice3Offsets
-        dc.b <music2Voice4Offsets, >music2Voice4Offsets
+        dc.b $83
+        dc.b noteLengths150bpm-noteLengths
+        dc.w music2Voice1Offsets
+        dc.w music2Voice2Offsets
+        dc.w music2Voice3Offsets
+        dc.w music2Voice4Offsets
 
 music3Header
-        dc.b $81, $24
-        dc.b <music3Voice1Offsets, >music3Voice1Offsets
-        dc.b <music3Voice2Offsets, >music3Voice2Offsets
-        dc.b <music3Voice3Offsets, >music3Voice3Offsets
-        dc.b $ff, $ff
+        dc.b $81
+        dc.b noteLengths150bpm-noteLengths
+        dc.w music3Voice1Offsets
+        dc.w music3Voice2Offsets
+        dc.w music3Voice3Offsets
+        dc.w $ffff
 
 music1FastHeader
-        dc.b $81, $00
-        dc.b <music1Voice1Offsets, >music1Voice1Offsets
-        dc.b <music1Voice2Offsets, >music1Voice2Offsets
-        dc.b <music1Voice3Offsets, >music1Voice3Offsets
-        dc.b <music1Voice4Offsets, >music1Voice4Offsets
+        dc.b $81
+        dc.b noteLengths300bpm-noteLengths
+        dc.w music1Voice1Offsets
+        dc.w music1Voice2Offsets
+        dc.w music1Voice3Offsets
+        dc.w music1Voice4Offsets
 
 music2FastHeader
-        dc.b $83, $0c
-        dc.b <music2Voice1Offsets, >music2Voice1Offsets
-        dc.b <music2Voice2Offsets, >music2Voice2Offsets
-        dc.b <music2Voice3Offsets, >music2Voice3Offsets
-        dc.b <music2Voice4Offsets, >music2Voice4Offsets
+        dc.b $83
+        dc.b noteLengths225bpm-noteLengths
+        dc.w music2Voice1Offsets
+        dc.w music2Voice2Offsets
+        dc.w music2Voice3Offsets
+        dc.w music2Voice4Offsets
 
 music3FastHeader
-        dc.b $81, $0c
-        dc.b <music3Voice1Offsets, >music3Voice1Offsets
-        dc.b <music3Voice2Offsets, >music3Voice2Offsets
-        dc.b <music3Voice3Offsets, >music3Voice3Offsets
-        dc.b $ff, $ff
+        dc.b $81
+        dc.b noteLengths225bpm-noteLengths
+        dc.w music3Voice1Offsets
+        dc.w music3Voice2Offsets
+        dc.w music3Voice3Offsets
+        dc.w $ffff
 
 congratulationsMusicHeader
-        dc.b $00, $18
-        dc.b <congratulationsMusicVoice1Offsets, >congratulationsMusicVoice1Offsets
-        dc.b <congratulationsMusicVoice2Offsets, >congratulationsMusicVoice2Offsets
-        dc.b <congratulationsMusicVoice3Offsets, >congratulationsMusicVoice3Offsets
-        dc.b <congratulationsMusicVoice4Offsets, >congratulationsMusicVoice4Offsets
+        dc.b $00
+        dc.b noteLengths180bpm-noteLengths
+        dc.w congratulationsMusicVoice1Offsets
+        dc.w congratulationsMusicVoice2Offsets
+        dc.w congratulationsMusicVoice3Offsets
+        dc.w congratulationsMusicVoice4Offsets
 
 endingsMusicHeader
-        dc.b $8f, $24
-        dc.b <endingsMusicVoice1Offsets, >endingsMusicVoice1Offsets
-        dc.b <endingsMusicVoice2Offsets, >endingsMusicVoice2Offsets
-        dc.b <endingsMusicVoice3Offsets, >endingsMusicVoice3Offsets
-        dc.b <endingsMusicVoice4Offsets, >endingsMusicVoice4Offsets
+        dc.b $8f
+        dc.b noteLengths150bpm-noteLengths
+        dc.w endingsMusicVoice1Offsets
+        dc.w endingsMusicVoice2Offsets
+        dc.w endingsMusicVoice3Offsets
+        dc.w endingsMusicVoice4Offsets
+
+        ; Music commands
+
+END_SONG equ $0000
+REPEAT   equ $ffff
 
         ; B-type goal achieved music
 
 bTypeGoalMusicVoice1Offsets
-        dc.b <bTypeGoalMusicVoice1Commands, >bTypeGoalMusicVoice1Commands
-        dc.b $00, $00
+        dc.w bTypeGoalMusicVoice1Commands
+        dc.w END_SONG
 bTypeGoalMusicVoice2Offsets
-        dc.b <bTypeGoalMusicVoice3Commands, >bTypeGoalMusicVoice3Commands
+        dc.w bTypeGoalMusicVoice3Commands
 bTypeGoalMusicVoice3Offsets
-        dc.b <bTypeGoalMusicVoice2Commands, >bTypeGoalMusicVoice2Commands
+        dc.w bTypeGoalMusicVoice2Commands
 bTypeGoalMusicVoice4Offsets
-        dc.b <bTypeGoalMusicVoice4Commands, >bTypeGoalMusicVoice4Commands
+        dc.w bTypeGoalMusicVoice4Commands
 bTypeGoalMusicVoice1Commands
-        dc.b $9f, $a4, $b3, $b1, $50, $02, $50, $b5, $54, $b1, $5a, $58, $50, $b5, $54
+        dc.b $9f, $a4, $b3
+        dc.b $b1, $50, $02, $50, $b5, $54, $b1, $5a, $58, $50, $b5, $54
         dc.b $b1, $5a, $5e, $60, $b4, $62, $00
 bTypeGoalMusicVoice2Commands
-        dc.b $9f, $a0, $00, $b1, $4a, $02, $4a, $b5, $4e
+        dc.b $9f, $a0, $00
+        dc.b $b1, $4a, $02, $4a, $b5, $4e
         dc.b $b1, $50, $50, $46, $b5, $4e, $b1, $50, $54, $56, $b4, $5c, $00
 bTypeGoalMusicVoice3Commands
         dc.b $9f, $a4, $b3
@@ -6596,16 +6693,16 @@ bTypeGoalMusicVoice4Commands
         ; Unused title screen music
 
 titleMusicVoice1Offsets
-        dc.b <titleMusicVoice1Commands, >titleMusicVoice1Commands
-        dc.b $00, $00
+        dc.w titleMusicVoice1Commands
+        dc.w END_SONG
 titleMusicVoice2Offsets
-        dc.b <titleMusicVoice2Commands, >titleMusicVoice2Commands
+        dc.w titleMusicVoice2Commands
 titleMusicVoice3Offsets
-        dc.b <titleMusicVoice3Commands, >titleMusicVoice3Commands
+        dc.w titleMusicVoice3Commands
 titleMusicVoice4Offsets
-        dc.b <titleMusicVoice4Commands, >titleMusicVoice4Commands
-        dc.b $ff, $ff
-        dc.b <titleMusicVoice4Offsets, >titleMusicVoice4Offsets
+        dc.w titleMusicVoice4Commands
+        dc.w REPEAT
+        dc.w titleMusicVoice4Offsets
 titleMusicVoice1Commands
         dc.b $9f, $14, $b1
         dc.b $b9, $02, $02, $42, $b2, $5a, $42, $46
@@ -6654,27 +6751,27 @@ titleMusicVoice4Commands
         ; Music 1
 
 music1Voice1Offsets
-        dc.b <music1Voice1CommandsPart1, >music1Voice1CommandsPart1
-        dc.b <music1Voice1CommandsPart2, >music1Voice1CommandsPart2
-        dc.b <music1Voice1CommandsPart3, >music1Voice1CommandsPart3
-        dc.b $ff, $ff
-        dc.b <music1Voice1Offsets, >music1Voice1Offsets
+        dc.w music1Voice1CommandsPart1
+        dc.w music1Voice1CommandsPart2
+        dc.w music1Voice1CommandsPart3
+        dc.w REPEAT
+        dc.w music1Voice1Offsets
 music1Voice2Offsets
-        dc.b <music1Voice2CommandsPart1, >music1Voice2CommandsPart1
-        dc.b <music1Voice2CommandsPart2, >music1Voice2CommandsPart2
-        dc.b <music1Voice2CommandsPart3, >music1Voice2CommandsPart3
-        dc.b $ff, $ff
-        dc.b <music1Voice2Offsets, >music1Voice2Offsets
+        dc.w music1Voice2CommandsPart1
+        dc.w music1Voice2CommandsPart2
+        dc.w music1Voice2CommandsPart3
+        dc.w REPEAT
+        dc.w music1Voice2Offsets
 music1Voice3Offsets
-        dc.b <music1Voice3CommandsPart1, >music1Voice3CommandsPart1
-        dc.b <music1Voice3CommandsPart2, >music1Voice3CommandsPart2
-        dc.b <music1Voice3CommandsPart3, >music1Voice3CommandsPart3
-        dc.b $ff, $ff
-        dc.b <music1Voice3Offsets, >music1Voice3Offsets
+        dc.w music1Voice3CommandsPart1
+        dc.w music1Voice3CommandsPart2
+        dc.w music1Voice3CommandsPart3
+        dc.w REPEAT
+        dc.w music1Voice3Offsets
 music1Voice4Offsets
-        dc.b <music1Voice4Commands, >music1Voice4Commands
-        dc.b $ff, $ff
-        dc.b <music1Voice4Offsets, >music1Voice4Offsets
+        dc.w music1Voice4Commands
+        dc.w REPEAT
+        dc.w music1Voice4Offsets
 music1Voice1CommandsPart1
         dc.b $9f, $0a, $f1
         dc.b $b2, $20, $38, $20
@@ -6764,23 +6861,23 @@ music1Voice4Commands
         ; Music 3
 
 music3Voice1Offsets
-        dc.b <music3Voice1CommandsPart1, >music3Voice1CommandsPart1
+        dc.w music3Voice1CommandsPart1
 music3Voice1OffsetsRepeat
-        dc.b <music3Voice1CommandsPart2, >music3Voice1CommandsPart2
-        dc.b $ff, $ff
-        dc.b <music3Voice1OffsetsRepeat, >music3Voice1OffsetsRepeat
+        dc.w music3Voice1CommandsPart2
+        dc.w REPEAT
+        dc.w music3Voice1OffsetsRepeat
 music3Voice2Offsets
-        dc.b <music3Voice2Commands, >music3Voice2Commands
-        dc.b $ff, $ff
-        dc.b <music3Voice2Offsets, >music3Voice2Offsets
+        dc.w music3Voice2Commands
+        dc.w REPEAT
+        dc.w music3Voice2Offsets
 music3Voice3Offsets
-        dc.b <music3Voice3Commands, >music3Voice3Commands
-        dc.b $ff, $ff
-        dc.b <music3Voice3Offsets, >music3Voice3Offsets
+        dc.w music3Voice3Commands
+        dc.w REPEAT
+        dc.w music3Voice3Offsets
 music3Voice4Offsets
-        dc.b <music3Voice4Commands, >music3Voice4Commands
-        dc.b $ff, $ff
-        dc.b <music3Voice4Offsets, >music3Voice4Offsets
+        dc.w music3Voice4Commands
+        dc.w REPEAT
+        dc.w music3Voice4Offsets
 music3Voice1CommandsPart1
         dc.b $9f, $a5, $b1
         dc.b $b8, $02, $00
@@ -6810,21 +6907,21 @@ music3Voice4Commands
         ; Congratulations music
 
 congratulationsMusicVoice1Offsets
-        dc.b <congratulationsMusicVoice1Commands, >congratulationsMusicVoice1Commands
-        dc.b $ff, $ff
-        dc.b <congratulationsMusicVoice1Offsets, >congratulationsMusicVoice1Offsets
+        dc.w congratulationsMusicVoice1Commands
+        dc.w REPEAT
+        dc.w congratulationsMusicVoice1Offsets
 congratulationsMusicVoice2Offsets
-        dc.b <congratulationsMusicVoice2Commands, >congratulationsMusicVoice2Commands
-        dc.b $ff, $ff
-        dc.b <congratulationsMusicVoice2Offsets, >congratulationsMusicVoice2Offsets
+        dc.w congratulationsMusicVoice2Commands
+        dc.w REPEAT
+        dc.w congratulationsMusicVoice2Offsets
 congratulationsMusicVoice3Offsets
-        dc.b <congratulationsMusicVoice3Commands, >congratulationsMusicVoice3Commands
-        dc.b $ff, $ff
-        dc.b <congratulationsMusicVoice3Offsets, >congratulationsMusicVoice3Offsets
+        dc.w congratulationsMusicVoice3Commands
+        dc.w REPEAT
+        dc.w congratulationsMusicVoice3Offsets
 congratulationsMusicVoice4Offsets
-        dc.b <congratulationsMusicVoice4Commands, >congratulationsMusicVoice4Commands
-        dc.b $ff, $ff
-        dc.b <congratulationsMusicVoice4Offsets, >congratulationsMusicVoice4Offsets
+        dc.w congratulationsMusicVoice4Commands
+        dc.w REPEAT
+        dc.w congratulationsMusicVoice4Offsets
 congratulationsMusicVoice1Commands
         dc.b $9f, $07, $b1
         dc.b $b2, $42, $40, $3e, $c2, $b1, $1c, $02, $b2, $3c, $b1
@@ -6872,33 +6969,33 @@ congratulationsMusicVoice4Commands
         ; Music 2
 
 music2Voice1Offsets
-        dc.b <music2Voice1CommandsPart1, >music2Voice1CommandsPart1
-        dc.b <music2Voice1CommandsPart2, >music2Voice1CommandsPart2
-        dc.b <music2Voice1CommandsPart3, >music2Voice1CommandsPart3
-        dc.b <music2Voice1CommandsPart3, >music2Voice1CommandsPart3
-        dc.b <music2Voice1CommandsPart4, >music2Voice1CommandsPart4
-        dc.b $ff, $ff
-        dc.b <music2Voice1Offsets, >music2Voice1Offsets
+        dc.w music2Voice1CommandsPart1
+        dc.w music2Voice1CommandsPart2
+        dc.w music2Voice1CommandsPart3
+        dc.w music2Voice1CommandsPart3
+        dc.w music2Voice1CommandsPart4
+        dc.w REPEAT
+        dc.w music2Voice1Offsets
 music2Voice2Offsets
-        dc.b <music2Voice2CommandsPart1, >music2Voice2CommandsPart1
-        dc.b <music2Voice2CommandsPart2, >music2Voice2CommandsPart2
-        dc.b <music2Voice2CommandsPart3, >music2Voice2CommandsPart3
-        dc.b <music2Voice2CommandsPart3, >music2Voice2CommandsPart3
-        dc.b <music2Voice2CommandsPart4, >music2Voice2CommandsPart4
-        dc.b $ff, $ff
-        dc.b <music2Voice2Offsets, >music2Voice2Offsets
+        dc.w music2Voice2CommandsPart1
+        dc.w music2Voice2CommandsPart2
+        dc.w music2Voice2CommandsPart3
+        dc.w music2Voice2CommandsPart3
+        dc.w music2Voice2CommandsPart4
+        dc.w REPEAT
+        dc.w music2Voice2Offsets
 music2Voice3Offsets
-        dc.b <music2Voice3CommandsPart1, >music2Voice3CommandsPart1
-        dc.b <music2Voice3CommandsPart2, >music2Voice3CommandsPart2
-        dc.b <music2Voice3CommandsPart3, >music2Voice3CommandsPart3
-        dc.b <music2Voice3CommandsPart3, >music2Voice3CommandsPart3
-        dc.b <music2Voice3CommandsPart4, >music2Voice3CommandsPart4
-        dc.b $ff, $ff
-        dc.b <music2Voice3Offsets, >music2Voice3Offsets
+        dc.w music2Voice3CommandsPart1
+        dc.w music2Voice3CommandsPart2
+        dc.w music2Voice3CommandsPart3
+        dc.w music2Voice3CommandsPart3
+        dc.w music2Voice3CommandsPart4
+        dc.w REPEAT
+        dc.w music2Voice3Offsets
 music2Voice4Offsets
-        dc.b <music2Voice4CommandsPart1, >music2Voice4CommandsPart1
-        dc.b $ff, $ff
-        dc.b <music2Voice4Offsets, >music2Voice4Offsets
+        dc.w music2Voice4CommandsPart1
+        dc.w REPEAT
+        dc.w music2Voice4Offsets
 music2Voice2CommandsPart1
         dc.b $9f, $10, $31
         dc.b $b4, $02, $00
@@ -6976,33 +7073,33 @@ music2Voice3CommandsPart4
         ; Endings music
 
 endingsMusicVoice1Offsets
-        dc.b <endingsMusicVoice1CommandsPart1, >endingsMusicVoice1CommandsPart1
-        dc.b <endingsMusicVoice1CommandsPart2, >endingsMusicVoice1CommandsPart2
-        dc.b <endingsMusicVoice1CommandsPart1, >endingsMusicVoice1CommandsPart1
-        dc.b <endingsMusicVoice1CommandsPart3, >endingsMusicVoice1CommandsPart3
-        dc.b $ff, $ff
-        dc.b <endingsMusicVoice1Offsets, >endingsMusicVoice1Offsets
+        dc.w endingsMusicVoice1CommandsPart1
+        dc.w endingsMusicVoice1CommandsPart2
+        dc.w endingsMusicVoice1CommandsPart1
+        dc.w endingsMusicVoice1CommandsPart3
+        dc.w REPEAT
+        dc.w endingsMusicVoice1Offsets
 endingsMusicVoice2Offsets
-        dc.b <endingsMusicVoice2CommandsPart1, >endingsMusicVoice2CommandsPart1
-        dc.b <endingsMusicVoice2CommandsPart2, >endingsMusicVoice2CommandsPart2
-        dc.b <endingsMusicVoice2CommandsPart1, >endingsMusicVoice2CommandsPart1
-        dc.b <endingsMusicVoice2CommandsPart3, >endingsMusicVoice2CommandsPart3
-        dc.b $ff, $ff
-        dc.b <endingsMusicVoice2Offsets, >endingsMusicVoice2Offsets
+        dc.w endingsMusicVoice2CommandsPart1
+        dc.w endingsMusicVoice2CommandsPart2
+        dc.w endingsMusicVoice2CommandsPart1
+        dc.w endingsMusicVoice2CommandsPart3
+        dc.w REPEAT
+        dc.w endingsMusicVoice2Offsets
 endingsMusicVoice3Offsets
-        dc.b <endingsMusicVoice3CommandsPart1, >endingsMusicVoice3CommandsPart1
-        dc.b <endingsMusicVoice3CommandsPart2, >endingsMusicVoice3CommandsPart2
-        dc.b <endingsMusicVoice3CommandsPart1, >endingsMusicVoice3CommandsPart1
-        dc.b <endingsMusicVoice3CommandsPart3, >endingsMusicVoice3CommandsPart3
-        dc.b $ff, $ff
-        dc.b <endingsMusicVoice3Offsets, >endingsMusicVoice3Offsets
+        dc.w endingsMusicVoice3CommandsPart1
+        dc.w endingsMusicVoice3CommandsPart2
+        dc.w endingsMusicVoice3CommandsPart1
+        dc.w endingsMusicVoice3CommandsPart3
+        dc.w REPEAT
+        dc.w endingsMusicVoice3Offsets
 endingsMusicVoice4Offsets
-        dc.b <endingsMusicVoice4CommandsPart1, >endingsMusicVoice4CommandsPart1
-        dc.b <endingsMusicVoice4CommandsPart1, >endingsMusicVoice4CommandsPart1
-        dc.b <endingsMusicVoice4CommandsPart1, >endingsMusicVoice4CommandsPart1
-        dc.b <endingsMusicVoice4CommandsPart2, >endingsMusicVoice4CommandsPart2
-        dc.b $ff, $ff
-        dc.b <endingsMusicVoice4Offsets, >endingsMusicVoice4Offsets
+        dc.w endingsMusicVoice4CommandsPart1
+        dc.w endingsMusicVoice4CommandsPart1
+        dc.w endingsMusicVoice4CommandsPart1
+        dc.w endingsMusicVoice4CommandsPart2
+        dc.w REPEAT
+        dc.w endingsMusicVoice4Offsets
 endingsMusicVoice2CommandsPart1
         dc.b $9f, $01, $b1, $b1, $56, $b0, $56, $56, $56, $4c, $48, $4c
         dc.b $b1, $56, $b0, $56, $56, $56, $5a, $5e, $5a, $b1, $56, $b0, $56, $56, $5a, $56

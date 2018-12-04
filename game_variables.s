@@ -155,10 +155,13 @@ playfield2 equ $500 ; $500-$5ff
 voiceParameters equ $680
 pulse1TimerLow equ $680
 pulse1TimerHigh equ $681
+pulse2TimerLow equ $684
+pulse2TimerHigh equ $685
 currentSongHeader equ $690
+songKey equ $690
 songTempo equ $691
-songStartLow equ $692
-songStartHigh equ $693
+voiceStart equ $692 ; $692 - $69a
+                    ; 4 voices, 1 address each (2 bytes)
 
 voiceData = $6a0 ; $6a0-$6a7
                  ; 4 voices, 1 address each (2 bytes)
@@ -171,6 +174,8 @@ voiceNoteLength equ $6b8
 voiceRepeatCounter equ $6bc
 pulse1Sweep equ $6c0
 pulse2Sweep equ $6c1
+currentNote equ $6c3 ; $6c3 - $6c6
+                     ; 4 voices, 1 byte each
 noiseSoundEffect equ $6f0
 
 GAME_OVER_CURTAIN_SOUND	equ $02
