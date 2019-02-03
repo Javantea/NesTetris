@@ -5791,110 +5791,120 @@ advanceMusic subroutine
         bne .advance
         rts
 ;--------------------
-lbl_e5ab
-		dc.b $00, $10, $01, $18, $00, $01, $38, $00, $03, $40, $00, $06, $58, $00, $0a, $38
-        dc.b $02, $04, $40, $13, $05, $40, $14, $0a, $40, $14, $08, $40, $12, $0e, $08, $16
-        dc.b $0e, $28, $16, $0b, $18
+noiseWaveforms
+		dc.b $00
+		dc.b $10, $01, $18
+		dc.b $00, $01, $38
+		dc.b $00, $03, $40
+		dc.b $00, $06, $58
+		dc.b $00, $0a, $38
+        dc.b $02, $04, $40
+        dc.b $13, $05, $40
+        dc.b $14, $0a, $40
+        dc.b $14, $08, $40
+        dc.b $12, $0e, $08
+        dc.b $16, $0e, $28
+        dc.b $16, $0b, $18
 ;--------------------
-lbl_e5d0 subroutine
+applyVibrato subroutine
         lda $6fd
         cmp #$1
         beq .return
         txa
         cmp #$3
         beq .return
-        lda $69a,x
+        lda voiceVibratoWave,x
         and #$e0
         beq .return
         sta apuRegisterLow
         lda currentNote,x
         cmp #$2
-        beq lbl_e5f6
+        beq .rest
         ldy voiceParameterOffset
         lda pulse1TimerLow,y
         sta apuRegisterHigh
-        jsr lbl_e637
-lbl_e5f6
-        inc $6d1,x
+        jsr shiftFrequency
+.rest
+        inc voiceVibratoOffset,x
 .return
         rts
 ;--------------------
-lbl_e5fa
+.applyVibrato1
         lda $e2
         cmp #$31
         bne lbl_e602
         lda #$27
 lbl_e602
         tay
-        lda lbl_e689,y
+        lda vibratoPattern1,y
         pha
         lda currentNote,x
         cmp #$46
         bne lbl_e613
         pla
         lda #$0
-        beq lbl_e671
+        beq .setVibratoOffset
 lbl_e613
         pla
-        jmp lbl_e671
-lbl_e617
+        jmp .setVibratoOffset
+.applyVibrato4
         lda $e2
         tay
         cmp #$10
         bcs lbl_e624
-        lda lbl_e6c0,y
-        jmp lbl_e677
+        lda vibratoPattern4,y
+        jmp .setFrequency
 lbl_e624
         lda #$f6
-        bne lbl_e677
-lbl_e628
+        bne .setFrequency
+.flat
         lda currentNote,x
         cmp #$4c
         bcc lbl_e633
         lda #$fe
-        bne lbl_e677
+        bne .setFrequency
 lbl_e633
         lda #$fe
-        bne lbl_e677
-lbl_e637
-        lda $6d1,x
+        bne .setFrequency
+shiftFrequency
+        lda voiceVibratoOffset,x
         sta $e2
         lda apuRegisterLow
         cmp #$20
-        beq lbl_e656
+        beq .applyVibrato3
         cmp #$a0
-        beq lbl_e665
+        beq .applyVibrato2
         cmp #$60
-        beq lbl_e628
+        beq .flat
         cmp #$40
-        beq lbl_e617
+        beq .applyVibrato4
         cmp #$80
-        beq lbl_e5fa
+        beq .applyVibrato1
         cmp #$c0
-        beq lbl_e5fa
-lbl_e656
+        beq .applyVibrato1
+.applyVibrato3
         lda $e2
         cmp #$a
         bne lbl_e65e
         lda #$0
 lbl_e65e
         tay
-        lda lbl_e6b6,y
-        jmp lbl_e671
-lbl_e665
+        lda vibratoPattern3,y
+        jmp .setVibratoOffset
+.applyVibrato2
         lda $e2
         cmp #$2b
         bne lbl_e66d
         lda #$21
 lbl_e66d
         tay
-        lda lbl_e695,y
-lbl_e671
+        lda vibratoPattern2,y
+.setVibratoOffset
         pha
         tya
-        sta $6d1,x
+        sta voiceVibratoOffset,x
         pla
-lbl_e677
+.setFrequency
         pha
         lda $6c8,x
         bne lbl_e687
@@ -5908,15 +5918,15 @@ lbl_e687
         pla
         rts
 ;--------------------
-lbl_e689
+vibratoPattern1
 		dc.b $09, $08, $07, $06, $05, $04, $03, $02, $02, $01, $01, $00
-lbl_e695
+vibratoPattern2
 		dc.b $00, $00, $00, $00
         dc.b $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00
         dc.b $ff, $00, $00, $00, $00, $01, $01, $00, $00, $00, $ff, $ff, $00
-lbl_e6b6
+vibratoPattern3
         dc.b  $00, $01, $01, $02, $01, $00, $ff, $ff, $fe, $ff
-lbl_e6c0
+vibratoPattern4
         dc.b $00, $ff, $fe, $fd, $fc, $fb, $fa, $f9, $f8, $f7, $f6, $f5, $f6, $f7, $f6, $f5
 ;--------------------
 startSongRoutine subroutine
@@ -5998,11 +6008,11 @@ lbl_e74f
 lbl_e765
         rts
 ;--------------------
-lbl_e766 subroutine
+applyWaveform subroutine
         txa
         cmp #$2
         bcs lbl_e765
-        lda $69a,x
+        lda voiceVibratoWave,x
         and #$1f
         beq lbl_e7cb
         sta apuRegisterHigh
@@ -6017,9 +6027,9 @@ lbl_e77d
         iny
         bne lbl_e77d
 lbl_e785
-        lda lbl_ea4a,y
+        lda waveforms,y
         sta $e2
-        lda lbl_ea4a+1,y
+        lda waveforms+1,y
         sta $e3
         lda $6cd,x
         lsr
@@ -6041,7 +6051,7 @@ lbl_e7af
         lda $e4
         and #$f
         sta apuRegisterLow
-        lda $69d,x
+        lda voiceVolumeDuty,x
         and #$f0
         ora apuRegisterLow
         tay
@@ -6056,7 +6066,7 @@ lbl_e7c0
 lbl_e7cb
         rts
 lbl_e7cc
-        ldy $69d,x
+        ldy voiceVolumeDuty,x
         bne lbl_e7c0
 lbl_e7d1
         ldy #$10
@@ -6160,7 +6170,7 @@ lbl_e85a
         bne lbl_e8bf
         lda #$0
         sta $6cd,x
-        sta $6d1,x
+        sta voiceVibratoOffset,x
 .doNextCommand
         jsr nextSongCommand
         beq lbl_e83d
@@ -6194,8 +6204,8 @@ lbl_e89d
 lbl_e8bc
         jmp .doNextCommand
 lbl_e8bf
-        jsr lbl_e766
-        jsr lbl_e5d0
+        jsr applyWaveform
+        jsr applyVibrato
         jmp .nextVoice
 lbl_e8c8
         jmp lbl_e9dc
@@ -6203,9 +6213,9 @@ lbl_e8cb
         jmp lbl_e9b2
 .initVoice
         jsr nextSongCommand
-        sta $69a,x
+        sta voiceVibratoWave,x
         jsr nextSongCommand
-        sta $69d,x
+        sta voiceVolumeDuty,x
         jmp .doNextCommand
         jsr nextSongCommand
         jsr nextSongCommand
@@ -6273,16 +6283,16 @@ lbl_e94c
         tya
         bne lbl_e961
         lda #$0
-        sta voiceVolumeDuty
+        sta currentVoiceVolumeDuty
         txa
         cmp #$2
         beq lbl_e966
         lda #$10
-        sta voiceVolumeDuty
+        sta currentVoiceVolumeDuty
         bne lbl_e966
 lbl_e961
-        lda $69d,x
-        sta voiceVolumeDuty
+        lda voiceVolumeDuty,x
+        sta currentVoiceVolumeDuty
 lbl_e966
         txa
         dec $6c8,x
@@ -6293,17 +6303,17 @@ lbl_e966
         txa
         cmp #$2
         beq lbl_e98c
-        lda $69a,x
+        lda voiceVibratoWave,x
         and #$1f
         beq lbl_e98c
-        lda voiceVolumeDuty
+        lda currentVoiceVolumeDuty
         cmp #$10
         beq lbl_e98e
         and #$f0
         ora #$0
         bne lbl_e98e
 lbl_e98c
-        lda voiceVolumeDuty
+        lda currentVoiceVolumeDuty
 lbl_e98e
         sta PULSE_1_DUTY,y
         lda pulse1Sweep,x
@@ -6357,11 +6367,11 @@ lbl_e9dc
 lbl_e9eb
         lda $6f8
         bne lbl_ea02
-        lda lbl_e5ab,y
+        lda noiseWaveforms,y
         sta NOISE_DUTY
-        lda lbl_e5ab+1,y
+        lda noiseWaveforms+1,y
         sta NOISE_TIMER_LOW
-        lda lbl_e5ab+2,y
+        lda noiseWaveforms+2,y
         sta NOISE_TIMER_HIGH
 lbl_ea02
         rts
@@ -6406,7 +6416,7 @@ nextSongCommand
         lda ($e6),y
         rts
 ;--------------------
-lbl_ea4a
+waveforms
         dc.w lbl_ea76
         dc.w lbl_ea82
         dc.w lbl_ea8b

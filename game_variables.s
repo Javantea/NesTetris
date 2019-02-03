@@ -125,7 +125,7 @@ apuRegisterLow equ $e0
 apuRegisterHigh equ $e1
 apuChannelPlayerLow equ $e0
 apuChannelPlayerHigh equ $e1
-voiceVolumeDuty equ $e0
+currentVoiceVolumeDuty equ $e0
 apuChannelInitializerLow equ $e2
 apuChannelInitializerHigh equ $e3
 activeChannelPlayerLow equ $e2
@@ -160,9 +160,15 @@ pulse2TimerHigh equ $685
 currentSongHeader equ $690
 songKey equ $690
 songTempo equ $691
-voiceStart equ $692 ; $692 - $69a
+voiceStart equ $692 ; $692 - $699
                     ; 4 voices, 1 address each (2 bytes)
-
+voiceVibratoWave equ $69a ; $69a - $69c
+                         ; 3 voices, 1 byte each
+                         ; first 3 bits contain vibrato command
+                         ; last 5 bits contain waveform index
+voiceVolumeDuty equ $69d ; $69d - $69f
+                         ; 3 voices, 1 byte each
+                         ; like DUTY APU registers
 voiceData = $6a0 ; $6a0-$6a7
                  ; 4 voices, 1 address each (2 bytes)
 
@@ -176,6 +182,7 @@ pulse1Sweep equ $6c0
 pulse2Sweep equ $6c1
 currentNote equ $6c3 ; $6c3 - $6c6
                      ; 4 voices, 1 byte each
+voiceVibratoOffset equ $6d1
 noiseSoundEffect equ $6f0
 
 GAME_OVER_CURTAIN_SOUND	equ $02
