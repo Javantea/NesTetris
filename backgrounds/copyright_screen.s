@@ -65,13 +65,13 @@
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 		hex 22 c0 20
-		hex ff ff ff ff ff ff ff ff ff 0d 0a 1c ff 1d 1b 0a
-		hex 12 17 0e 1b ff 0b 22 ff ff ff ff ff ff ff ff ff
+		hex ff ff ff ff ff ff ff 0d 0a 1c ff 1d 1b 0a 12 17
+		hex 0e 1b ff 1f 01 6f 01 ff 0b 22 ff ff ff ff ff ff
 		hex 22 e0 20
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 		hex 23 00 20
-		hex ff ff ff ff ff ff ff f5 ff 02 00 01 07 ff 13 0a
+		hex ff ff ff ff ff ff ff f5 ff 02 00 01 09 ff 13 0a
 		hex 23 23 1d 11 12 0e 0f 08 01 ff ff ff ff ff ff ff
 		hex 23 20 20
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
@@ -92,6 +92,6 @@
 		hex ff ff ff ff ff ff ff ff ff 0f 0f 0f 05 0d 0f cf
 		hex 7b 50 d0 f0 f0 30 00 cc ff f4 f5 f1 f0 f0 f0 f0
 		hex 23 e0 20
-		hex ff ff ff ff ff ff ff ff ff ff 5b 5a 5a fa fa ff
+		hex ff ff ff ff ff ff ff ff ff 5f 5b 5a 5a 5a fa ff
 		hex ff f4 f5 f1 f0 f0 f0 ff 0f 0f 0f 0f 0f 0f 0f 0f
 		hex ff

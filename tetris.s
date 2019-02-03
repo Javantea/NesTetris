@@ -5269,25 +5269,35 @@ updateTetriminoStatsPatched subroutine
         rts
 ;--------------------
 renderPlayAndDemoScreensPatched subroutine
+        lda $a3                                 ; Keep copy of initial rendering flags.
+        pha
+
 		jsr renderPlayAndDemoScreens
 		;jsr flashBackground
 
-		lda $b0								   ; Wait for next frame.
-		cmp #$ff
-		bne .renderCurrentDas
-		inc $b0
-		jmp .return
+        pla                                     ; Don't render any additional stats when level/lines/score
+        and #$0f                                ; need to be updated during the same frame.
+        bne .return
 
-.renderCurrentDas
+        ldx autoRepeatX
+        cpx previousAutoRepeatX
+        beq .noCurrentDasRender
 		lda #$20								; Render current DAS.
 		sta PPUADDR
 		lda #$a5
 		sta PPUADDR
-        ldx autoRepeatX
         lda binaryToBinaryCodedDecimal,x
         jsr printTwoDigitNumber
+.noCurrentDasRender
 
-		lda $a3
+		lda $b0								    ; Wait for next frame?
+		cmp #$ff
+		bne .startStatsRender
+		inc $b0
+		jmp .return
+
+.startStatsRender
+		lda $a3                                 ; Clear stats flag set?
 		and #$20
 		beq .noClearView
 		jsr clearStatsView
@@ -5308,7 +5318,7 @@ renderPlayAndDemoScreensPatched subroutine
 		cmp #9
 		beq .endStatsRender
 
-		;lda dasStatsHidden					; Render split view?
+		;lda dasStatsHidden					    ; Render split view?
 		lda #$0
 		beq .splitView
 
