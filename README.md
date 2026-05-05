@@ -28,7 +28,7 @@ Branch: [controller_input_display](https://github.com/jazzthief81/NesTetris/tree
 
 Shows the player inputs (A, B and D-pad) in the bottom right of the screen.
 
-![Controller input display ROM hack](https://github.com/jazzthief81/llminxsolver/raw/master/docs/images/controller_input_display.png "Controller input display ROM hack")
+![Controller input display ROM hack](https://github.com/jazzthief81/NesTetris/raw/master/docs/images/controller_input_display.png "Controller input display ROM hack")
 
 ### Accommodation stats
 
@@ -36,7 +36,7 @@ Branch: [accomodation_stats](https://github.com/jazzthief81/NesTetris/tree/accom
 
 Shows a graph below the playfield that tells how many pieces (1-7) each column of the stack can accommodate cleanly.
 
-![Accommodation stats ROM hack](https://github.com/jazzthief81/llminxsolver/raw/master/docs/images/accomodation_stats.png "Accommodation stats ROM hack")
+![Accommodation stats ROM hack](https://github.com/jazzthief81/NesTetris/raw/master/docs/images/accommodation_stats.png "Accommodation stats ROM hack")
 
 ### Drought stats
 
@@ -45,7 +45,7 @@ Branch: [drought_stats](https://github.com/jazzthief81/NesTetris/tree/drought_st
 Uses the statistics panel to show the drought for each individual piece (i.e. how many piece drops ago did the game
 spawn that specific piece).
 
-![Drought stats ROM hack](https://github.com/jazzthief81/llminxsolver/raw/master/docs/images/drought_stats.png "Drought stats ROM hack")
+![Drought stats ROM hack](https://github.com/jazzthief81/NesTetris/raw/master/docs/images/drought_stats.png "Drought stats ROM hack")
 
 ### Lock indicator
 
@@ -54,13 +54,13 @@ Branch: [lock_indicator](https://github.com/jazzthief81/NesTetris/tree/lock_indi
 Highlights the current piece the moment it locks into the playfield. During this time the D-pad can be pressed safely to
 affect the direction of the next piece (aka loading DAS).
 
-![Lock indicator ROM hack](https://github.com/jazzthief81/llminxsolver/raw/master/docs/images/lock_indicator.png "Lock indicator ROM hack")
+![Lock indicator ROM hack](https://github.com/jazzthief81/NesTetris/raw/master/docs/images/lock_indicator.png "Lock indicator ROM hack")
 
 ### DAS trainer
 
 Branch: [das_trainer](https://github.com/jazzthief81/NesTetris/tree/das_trainer)
 
-![DAS trainer ROM hack](https://github.com/jazzthief81/llminxsolver/raw/master/docs/images/das_trainer.png "DAS trainer ROM hack")
+![DAS trainer ROM hack](https://github.com/jazzthief81/NesTetris/raw/master/docs/images/das_trainer.png "DAS trainer ROM hack")
 
 Gives players feedback on their mastery of the DAS (Delayed Auto Shift) for moving pieces left and right quicker. The 
 left hand side of the game screen, where the tetrimino statistics are usually shown in the original game, is instead
