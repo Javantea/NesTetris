@@ -6,7 +6,7 @@ Reverse engineered from the USA version (NTSC) of Tetris for the Nintendo Entert
 To assemble a ROM file that can be played on an emulator or on an actual NES using an SD/CF card solution (like the EverDrive
 or the retroUSB PowerPak), follow these steps:
 
-- Download and install dasm macro assembler: https://sourceforge.net/projects/dasm-dillon/
+- Download and install dasm macro assembler: https://dasm-assembler.github.io/
 - Open a command line and make sure ```dasm.exe``` is in the path and can be invoked.
 - From the command line execute the following command from the root of the repository:
 ```
