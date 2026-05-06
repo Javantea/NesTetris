@@ -4861,25 +4861,25 @@ initialHighScoreTable
         ; Screen background data
 
 copyright_screen_background
-        incbin backgrounds/copyright_screen.bin
+        incbin "backgrounds/copyright_screen.bin"
 
 title_screen_background
-        incbin backgrounds/title_screen.bin
+        incbin "backgrounds/title_screen.bin"
 
 game_select_screen_background
-        incbin backgrounds/game_select_screen.bin
+        incbin "backgrounds/game_select_screen.bin"
 
 level_select_screen_background
-        incbin backgrounds/level_select_screen.bin
+        incbin "backgrounds/level_select_screen.bin"
 
 ingame_screen_background
-        incbin backgrounds/ingame_screen.bin
+        incbin "backgrounds/ingame_screen.bin"
 
 highscore_screen_background
-        incbin backgrounds/highscore_screen.bin
+        incbin "backgrounds/highscore_screen.bin"
 
 highscore_table_background
-        incbin backgrounds/highscore_table.bin
+        incbin "backgrounds/highscore_table.bin"
 
 a_type_menu_color_palette_background
         dc.b $3f, $0a, $01, $16
@@ -4891,13 +4891,13 @@ a_type_menu_color_palette_background
         dc.b $ff
 
 b_type_ending_lvl9_screen_background
-        incbin backgrounds/b_type_ending_lvl9_screen.bin
+        incbin "backgrounds/b_type_ending_lvl9_screen.bin"
 
 b_type_ending_screen_background
-        incbin backgrounds/b_type_ending_screen.bin
+        incbin "backgrounds/b_type_ending_screen.bin"
 
 type_a_ending_screen_background
-        incbin backgrounds/a_type_ending_screen.bin
+        incbin "backgrounds/a_type_ending_screen.bin"
 
         ; Padding
 
@@ -7292,4 +7292,4 @@ lbl_ff0f
         dc.b <resetHandler, >resetHandler    ; Reset vector
         dc.b <irqHandler, >irqHandler        ; IRQ/BRK vector
 
-        incbin pattern_tables.bin
+        incbin "pattern_tables.bin"
