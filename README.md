@@ -30,8 +30,9 @@ In addition to the DAS window, some minor modifications are made to the game to 
   allowing faster resets.
 - Pausing the game keeps the game screen visible, allowing the player to analyze the board and inspect the DAS window
   during the game.
-- If the game ends with a score of at least 30000, the game waits until the player presses START before the ending
-  screen is shown, allowing the player to inspect the DAS window at the end of the game.
+- The rocket screen is never shown.
+- When the player tops out, the game waits until the player presses START before the high score table is shown, allowing
+the player to inspect the DAS window at the end of the game.
 - Controller inputs (left, right, down, A and B buttons) are visualized on the bottom right.
 
 

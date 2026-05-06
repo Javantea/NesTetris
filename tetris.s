@@ -2322,8 +2322,8 @@ lbl_9a46
         lda buttonStateMirror
         cmp #JOYPAD_START
         bne lbl_9a6a
-        lda scoreMirror+2	; Score >= 30000?
-        cmp #$3
+        lda scoreMirror+2	; Disable score check so rocket screen is always skipped
+        cmp #$ff
         bcc .advancePlayState
         lda #$01
         jsr initialLegalScreenWait

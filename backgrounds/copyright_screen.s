@@ -66,12 +66,12 @@
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 		hex 22 c0 20
 		hex ff ff ff ff ff ff ff 0d 0a 1c ff 1d 1b 0a 12 17
-		hex 0e 1b ff 1f 01 6f 01 ff 0b 22 ff ff ff ff ff ff
+		hex 0e 1b ff 1f 01 6f 02 ff 0b 22 ff ff ff ff ff ff
 		hex 22 e0 20
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 		hex 23 00 20
-		hex ff ff ff ff ff ff ff f5 ff 02 00 01 09 ff 13 0a
+		hex ff ff ff ff ff ff ff f5 ff 02 00 02 06 ff 13 0a
 		hex 23 23 1d 11 12 0e 0f 08 01 ff ff ff ff ff ff ff
 		hex 23 20 20
 		hex ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
